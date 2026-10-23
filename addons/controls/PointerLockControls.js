@@ -32,6 +32,7 @@ class PointerLockControls extends EventDispatcher {
 		this.pointerSpeed = 1.0;
 
 		this._onMouseMove = onMouseMove.bind( this );
+		this._onBitLook = onBitLook.bind( this );
 		this._onPointerlockChange = onPointerlockChange.bind( this );
 		this._onPointerlockError = onPointerlockError.bind( this );
 
@@ -42,6 +43,7 @@ class PointerLockControls extends EventDispatcher {
 	connect() {
 
 		this.domElement.ownerDocument.addEventListener( 'mousemove', this._onMouseMove );
+		window.addEventListener( 'bitlook', this._onBitLook );
 		this.domElement.ownerDocument.addEventListener( 'pointerlockchange', this._onPointerlockChange );
 		this.domElement.ownerDocument.addEventListener( 'pointerlockerror', this._onPointerlockError );
 
@@ -50,6 +52,7 @@ class PointerLockControls extends EventDispatcher {
 	disconnect() {
 
 		this.domElement.ownerDocument.removeEventListener( 'mousemove', this._onMouseMove );
+		window.removeEventListener( 'bitlook', this._onBitLook );
 		this.domElement.ownerDocument.removeEventListener( 'pointerlockchange', this._onPointerlockChange );
 		this.domElement.ownerDocument.removeEventListener( 'pointerlockerror', this._onPointerlockError );
 
@@ -120,6 +123,30 @@ function onMouseMove( event ) {
 
 	const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
 	const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+	const camera = this.camera;
+	_euler.setFromQuaternion( camera.quaternion );
+
+	_euler.y -= movementX * 0.002 * this.pointerSpeed;
+	_euler.x -= movementY * 0.002 * this.pointerSpeed;
+
+	_euler.x = Math.max( _PI_2 - this.maxPolarAngle, Math.min( _PI_2 - this.minPolarAngle, _euler.x ) );
+
+	camera.quaternion.setFromEuler( _euler );
+
+	this.dispatchEvent( _changeEvent );
+
+}
+
+// Bit mobile kit: touch drag-look for devices without pointer lock.
+// Desktop behavior is untouched — this only fires on 'bitlook' events
+// dispatched by the mobile controls overlay while not locked.
+function onBitLook( event ) {
+
+	if ( this.isLocked === true ) return;
+
+	const movementX = ( event.detail && event.detail.dx ) || 0;
+	const movementY = ( event.detail && event.detail.dy ) || 0;
 
 	const camera = this.camera;
 	_euler.setFromQuaternion( camera.quaternion );
