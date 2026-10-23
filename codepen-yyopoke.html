@@ -885,13 +885,13 @@
 
     <!-- Module Imports -->
     <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-            "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
-        }
+{
+    "imports": {
+        "three": "./three.module.js",
+        "three/addons/": "./addons/",
+        "cannon-es": "./cannon-es.js"
     }
+}
 </script>
 
     <script type="module">
@@ -1203,7 +1203,7 @@
 
         // --- BACKGROUND CITY (Static Visuals) ---
         function createBackgroundCity() {
-            const bgGridTex = new THREE.TextureLoader().load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            const bgGridTex = new THREE.TextureLoader().load('./grasslight-big.jpg');
             bgGridTex.wrapS = THREE.RepeatWrapping;
             bgGridTex.wrapT = THREE.RepeatWrapping;
             bgGridTex.repeat.set(80, 80);
@@ -1232,7 +1232,7 @@
         // --- ASSET GENERATION (The Art) ---
         function createEnvironment(material) {
             const loader = new THREE.TextureLoader();
-            const grassTex = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            const grassTex = loader.load('./grasslight-big.jpg');
             grassTex.wrapS = THREE.RepeatWrapping;
             grassTex.wrapT = THREE.RepeatWrapping;
             grassTex.repeat.set(40, 40);

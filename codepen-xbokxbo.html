@@ -4,7 +4,213 @@
   <head>
     <meta charset="UTF-8">
     <title>Brainy Rush</title>
-    <link rel="stylesheet" href="./style.css">
+    <style>
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f0f4f8;
+    font-family: 'Fredoka One', cursive;
+    user-select: none;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.95);
+    pointer-events: auto;
+    transition: opacity 0.3s;
+    z-index: 10;
+}
+
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    font-size: 5rem;
+    color: #FF6B6B;
+    text-shadow: 3px 3px 0px #2E2E2E;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+p {
+    font-size: 2rem;
+    color: #4dc0b5;
+    margin-bottom: 2rem;
+}
+
+button {
+    padding: 1rem 4rem;
+    font-size: 2.5rem;
+    font-family: 'Fredoka One', cursive;
+    background-color: #4ECDC4;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 #3b9b95;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+button:active {
+    transform: translateY(4px);
+    box-shadow: 0 4px 0 #3b9b95;
+}
+
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.hud-item {
+    position: absolute;
+    top: 20px;
+    font-size: 2rem;
+    color: #2E2E2E;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px 20px;
+    border-radius: 20px;
+}
+
+.hud-item.left {
+    left: 20px;
+}
+
+.hud-item.right {
+    right: 20px;
+}
+
+#timer-bar-container {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40%;
+    height: 30px;
+    background: #e0e0e0;
+    border-radius: 15px;
+    overflow: hidden;
+    border: 4px solid #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+#timer-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B6B, #FF8E53);
+    transition: width 0.1s linear;
+}
+
+/* Reward Styles */
+.reward-buttons {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.reward-btn {
+    padding: 1rem 2rem;
+    font-size: 1.5rem;
+    background-color: #FFD93D;
+    box-shadow: 0 6px 0 #d4b21e;
+}
+
+.reward-btn:active {
+    box-shadow: 0 3px 0 #d4b21e;
+    transform: translateY(3px);
+}
+
+#btn-tetris {
+    background-color: #FF6B6B;
+    box-shadow: 0 6px 0 #c74b4b;
+}
+
+#btn-pong {
+    background-color: #4ECDC4;
+    box-shadow: 0 6px 0 #3b9b95;
+}
+
+#btn-asteroids {
+    background-color: #9B5DE5;
+    box-shadow: 0 6px 0 #7e3ebc;
+}
+
+#reward-hud {
+    z-index: 5;
+}
+
+/* Difficulty Buttons */
+.difficulty-select {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.diff-btn {
+    padding: 1rem 2rem;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+}
+
+.diff-btn.easy {
+    background-color: #2ECC71;
+    box-shadow: 0 6px 0 #27ae60;
+}
+
+.diff-btn.medium {
+    background-color: #F1C40F;
+    box-shadow: 0 6px 0 #f39c12;
+}
+
+.diff-btn.hard {
+    background-color: #E74C3C;
+    box-shadow: 0 6px 0 #c0392b;
+}
+
+.diff-btn:active {
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+    transform: translateY(3px);
+}
+</style>
 
   </head>
     
@@ -17,7 +223,213 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brainy Rush - Endless Math Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f0f4f8;
+    font-family: 'Fredoka One', cursive;
+    user-select: none;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.95);
+    pointer-events: auto;
+    transition: opacity 0.3s;
+    z-index: 10;
+}
+
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    font-size: 5rem;
+    color: #FF6B6B;
+    text-shadow: 3px 3px 0px #2E2E2E;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+p {
+    font-size: 2rem;
+    color: #4dc0b5;
+    margin-bottom: 2rem;
+}
+
+button {
+    padding: 1rem 4rem;
+    font-size: 2.5rem;
+    font-family: 'Fredoka One', cursive;
+    background-color: #4ECDC4;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 #3b9b95;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+button:active {
+    transform: translateY(4px);
+    box-shadow: 0 4px 0 #3b9b95;
+}
+
+#hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.hud-item {
+    position: absolute;
+    top: 20px;
+    font-size: 2rem;
+    color: #2E2E2E;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px 20px;
+    border-radius: 20px;
+}
+
+.hud-item.left {
+    left: 20px;
+}
+
+.hud-item.right {
+    right: 20px;
+}
+
+#timer-bar-container {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40%;
+    height: 30px;
+    background: #e0e0e0;
+    border-radius: 15px;
+    overflow: hidden;
+    border: 4px solid #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+#timer-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B6B, #FF8E53);
+    transition: width 0.1s linear;
+}
+
+/* Reward Styles */
+.reward-buttons {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.reward-btn {
+    padding: 1rem 2rem;
+    font-size: 1.5rem;
+    background-color: #FFD93D;
+    box-shadow: 0 6px 0 #d4b21e;
+}
+
+.reward-btn:active {
+    box-shadow: 0 3px 0 #d4b21e;
+    transform: translateY(3px);
+}
+
+#btn-tetris {
+    background-color: #FF6B6B;
+    box-shadow: 0 6px 0 #c74b4b;
+}
+
+#btn-pong {
+    background-color: #4ECDC4;
+    box-shadow: 0 6px 0 #3b9b95;
+}
+
+#btn-asteroids {
+    background-color: #9B5DE5;
+    box-shadow: 0 6px 0 #7e3ebc;
+}
+
+#reward-hud {
+    z-index: 5;
+}
+
+/* Difficulty Buttons */
+.difficulty-select {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.diff-btn {
+    padding: 1rem 2rem;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+}
+
+.diff-btn.easy {
+    background-color: #2ECC71;
+    box-shadow: 0 6px 0 #27ae60;
+}
+
+.diff-btn.medium {
+    background-color: #F1C40F;
+    box-shadow: 0 6px 0 #f39c12;
+}
+
+.diff-btn.hard {
+    background-color: #E74C3C;
+    box-shadow: 0 6px 0 #c0392b;
+}
+
+.diff-btn:active {
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+    transform: translateY(3px);
+}
+</style>
 </head>
 
 <body>
@@ -79,11 +491,3091 @@
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+    <script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+    };
+}
+
+// Global Error Handler for debugging
+window.onerror = function (msg, url, line, col, error) {
+    // Draw error to canvas so it's visible on white screen
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'red';
+        ctx.font = '20px Arial';
+        ctx.fillText("Error: " + msg, 50, 50);
+        ctx.fillText("Line: " + line, 50, 80);
+    }
+    return false;
+};
+
+let gameState = 'TITLE';
+let score = 0;
+let lives = 3;
+let maxTime = 100;
+let currentTime = 100;
+let difficulty = 1;
+let currentMiniGame = null;
+
+// Audio System (Web Audio API)
+const AudioSys = {
+    ctx: null,
+    muted: false,
+    init: function () {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    playTone: function (freq, type, duration, vol = 0.1) {
+        if (!this.ctx || this.muted) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    playCorrect: function () {
+        if (!this.ctx) this.init();
+        // Ding! (High Sine)
+        this.playTone(600, 'sine', 0.1, 0.1);
+        setTimeout(() => this.playTone(800, 'sine', 0.2, 0.1), 50);
+    },
+    playWrong: function () {
+        if (!this.ctx) this.init();
+        // Buzz (Low Sawtooth)
+        this.playTone(150, 'sawtooth', 0.3, 0.1);
+    },
+    playClick: function () {
+        if (!this.ctx) this.init();
+        this.playTone(400, 'triangle', 0.05, 0.05);
+    },
+    playShoot: function () {
+        if (!this.ctx || this.muted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    },
+    playExplosion: function () {
+        if (!this.ctx || this.muted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const bufferSize = this.ctx.sampleRate * 0.5; // 0.5 sec
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+    }
+};
+
+class SimpleAsteroidsGame {
+    constructor() {
+        console.log("Simple Asteroids Constructor");
+        this.ship = { x: window.innerWidth / 2, y: window.innerHeight / 2, a: 0, v: 0 };
+        this.rocks = [];
+        this.bullets = [];
+        this.keys = {}; // Track key states
+
+        // Game Stats
+        this.lives = 3;
+        this.score = 0;
+        this.invulnerableTimer = 3.0; // 3 seconds shield on start/respawn
+
+        // Spawn rocks
+        this.spawnRocks(5);
+    }
+
+    spawnRocks(count) {
+        for (let i = 0; i < count; i++) {
+            // Spawn away from center
+            let x, y;
+            do {
+                x = Math.random() * window.innerWidth;
+                y = Math.random() * window.innerHeight;
+            } while (Math.abs(x - window.innerWidth / 2) < 100 && Math.abs(y - window.innerHeight / 2) < 100);
+
+            this.rocks.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                size: 30 + Math.random() * 20
+            });
+        }
+    }
+
+    handleKeyDown(e) {
+        this.keys[e.key.toLowerCase()] = true;
+        if (e.key === ' ' || e.key === 'Enter') {
+            this.shoot();
+        }
+    }
+
+    handleKeyUp(e) {
+        this.keys[e.key.toLowerCase()] = false;
+    }
+
+    shoot() {
+        if (this.lives <= 0) return;
+        this.bullets.push({
+            x: this.ship.x,
+            y: this.ship.y,
+            vx: Math.cos(this.ship.a) * 10,
+            vy: Math.sin(this.ship.a) * 10,
+            life: 1.0
+        });
+    }
+
+    update(dt) {
+        if (this.lives <= 0) return;
+
+        // Invulnerability
+        if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+
+        // WASD Control Logic
+        if (this.keys['w'] || this.keys['arrowup']) this.ship.v += 0.2;
+        if (this.keys['s'] || this.keys['arrowdown']) this.ship.v -= 0.1;
+        if (this.keys['a'] || this.keys['arrowleft']) this.ship.a -= 0.08;
+        if (this.keys['d'] || this.keys['arrowright']) this.ship.a += 0.08;
+
+        // Cap speed
+        if (this.ship.v > 8) this.ship.v = 8;
+        if (this.ship.v < -4) this.ship.v = -4;
+
+        // Ship Logic
+        this.ship.x += Math.cos(this.ship.a) * this.ship.v;
+        this.ship.y += Math.sin(this.ship.a) * this.ship.v;
+        this.ship.v *= 0.99; // Drag
+
+        // Screen Wrap Ship
+        if (this.ship.x < 0) this.ship.x = window.innerWidth;
+        if (this.ship.x > window.innerWidth) this.ship.x = 0;
+        if (this.ship.y < 0) this.ship.y = window.innerHeight;
+        if (this.ship.y > window.innerHeight) this.ship.y = 0;
+
+        // Rocks
+        this.rocks.forEach(r => {
+            r.x += r.vx;
+            r.y += r.vy;
+            if (r.x < -50) r.x = window.innerWidth + 50;
+            if (r.x > window.innerWidth + 50) r.x = -50;
+            if (r.y < -50) r.y = window.innerHeight + 50;
+            if (r.y > window.innerHeight + 50) r.y = -50;
+        });
+
+        // Ship Collision Check
+        if (this.invulnerableTimer <= 0) {
+            for (let r of this.rocks) {
+                let dx = this.ship.x - r.x;
+                let dy = this.ship.y - r.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < r.size + 10) { // +10 for ship radius approx
+                    this.handlePlayerHit();
+                    AudioSys.playExplosion(); // Ship hit sound
+                    break;
+                }
+            }
+        }
+
+        // Bullets
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            let b = this.bullets[i];
+            b.x += b.vx;
+            b.y += b.vy;
+            b.life -= dt;
+            if (b.life <= 0) {
+                this.bullets.splice(i, 1);
+                continue;
+            }
+            // Collision Rock vs Bullet
+            for (let j = this.rocks.length - 1; j >= 0; j--) {
+                let r = this.rocks[j];
+                let dx = b.x - r.x;
+                let dy = b.y - r.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < r.size) {
+                    this.score += 10;
+                    ShopSys.addCoins(10); // Instant loot
+                    updateUI();
+                    this.rocks.splice(j, 1);
+                    this.bullets.splice(i, 1);
+                    AudioSys.playExplosion();
+                    // Split
+                    if (r.size > 20) {
+                        for (let k = 0; k < 2; k++) {
+                            this.rocks.push({
+                                x: r.x, y: r.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                size: r.size / 2
+                            });
+                        }
+                    } else {
+                        this.score += 20; // Bonus for small rocks
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Respawn rocks check
+        if (this.rocks.length === 0) this.spawnRocks(5 + Math.floor(this.score / 200));
+    }
+
+    handlePlayerHit() {
+        this.lives--;
+        VisualFX.shake('game-container', 20, 400); // Big shake on crash
+        console.log("Player Hit! Lives:", this.lives);
+        if (this.lives > 0) {
+            this.invulnerableTimer = 3.0; // Shield up
+            this.ship.x = window.innerWidth / 2;
+            this.ship.y = window.innerHeight / 2;
+            this.ship.v = 0;
+            // Push nearby rocks away
+            this.rocks.forEach(r => {
+                let dx = r.x - this.ship.x;
+                let dy = r.y - this.ship.y;
+                let d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 200) {
+                    r.x += (dx / d) * 200;
+                    r.y += (dy / d) * 200;
+                }
+            });
+        } else {
+            console.log("Asteroids Game Over");
+            setTimeout(() => endRewardGame(), 1000); // Wait 1s then exit
+        }
+    }
+
+    draw(ctx) {
+        // BG - Clear Screen First!
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+        // Rocks
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        this.rocks.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        // Bullets
+        ctx.fillStyle = 'yellow';
+        this.bullets.forEach(b => {
+            ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+        });
+
+        // Ship
+        if (this.lives > 0) {
+            // Flash if invulnerable
+            if (this.invulnerableTimer <= 0 || (Math.floor(this.invulnerableTimer * 10) % 2 === 0)) {
+                ctx.save();
+                ctx.translate(this.ship.x, this.ship.y);
+                ctx.rotate(this.ship.a);
+
+                // Custom Ship Color
+                const shipId = ShopSys.equipped.ship;
+                const shipItem = ShopSys.items.find(i => i.id === shipId);
+                ctx.fillStyle = shipItem ? shipItem.color : 'white';
+
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(-10, -10);
+                ctx.lineTo(-10, 10);
+                ctx.fill();
+
+                // Thrust flame
+                if (this.keys['w'] || this.keys['arrowup']) {
+                    ctx.fillStyle = 'orange';
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -5);
+                    ctx.lineTo(-20, 0);
+                    ctx.lineTo(-10, 5);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            if (this.invulnerableTimer > 0) {
+                ctx.strokeStyle = 'cyan';
+                ctx.beginPath();
+                ctx.arc(this.ship.x, this.ship.y, 25, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        } else {
+            ctx.fillStyle = 'red';
+            ctx.font = '50px Fredoka One';
+            ctx.fillText("GAME OVER", window.innerWidth / 2 - 150, window.innerHeight / 2);
+        }
+
+        // HUD
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Fredoka One';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Score: ${this.score}`, 20, 60);
+        ctx.fillText(`Lives: ${'❤️'.repeat(Math.max(0, this.lives))}`, 20, 90);
+    }
+
+    handleInput(e) {
+        if (this.lives <= 0) return;
+        // Prevent MouseMove/TouchMove from triggering actions
+        if (e.type === 'mousemove' || e.type === 'touchmove') return;
+
+        // Keep Tap to shoot for mobile/mouse users
+        this.shoot();
+    }
+}
+
+let currentRewardGame = null;
+let rewardTime = 300; // 5 mins in seconds
+
+// Resize Logic
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Safe Event Listener
+function safeAddListener(id, event, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener(event, handler);
+    } else {
+        console.warn(`Element with ID '${id}' not found via safeAddListener.`);
+    }
+}
+
+// Init
+function init() {
+    console.log("Initializing Game...");
+    safeAddListener('btn-easy', 'click', () => startGame('EASY'));
+    safeAddListener('btn-medium', 'click', () => startGame('MEDIUM'));
+    safeAddListener('btn-hard', 'click', () => startGame('HARD'));
+
+    safeAddListener('restart-btn', 'click', () => startGame(currentDifficultyMode));
+    safeAddListener('menu-btn', 'click', goToTitle);
+
+    // Shop Buttons
+    safeAddListener('btn-shop', 'click', openShop);
+    const closeShop = () => {
+        setHidden('shop-screen', true);
+        setHidden('title-screen', false);
+    };
+    safeAddListener('btn-close-shop', 'click', closeShop);
+    safeAddListener('btn-shop-back-top', 'click', closeShop);
+
+    // Reward Buttons
+    safeAddListener('btn-asteroids', 'click', () => startRewardGame(SimpleAsteroidsGame));
+    safeAddListener('reward-exit-btn', 'click', endRewardGame);
+
+    // Canvas Input
+    if (canvas) {
+        canvas.addEventListener('mousedown', handleInput);
+        canvas.addEventListener('touchstart', (e) => {
+            handleInput(e.touches[0]);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState === 'REWARD_PLAYING' && currentRewardGame) currentRewardGame.handleInput(e);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState === 'REWARD_PLAYING' && currentRewardGame) currentRewardGame.handleInput(e);
+        });
+    } else {
+        console.error("Canvas element not found!");
+    }
+
+    // Developer Cheats
+    // Developer Cheats & Game Input
+    window.addEventListener('keydown', (e) => {
+        // Cheats
+        if (e.shiftKey) {
+            if (e.key === 'R' || e.key === 'r') {
+                console.log("Cheat Triggered: Instant Reward");
+                triggerRewardSelect();
+            } else if (e.key === 'S' || e.key === 's') {
+                console.log("Cheat Triggered: +100 Score");
+                score += 100;
+                updateUI();
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.style.transform = "scale(1.5)";
+                    setTimeout(() => scoreDisplay.style.transform = "scale(1)", 200);
+                }
+            }
+        }
+
+        // Forward to Reward Game
+        if (gameState === 'REWARD_PLAYING' && currentRewardGame && currentRewardGame.handleKeyDown) {
+            currentRewardGame.handleKeyDown(e);
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (gameState === 'REWARD_PLAYING' && currentRewardGame && currentRewardGame.handleKeyUp) {
+            currentRewardGame.handleKeyUp(e);
+        }
+    });
+
+    requestAnimationFrame(loop);
+}
+
+// Wait for DOM
+window.addEventListener('DOMContentLoaded', () => {
+    init();
+    // Unlock Audio Context on first interaction
+    document.body.addEventListener('click', () => {
+        if (AudioSys.ctx && AudioSys.ctx.state === 'suspended') {
+            AudioSys.ctx.resume();
+        } else if (!AudioSys.ctx) {
+            AudioSys.init();
+        }
+    }, { once: true });
+});
+
+// Helper: Safe Class Toggle
+function setHidden(id, hide) {
+    const el = document.getElementById(id);
+    if (el) {
+        // console.log(`Setting visibility for ${id}: ${hide ? 'HIDDEN' : 'VISIBLE'}`);
+        if (hide) el.classList.add('hidden');
+        else el.classList.remove('hidden');
+    } else {
+        console.warn(`Element '${id}' not found for visibility toggle.`);
+    }
+}
+
+let currentDifficultyMode = 'MEDIUM';
+
+function goToTitle() {
+    console.log("Returning to Title Screen");
+    gameState = 'TITLE';
+    setHidden('game-over-screen', true);
+    setHidden('hud', true);
+    setHidden('title-screen', false);
+}
+
+function openShop() {
+    setHidden('title-screen', true);
+    setHidden('shop-screen', false);
+    renderShop();
+}
+
+function renderShop() {
+    document.getElementById('shop-coins').innerText = ShopSys.coins;
+    const container = document.getElementById('shop-items');
+    container.innerHTML = '';
+
+    ShopSys.items.forEach(item => {
+        const div = document.createElement('div');
+        div.style.background = '#eee';
+        div.style.padding = '10px';
+        div.style.borderRadius = '10px';
+        div.style.textAlign = 'center';
+        div.style.border = '2px solid #ccc';
+
+        const owned = ShopSys.inventory.includes(item.id);
+        const equipped = ShopSys.equipped[item.type] === item.id;
+
+        let btnHtml = '';
+        if (equipped) {
+            div.style.borderColor = '#2ECC71';
+            div.style.background = '#e8f8f5';
+            btnHtml = `<button disabled style="background:#2ECC71; opacity:0.8;">EQUIPPED</button>`;
+        } else if (owned) {
+            btnHtml = `<button onclick="equipItem('${item.id}', '${item.type}')" style="background:#3498DB;">EQUIP</button>`;
+        } else {
+            const canAfford = ShopSys.coins >= item.cost;
+            btnHtml = `<button onclick="buyItem('${item.id}')" ${canAfford ? '' : 'disabled'} style="background:${canAfford ? '#F1C40F' : '#95a5a6'};">${item.cost} 🪙</button>`;
+        }
+
+        div.innerHTML = `
+            <h3>${item.name}</h3>
+            <div style="width: 50px; height: 50px; background: ${item.color}; margin: 10px auto; border-radius: 50%;"></div>
+            ${btnHtml}
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Global helpers for inline HTML onclicks
+window.buyItem = (id) => {
+    if (ShopSys.buy(id)) {
+        AudioSys.playCorrect();
+        renderShop();
+    } else {
+        AudioSys.playWrong();
+    }
+};
+
+window.equipItem = (id, type) => {
+    ShopSys.equip(id, type);
+    AudioSys.playClick();
+    renderShop();
+};
+
+
+
+function startGame(mode) {
+    console.log("startGame called with mode:", mode);
+    currentDifficultyMode = mode || 'MEDIUM';
+
+    gameState = 'PLAYING';
+    score = 0;
+    lives = 3;
+    currentTime = maxTime;
+    difficulty = 1;
+
+    try {
+        updateUI();
+    } catch (e) { console.error("Error in updateUI", e); throw e; }
+
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+    setHidden('reward-select-screen', true);
+    setHidden('reward-hud', true);
+    setHidden('hud', false);
+
+    try {
+        startNextMiniGame();
+    } catch (e) { console.error("Error in startNextMiniGame", e); throw e; }
+}
+
+function gameOver() {
+    gameState = 'GAMEOVER';
+    const finalScoreEl = document.getElementById('final-score');
+    const isNewHigh = HighScoreSys.check(currentDifficultyMode, score);
+    const highScore = HighScoreSys.get(currentDifficultyMode);
+
+    // Convert Score to Coins
+    // ShopSys.addCoins(score); // Removed: Instant payouts now
+
+    if (finalScoreEl) {
+        finalScoreEl.innerHTML = `${score}<br><span style="font-size: 1.5rem; color: gold;">High Score: ${highScore}</span>`;
+        // finalScoreEl.innerHTML += `<br><span style="font-size: 1.2rem; color: #aaa;">+${score} Coins Earned!</span>`;
+
+        if (isNewHigh) {
+            finalScoreEl.innerHTML += `<br><span style="color: #2ECC71; font-size: 2rem; animation: pulse 0.5s infinite;">🏆 NEW RECORD! 🏆</span>`;
+            AudioSys.playCorrect(); // Victory fanfare!
+        }
+    }
+
+    setHidden('game-over-screen', false);
+    setHidden('hud', true);
+}
+
+// Reward System
+function triggerRewardSelect() {
+    gameState = 'REWARD_SELECT';
+    setHidden('reward-select-screen', false);
+    setHidden('hud', true);
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+}
+
+function startRewardGame(GameClass) {
+    console.log("Starting Reward Game:", GameClass ? GameClass.name : "None");
+    try {
+        currentRewardGame = new GameClass();
+        console.log("Reward Game Instance created:", currentRewardGame);
+    } catch (e) {
+        console.error("Failed to create reward game:", e);
+        return;
+    }
+
+    gameState = 'REWARD_PLAYING';
+    rewardTime = 300; // 5 mins
+
+    setHidden('reward-select-screen', true);
+    setHidden('reward-hud', false);
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+}
+
+function endRewardGame() {
+    console.log("Ending Reward Game");
+    // Reset to Math Game
+    gameState = 'PLAYING';
+    lives = 3; // Restore lives
+    currentTime = maxTime; // Reset time too
+
+    // Explicitly clear reward game
+    currentRewardGame = null;
+
+    updateUI();
+
+    setHidden('reward-hud', true);
+    setHidden('hud', false);
+
+    startNextMiniGame();
+}
+
+function update(dt) {
+    if (gameState === 'PLAYING') {
+        // Difficulty Logic
+        let baseDecay = 0.1;
+        let diffMult = 0.03;
+
+        if (currentDifficultyMode === 'MEDIUM') {
+            baseDecay = 0.2;
+            diffMult = 0.05;
+        } else if (currentDifficultyMode === 'HARD') {
+            baseDecay = 0.4;
+            diffMult = 0.08;
+        }
+
+        const decayRate = baseDecay + (difficulty * diffMult);
+        currentTime -= decayRate;
+
+        if (currentTime <= 0) {
+            handleTimeOut();
+        }
+
+        const pct = Math.max(0, (currentTime / maxTime) * 100);
+        const timerBar = document.getElementById('timer-bar');
+        if (timerBar) timerBar.style.width = `${pct}%`;
+
+        if (currentMiniGame) {
+            currentMiniGame.update(dt);
+        }
+        updateParticles(); // INTEGRATED
+    } else if (gameState === 'REWARD_PLAYING') {
+        // Update Reward Timer
+        rewardTime -= dt / 1000;
+        if (rewardTime <= 0) {
+            endRewardGame();
+        }
+        let mins = Math.floor(rewardTime / 60);
+        let secs = Math.floor(rewardTime % 60);
+        const timerEl = document.getElementById('reward-timer');
+        if (timerEl) timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (currentRewardGame) {
+            try {
+                currentRewardGame.update(dt / 1000);
+            } catch (e) { console.error("Error updating reward game:", e); }
+        }
+    }
+}
+
+function draw() {
+    ctx.globalAlpha = 1.0; // SAFETY RESET
+
+    // Background
+    if (gameState === 'REWARD_PLAYING') {
+        // Reward games handle their own BG
+        if (!currentRewardGame) {
+            // Fallback if game missing
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillText("No Reward Game Loaded", 50, 50);
+        }
+    } else {
+        // Main Game BG
+        const bgId = ShopSys.equipped.bg;
+        const bgItem = ShopSys.items.find(i => i.id === bgId);
+        ctx.fillStyle = bgItem ? bgItem.color : '#f0f4f8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (gameState === 'PLAYING') {
+        if (currentMiniGame) {
+            currentMiniGame.draw(ctx);
+        }
+        drawParticles(ctx); // INTEGRATED
+    } else if (gameState === 'REWARD_PLAYING') {
+        if (currentRewardGame) {
+            try {
+                currentRewardGame.draw(ctx);
+            } catch (e) { console.error("Error drawing reward game:", e); }
+        }
+    }
+}
+
+let lastTime = 0;
+function loop(timestamp) {
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    try {
+        update(dt);
+        draw();
+    } catch (e) {
+        console.error("Game Loop Error:", e);
+        // Try to draw error
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, 400, 100);
+        ctx.fillStyle = 'red';
+        ctx.font = '20px monospace';
+        ctx.fillText(e.message, 10, 50);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// Input Handling
+function handleInput(e) {
+    if (gameState === 'REWARD_PLAYING') {
+        if (currentRewardGame) currentRewardGame.handleInput(e);
+        return;
+    }
+
+    if (gameState !== 'PLAYING' || !currentMiniGame) return;
+
+    let mx, my;
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+        mx = e.touches[0].clientX - rect.left;
+        my = e.touches[0].clientY - rect.top;
+    } else {
+        mx = e.clientX - rect.left;
+        my = e.clientY - rect.top;
+    }
+
+    // Spawn Confetti
+    spawnConfetti(mx, my);
+
+    currentMiniGame.checkClick(mx, my);
+}
+
+
+
+function handleTimeOut() {
+    lives--;
+    updateUI();
+    flashScreen('red');
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function handleSuccess() {
+    score++;
+    ShopSys.addCoins(10); // Instant loot
+    difficulty += 0.2;
+    updateUI();
+
+    if (score > 0 && score % 100 === 0) {
+        triggerRewardSelect();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function handleFailure() {
+    lives--;
+    updateUI();
+    flashScreen('red');
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function updateUI() {
+    document.getElementById('score-display').innerText = score;
+    const livesEl = document.getElementById('lives-display');
+    if (livesEl) livesEl.innerText = '❤️'.repeat(Math.max(0, lives));
+
+    const coinsEl = document.getElementById('coins-display');
+    if (coinsEl) coinsEl.innerText = ShopSys.coins;
+}
+
+function flashScreen(color) {
+    const flash = document.createElement('div');
+    flash.style.position = 'absolute';
+    flash.style.top = '0';
+    flash.style.left = '0';
+    flash.style.width = '100%';
+    flash.style.height = '100%';
+    flash.style.backgroundColor = color;
+    flash.style.opacity = '0.3';
+    flash.style.pointerEvents = 'none';
+    flash.style.transition = 'opacity 0.2s';
+    document.getElementById('ui-layer').appendChild(flash);
+
+    setTimeout(() => {
+        flash.style.opacity = '0';
+        setTimeout(() => flash.remove(), 200);
+    }, 50);
+}
+
+// Helper: Button Class
+class GameButton {
+    constructor(x, y, w, h, text, color, cb) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = text;
+        this.color = color;
+        this.cb = cb;
+    }
+
+    draw(ctx) {
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y + 8, this.w, this.h, 20);
+        ctx.fill();
+
+        // Body
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, this.h, 20);
+        ctx.fill();
+
+        // Text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 40px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.text, this.x + this.w / 2, this.y + this.h / 2);
+    }
+
+    checkClick(mx, my) {
+        if (mx >= this.x && mx <= this.x + this.w &&
+            my >= this.y && my <= this.y + this.h) {
+            this.cb();
+        }
+    }
+}
+
+// Mini Game 1: Quick Sum
+class QuickSumGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        // Gen numbers
+        const max = Math.floor(5 + diff * 2);
+        const a = Math.floor(Math.random() * max) + 1;
+        const b = Math.floor(Math.random() * max) + 1;
+        this.answer = a + b;
+        this.question = `${a} + ${b} = ?`;
+
+        // Gen Options
+        const options = [this.answer];
+        while (options.length < 3) {
+            const fake = this.answer + Math.floor(Math.random() * 6) - 3;
+            if (fake > 0 && !options.includes(fake)) options.push(fake);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        // Layout Buttons
+        const bw = 200;
+        const bh = 100;
+        const gap = 20;
+        const totalW = (options.length * bw) + ((options.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        options.forEach((opt, i) => {
+            const isCorrect = (opt === this.answer);
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y,
+                bw,
+                bh,
+                opt.toString(),
+                '#4ECDC4',
+                () => {
+                    if (isCorrect) handleSuccess();
+                    else handleFailure();
+                }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        // Draw Question
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '100px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        // Draw Buttons
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 2: True or False
+class TrueFalseGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const max = Math.floor(10 + diff * 5);
+        const a = Math.floor(Math.random() * max);
+        const b = Math.floor(Math.random() * max);
+        const isGreater = Math.random() > 0.5;
+        const sign = isGreater ? '>' : '<';
+
+        const correct = isGreater ? (a > b) : (a < b);
+        this.question = `${a} ${sign} ${b}`;
+
+        // Buttons
+        const bw = 250;
+        const bh = 100;
+        const cx = canvas.width / 2;
+        const y = canvas.height * 0.6;
+
+        this.buttons.push(new GameButton(cx - bw - 20, y, bw, bh, "TRUE", '#6BFF8E', () => {
+            if (correct) handleSuccess();
+            else handleFailure();
+        }));
+
+        this.buttons.push(new GameButton(cx + 20, y, bw, bh, "FALSE", '#FF6B6B', () => {
+            if (!correct) handleSuccess();
+            else handleFailure();
+        }));
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '100px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 3: Count 'Em
+class CountEmGame {
+    constructor(diff) {
+        this.items = [];
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const count = Math.floor(Math.random() * (3 + diff)) + 3; // 3 to 12ish
+        this.answer = count;
+        this.question = "How many?";
+
+        // Spawn Items randomly
+        const emojis = ['🍎', '🍌', '🍇', '🍕', '⚽', '🚗', '🐶'];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+        for (let i = 0; i < count; i++) {
+            this.items.push({
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: Math.random() * (canvas.height * 0.4) + 100, // Top half
+                icon: emoji
+            });
+        }
+
+        // Options
+        const options = [this.answer];
+        while (options.length < 3) {
+            const fake = this.answer + Math.floor(Math.random() * 5) - 2;
+            if (fake > 0 && !options.includes(fake)) options.push(fake);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        // Buttons
+        const bw = 150;
+        const bh = 100;
+        const gap = 30;
+        const totalW = (options.length * bw) + ((options.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.7;
+
+        options.forEach((opt, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, opt.toString(), '#FFD93D',
+                () => { if (opt === this.answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '60px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, 80);
+
+        ctx.font = '50px serif';
+        this.items.forEach(item => {
+            ctx.fillText(item.icon, item.x, item.y);
+        });
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 4: Even or Odd
+class EvenOddGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const findEven = Math.random() > 0.5;
+        this.question = findEven ? "Find EVEN" : "Find ODD";
+        this.color = findEven ? '#4ECDC4' : '#FF6B6B';
+
+        // Generate numbers
+        // We need exactly one correct answer and 2-3 wrong ones
+        const numCount = 4;
+        const numbers = [];
+
+        // Add Correct Answer
+        let correctNum;
+        do {
+            correctNum = Math.floor(Math.random() * 50) + 1;
+        } while ((correctNum % 2 === 0) !== findEven);
+        numbers.push({ val: correctNum, correct: true });
+
+        // Add Wrong Answers
+        while (numbers.length < numCount) {
+            let wrongNum;
+            do {
+                wrongNum = Math.floor(Math.random() * 50) + 1;
+            } while ((wrongNum % 2 === 0) === findEven || numbers.some(n => n.val === wrongNum));
+            numbers.push({ val: wrongNum, correct: false });
+        }
+
+        numbers.sort(() => Math.random() - 0.5);
+
+        // Layout
+        const bw = 120;
+        const bh = 120;
+        const gap = 20;
+        const totalW = (numbers.length * bw) + ((numbers.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.5;
+
+        numbers.forEach((n, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, n.val.toString(), '#fff',
+                () => { if (n.correct) handleSuccess(); else handleFailure(); }
+            ));
+        });
+
+        // Hack: Inverse button colors for visual diff
+        this.buttons.forEach(b => {
+            b.textColor = this.color;
+            // Custom draw for white buttons
+            b.draw = function (ctx) {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.roundRect(this.x, this.y + 8, this.w, this.h, 50); // Circle-ish
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.roundRect(this.x, this.y, this.w, this.h, 50);
+                ctx.fill();
+
+                ctx.fillStyle = '#2E2E2E';
+                ctx.font = 'bold 40px Fredoka One';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.text, this.x + this.w / 2, this.y + this.h / 2);
+            }
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = this.color; // Colored BG for this mode
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = 'white';
+        ctx.font = '80px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 5: Find Max
+class FindMaxGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        this.question = "Which is Biggest?";
+
+        const count = 3;
+        const nums = [];
+        const maxVal = 20 + (diff * 10);
+
+        for (let i = 0; i < count; i++) {
+            let n;
+            do {
+                n = Math.floor(Math.random() * maxVal);
+            } while (nums.includes(n));
+            nums.push(n);
+        }
+
+        const answer = Math.max(...nums);
+
+        // Buttons
+        const bw = 150;
+        const bh = 100;
+        const gap = 30;
+        const totalW = (count * bw) + ((count - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        nums.forEach((n, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, n.toString(), '#FF8E53',
+                () => { if (n === answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '70px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 6: Missing Symbol
+class MissingSymbolGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        // A ? B = C
+        const ops = ['+', '-', 'x'];
+        const op = ops[Math.floor(Math.random() * ops.length)];
+
+        let a, b, c;
+        const max = 10 + diff * 2;
+
+        if (op === '+') {
+            a = Math.floor(Math.random() * max);
+            b = Math.floor(Math.random() * max);
+            c = a + b;
+        } else if (op === '-') {
+            a = Math.floor(Math.random() * max) + 5;
+            b = Math.floor(Math.random() * a);
+            c = a - b;
+        } else {
+            a = Math.floor(Math.random() * 5) + 2;
+            b = Math.floor(Math.random() * 5) + 2;
+            c = a * b;
+        }
+
+        this.question = `${a} ? ${b} = ${c}`;
+        this.answer = op;
+
+        // Buttons
+        const bw = 120;
+        const bh = 120;
+        const gap = 40;
+        const totalW = (3 * bw) + (2 * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        ops.forEach((sym, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, sym, '#4ECDC4',
+                () => { if (sym === this.answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '80px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 7: Shape Match
+class ShapeMatchGame {
+    constructor(diff) {
+        this.shapes = []; // {type, x, y, color, isCorrect}
+        this.init(diff);
+    }
+
+    init(diff) {
+        const types = ['CIRCLE', 'RECT', 'TRIANGLE'];
+        const targetType = types[Math.floor(Math.random() * types.length)];
+        this.question = "Find the " + targetType;
+
+        // Generate Shapes
+        const count = 4;
+        const spacing = canvas.width / (count + 1);
+        const y = canvas.height * 0.6;
+
+        // One correct
+        const items = [];
+        items.push({ type: targetType, correct: true });
+
+        // Fill rest with wrong
+        while (items.length < count) {
+            const wrongType = types[Math.floor(Math.random() * types.length)];
+            if (wrongType !== targetType) items.push({ type: wrongType, correct: false });
+        }
+        items.sort(() => Math.random() - 0.5);
+
+        items.forEach((item, i) => {
+            this.shapes.push({
+                type: item.type,
+                correct: item.correct,
+                x: spacing * (i + 1),
+                y: y,
+                size: 60,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '70px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.shapes.forEach(s => {
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            if (s.type === 'CIRCLE') {
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            } else if (s.type === 'RECT') {
+                ctx.rect(s.x - s.size, s.y - s.size, s.size * 2, s.size * 2);
+            } else if (s.type === 'TRIANGLE') {
+                ctx.moveTo(s.x, s.y - s.size);
+                ctx.lineTo(s.x + s.size, s.y + s.size);
+                ctx.lineTo(s.x - s.size, s.y + s.size);
+                ctx.closePath();
+            }
+            ctx.fill();
+        });
+    }
+
+    checkClick(mx, my) {
+        // Simple dist check for now, rects are close enough to circles for this prototype
+        this.shapes.forEach(s => {
+            const dist = Math.sqrt((mx - s.x) ** 2 + (my - s.y) ** 2);
+            if (dist < s.size + 10) { // +10 padding
+                if (s.correct) handleSuccess();
+                else handleFailure();
+            }
+        });
+    }
+}
+
+// Shop System
+const ShopSys = {
+    coins: 0,
+    inventory: ['default_ship', 'default_bg', 'default_part'],
+    equipped: { ship: 'default_ship', bg: 'default_bg', part: 'default_part' },
+    items: [
+        // Ships (Asteroids)
+        { id: 'gold_ship', name: 'Golden Ship 🚀', type: 'ship', cost: 500, color: '#FFD700' },
+        { id: 'cyber_ship', name: 'Cyber Ship 🤖', type: 'ship', cost: 1000, color: '#00FF00' },
+
+        // Themes (Main Game BG)
+        { id: 'night_bg', name: 'Night Mode 🌙', type: 'bg', cost: 200, color: '#2c3e50' },
+        { id: 'royal_bg', name: 'Royal Court 👑', type: 'bg', cost: 600, color: '#4a148c' },
+        { id: 'matrix_bg', name: 'The Matrix 💻', type: 'bg', cost: 1000, color: '#000000' },
+
+        // Particles
+        { id: 'fire_part', name: 'Fire Sparks 🔥', type: 'part', cost: 300, color: '#e74c3c' },
+        { id: 'ice_part', name: 'Ice Shards ❄️', type: 'part', cost: 300, color: '#00d2ff' },
+        { id: 'money_part', name: 'Money Rain 💸', type: 'part', cost: 2000, color: '#FFD700' }
+    ],
+    load: function () {
+        const stored = localStorage.getItem('brainyRushShop');
+        if (stored) {
+            const data = JSON.parse(stored);
+            this.coins = data.coins || 0;
+            this.inventory = data.inventory || ['default_ship', 'default_bg', 'default_part'];
+            // Merge defaults in case of new slots
+            this.equipped = { ...{ ship: 'default_ship', bg: 'default_bg', part: 'default_part' }, ...data.equipped };
+        }
+    },
+    save: function () {
+        localStorage.setItem('brainyRushShop', JSON.stringify({
+            coins: this.coins,
+            inventory: this.inventory,
+            equipped: this.equipped
+        }));
+    },
+    buy: function (itemId) {
+        const item = this.items.find(i => i.id === itemId);
+        if (item && this.coins >= item.cost && !this.inventory.includes(itemId)) {
+            this.coins -= item.cost;
+            this.inventory.push(itemId);
+            this.save();
+            return true;
+        }
+        return false;
+    },
+    equip: function (itemId, type) {
+        if (this.inventory.includes(itemId)) {
+            this.equipped[type] = itemId;
+            this.save();
+            return true;
+        }
+        return false;
+    },
+    addCoins: function (amount) {
+        this.coins += amount;
+        this.save();
+    }
+};
+ShopSys.load();
+
+// Visual Effects
+const VisualFX = {
+    shake: function (elementId, intensity = 5, duration = 200) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        const start = Date.now();
+        const origin = el.style.transform;
+
+        const shakeInterval = setInterval(() => {
+            const now = Date.now();
+            if (now - start > duration) {
+                clearInterval(shakeInterval);
+                el.style.transform = origin;
+                return;
+            }
+            const dx = (Math.random() - 0.5) * intensity;
+            const dy = (Math.random() - 0.5) * intensity;
+            el.style.transform = `translate(${dx}px, ${dy}px)`;
+        }, 16);
+    }
+};
+
+// Particle System
+const particles = [];
+
+function spawnConfetti(x, y) {
+    // Custom Part Color
+    const partId = ShopSys.equipped.part;
+    const partItem = ShopSys.items.find(i => i.id === partId);
+    // Base colors
+    let colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6'];
+
+    // Override if custom set (except default which is multi-color)
+    if (partItem && partItem.id !== 'default_part') {
+        colors = [partItem.color];
+    }
+
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+}
+
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        p.vy += 0.5; // Gravity
+
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function drawParticles(ctx) {
+    if (particles.length === 0) return;
+
+    particles.forEach(p => {
+        if (p.life > 0) {
+            ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        }
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+
+
+// Updated Game List
+function startNextMiniGame() {
+    console.log("startNextMiniGame called");
+    currentTime = maxTime;
+
+    const games = [
+        QuickSumGame,
+        TrueFalseGame,
+        CountEmGame,
+        EvenOddGame,
+        FindMaxGame,
+        MissingSymbolGame,
+        ShapeMatchGame
+    ];
+    const index = Math.floor(Math.random() * games.length);
+    console.log("Selected game index:", index);
+    const GameClass = games[index];
+
+    if (!GameClass) {
+        throw new Error("GameClass is null/undefined for index " + index);
+    }
+
+    console.log("Initializing game:", GameClass.name);
+    currentMiniGame = new GameClass(difficulty);
+    console.log("Game initialized");
+}
+</script>
 </body>
 
 </html>
-    <script  src="./script.js"></script>
+    <script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+    };
+}
+
+// Global Error Handler for debugging
+window.onerror = function (msg, url, line, col, error) {
+    // Draw error to canvas so it's visible on white screen
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'red';
+        ctx.font = '20px Arial';
+        ctx.fillText("Error: " + msg, 50, 50);
+        ctx.fillText("Line: " + line, 50, 80);
+    }
+    return false;
+};
+
+let gameState = 'TITLE';
+let score = 0;
+let lives = 3;
+let maxTime = 100;
+let currentTime = 100;
+let difficulty = 1;
+let currentMiniGame = null;
+
+// Audio System (Web Audio API)
+const AudioSys = {
+    ctx: null,
+    muted: false,
+    init: function () {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    playTone: function (freq, type, duration, vol = 0.1) {
+        if (!this.ctx || this.muted) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    playCorrect: function () {
+        if (!this.ctx) this.init();
+        // Ding! (High Sine)
+        this.playTone(600, 'sine', 0.1, 0.1);
+        setTimeout(() => this.playTone(800, 'sine', 0.2, 0.1), 50);
+    },
+    playWrong: function () {
+        if (!this.ctx) this.init();
+        // Buzz (Low Sawtooth)
+        this.playTone(150, 'sawtooth', 0.3, 0.1);
+    },
+    playClick: function () {
+        if (!this.ctx) this.init();
+        this.playTone(400, 'triangle', 0.05, 0.05);
+    },
+    playShoot: function () {
+        if (!this.ctx || this.muted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    },
+    playExplosion: function () {
+        if (!this.ctx || this.muted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const bufferSize = this.ctx.sampleRate * 0.5; // 0.5 sec
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+    }
+};
+
+class SimpleAsteroidsGame {
+    constructor() {
+        console.log("Simple Asteroids Constructor");
+        this.ship = { x: window.innerWidth / 2, y: window.innerHeight / 2, a: 0, v: 0 };
+        this.rocks = [];
+        this.bullets = [];
+        this.keys = {}; // Track key states
+
+        // Game Stats
+        this.lives = 3;
+        this.score = 0;
+        this.invulnerableTimer = 3.0; // 3 seconds shield on start/respawn
+
+        // Spawn rocks
+        this.spawnRocks(5);
+    }
+
+    spawnRocks(count) {
+        for (let i = 0; i < count; i++) {
+            // Spawn away from center
+            let x, y;
+            do {
+                x = Math.random() * window.innerWidth;
+                y = Math.random() * window.innerHeight;
+            } while (Math.abs(x - window.innerWidth / 2) < 100 && Math.abs(y - window.innerHeight / 2) < 100);
+
+            this.rocks.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                size: 30 + Math.random() * 20
+            });
+        }
+    }
+
+    handleKeyDown(e) {
+        this.keys[e.key.toLowerCase()] = true;
+        if (e.key === ' ' || e.key === 'Enter') {
+            this.shoot();
+        }
+    }
+
+    handleKeyUp(e) {
+        this.keys[e.key.toLowerCase()] = false;
+    }
+
+    shoot() {
+        if (this.lives <= 0) return;
+        this.bullets.push({
+            x: this.ship.x,
+            y: this.ship.y,
+            vx: Math.cos(this.ship.a) * 10,
+            vy: Math.sin(this.ship.a) * 10,
+            life: 1.0
+        });
+    }
+
+    update(dt) {
+        if (this.lives <= 0) return;
+
+        // Invulnerability
+        if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+
+        // WASD Control Logic
+        if (this.keys['w'] || this.keys['arrowup']) this.ship.v += 0.2;
+        if (this.keys['s'] || this.keys['arrowdown']) this.ship.v -= 0.1;
+        if (this.keys['a'] || this.keys['arrowleft']) this.ship.a -= 0.08;
+        if (this.keys['d'] || this.keys['arrowright']) this.ship.a += 0.08;
+
+        // Cap speed
+        if (this.ship.v > 8) this.ship.v = 8;
+        if (this.ship.v < -4) this.ship.v = -4;
+
+        // Ship Logic
+        this.ship.x += Math.cos(this.ship.a) * this.ship.v;
+        this.ship.y += Math.sin(this.ship.a) * this.ship.v;
+        this.ship.v *= 0.99; // Drag
+
+        // Screen Wrap Ship
+        if (this.ship.x < 0) this.ship.x = window.innerWidth;
+        if (this.ship.x > window.innerWidth) this.ship.x = 0;
+        if (this.ship.y < 0) this.ship.y = window.innerHeight;
+        if (this.ship.y > window.innerHeight) this.ship.y = 0;
+
+        // Rocks
+        this.rocks.forEach(r => {
+            r.x += r.vx;
+            r.y += r.vy;
+            if (r.x < -50) r.x = window.innerWidth + 50;
+            if (r.x > window.innerWidth + 50) r.x = -50;
+            if (r.y < -50) r.y = window.innerHeight + 50;
+            if (r.y > window.innerHeight + 50) r.y = -50;
+        });
+
+        // Ship Collision Check
+        if (this.invulnerableTimer <= 0) {
+            for (let r of this.rocks) {
+                let dx = this.ship.x - r.x;
+                let dy = this.ship.y - r.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < r.size + 10) { // +10 for ship radius approx
+                    this.handlePlayerHit();
+                    AudioSys.playExplosion(); // Ship hit sound
+                    break;
+                }
+            }
+        }
+
+        // Bullets
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            let b = this.bullets[i];
+            b.x += b.vx;
+            b.y += b.vy;
+            b.life -= dt;
+            if (b.life <= 0) {
+                this.bullets.splice(i, 1);
+                continue;
+            }
+            // Collision Rock vs Bullet
+            for (let j = this.rocks.length - 1; j >= 0; j--) {
+                let r = this.rocks[j];
+                let dx = b.x - r.x;
+                let dy = b.y - r.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < r.size) {
+                    this.score += 10;
+                    ShopSys.addCoins(10); // Instant loot
+                    updateUI();
+                    this.rocks.splice(j, 1);
+                    this.bullets.splice(i, 1);
+                    AudioSys.playExplosion();
+                    // Split
+                    if (r.size > 20) {
+                        for (let k = 0; k < 2; k++) {
+                            this.rocks.push({
+                                x: r.x, y: r.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                size: r.size / 2
+                            });
+                        }
+                    } else {
+                        this.score += 20; // Bonus for small rocks
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Respawn rocks check
+        if (this.rocks.length === 0) this.spawnRocks(5 + Math.floor(this.score / 200));
+    }
+
+    handlePlayerHit() {
+        this.lives--;
+        VisualFX.shake('game-container', 20, 400); // Big shake on crash
+        console.log("Player Hit! Lives:", this.lives);
+        if (this.lives > 0) {
+            this.invulnerableTimer = 3.0; // Shield up
+            this.ship.x = window.innerWidth / 2;
+            this.ship.y = window.innerHeight / 2;
+            this.ship.v = 0;
+            // Push nearby rocks away
+            this.rocks.forEach(r => {
+                let dx = r.x - this.ship.x;
+                let dy = r.y - this.ship.y;
+                let d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 200) {
+                    r.x += (dx / d) * 200;
+                    r.y += (dy / d) * 200;
+                }
+            });
+        } else {
+            console.log("Asteroids Game Over");
+            setTimeout(() => endRewardGame(), 1000); // Wait 1s then exit
+        }
+    }
+
+    draw(ctx) {
+        // BG - Clear Screen First!
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+        // Rocks
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        this.rocks.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        // Bullets
+        ctx.fillStyle = 'yellow';
+        this.bullets.forEach(b => {
+            ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+        });
+
+        // Ship
+        if (this.lives > 0) {
+            // Flash if invulnerable
+            if (this.invulnerableTimer <= 0 || (Math.floor(this.invulnerableTimer * 10) % 2 === 0)) {
+                ctx.save();
+                ctx.translate(this.ship.x, this.ship.y);
+                ctx.rotate(this.ship.a);
+
+                // Custom Ship Color
+                const shipId = ShopSys.equipped.ship;
+                const shipItem = ShopSys.items.find(i => i.id === shipId);
+                ctx.fillStyle = shipItem ? shipItem.color : 'white';
+
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(-10, -10);
+                ctx.lineTo(-10, 10);
+                ctx.fill();
+
+                // Thrust flame
+                if (this.keys['w'] || this.keys['arrowup']) {
+                    ctx.fillStyle = 'orange';
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -5);
+                    ctx.lineTo(-20, 0);
+                    ctx.lineTo(-10, 5);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            if (this.invulnerableTimer > 0) {
+                ctx.strokeStyle = 'cyan';
+                ctx.beginPath();
+                ctx.arc(this.ship.x, this.ship.y, 25, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        } else {
+            ctx.fillStyle = 'red';
+            ctx.font = '50px Fredoka One';
+            ctx.fillText("GAME OVER", window.innerWidth / 2 - 150, window.innerHeight / 2);
+        }
+
+        // HUD
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Fredoka One';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Score: ${this.score}`, 20, 60);
+        ctx.fillText(`Lives: ${'❤️'.repeat(Math.max(0, this.lives))}`, 20, 90);
+    }
+
+    handleInput(e) {
+        if (this.lives <= 0) return;
+        // Prevent MouseMove/TouchMove from triggering actions
+        if (e.type === 'mousemove' || e.type === 'touchmove') return;
+
+        // Keep Tap to shoot for mobile/mouse users
+        this.shoot();
+    }
+}
+
+let currentRewardGame = null;
+let rewardTime = 300; // 5 mins in seconds
+
+// Resize Logic
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Safe Event Listener
+function safeAddListener(id, event, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener(event, handler);
+    } else {
+        console.warn(`Element with ID '${id}' not found via safeAddListener.`);
+    }
+}
+
+// Init
+function init() {
+    console.log("Initializing Game...");
+    safeAddListener('btn-easy', 'click', () => startGame('EASY'));
+    safeAddListener('btn-medium', 'click', () => startGame('MEDIUM'));
+    safeAddListener('btn-hard', 'click', () => startGame('HARD'));
+
+    safeAddListener('restart-btn', 'click', () => startGame(currentDifficultyMode));
+    safeAddListener('menu-btn', 'click', goToTitle);
+
+    // Shop Buttons
+    safeAddListener('btn-shop', 'click', openShop);
+    const closeShop = () => {
+        setHidden('shop-screen', true);
+        setHidden('title-screen', false);
+    };
+    safeAddListener('btn-close-shop', 'click', closeShop);
+    safeAddListener('btn-shop-back-top', 'click', closeShop);
+
+    // Reward Buttons
+    safeAddListener('btn-asteroids', 'click', () => startRewardGame(SimpleAsteroidsGame));
+    safeAddListener('reward-exit-btn', 'click', endRewardGame);
+
+    // Canvas Input
+    if (canvas) {
+        canvas.addEventListener('mousedown', handleInput);
+        canvas.addEventListener('touchstart', (e) => {
+            handleInput(e.touches[0]);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState === 'REWARD_PLAYING' && currentRewardGame) currentRewardGame.handleInput(e);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameState === 'REWARD_PLAYING' && currentRewardGame) currentRewardGame.handleInput(e);
+        });
+    } else {
+        console.error("Canvas element not found!");
+    }
+
+    // Developer Cheats
+    // Developer Cheats & Game Input
+    window.addEventListener('keydown', (e) => {
+        // Cheats
+        if (e.shiftKey) {
+            if (e.key === 'R' || e.key === 'r') {
+                console.log("Cheat Triggered: Instant Reward");
+                triggerRewardSelect();
+            } else if (e.key === 'S' || e.key === 's') {
+                console.log("Cheat Triggered: +100 Score");
+                score += 100;
+                updateUI();
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.style.transform = "scale(1.5)";
+                    setTimeout(() => scoreDisplay.style.transform = "scale(1)", 200);
+                }
+            }
+        }
+
+        // Forward to Reward Game
+        if (gameState === 'REWARD_PLAYING' && currentRewardGame && currentRewardGame.handleKeyDown) {
+            currentRewardGame.handleKeyDown(e);
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (gameState === 'REWARD_PLAYING' && currentRewardGame && currentRewardGame.handleKeyUp) {
+            currentRewardGame.handleKeyUp(e);
+        }
+    });
+
+    requestAnimationFrame(loop);
+}
+
+// Wait for DOM
+window.addEventListener('DOMContentLoaded', () => {
+    init();
+    // Unlock Audio Context on first interaction
+    document.body.addEventListener('click', () => {
+        if (AudioSys.ctx && AudioSys.ctx.state === 'suspended') {
+            AudioSys.ctx.resume();
+        } else if (!AudioSys.ctx) {
+            AudioSys.init();
+        }
+    }, { once: true });
+});
+
+// Helper: Safe Class Toggle
+function setHidden(id, hide) {
+    const el = document.getElementById(id);
+    if (el) {
+        // console.log(`Setting visibility for ${id}: ${hide ? 'HIDDEN' : 'VISIBLE'}`);
+        if (hide) el.classList.add('hidden');
+        else el.classList.remove('hidden');
+    } else {
+        console.warn(`Element '${id}' not found for visibility toggle.`);
+    }
+}
+
+let currentDifficultyMode = 'MEDIUM';
+
+function goToTitle() {
+    console.log("Returning to Title Screen");
+    gameState = 'TITLE';
+    setHidden('game-over-screen', true);
+    setHidden('hud', true);
+    setHidden('title-screen', false);
+}
+
+function openShop() {
+    setHidden('title-screen', true);
+    setHidden('shop-screen', false);
+    renderShop();
+}
+
+function renderShop() {
+    document.getElementById('shop-coins').innerText = ShopSys.coins;
+    const container = document.getElementById('shop-items');
+    container.innerHTML = '';
+
+    ShopSys.items.forEach(item => {
+        const div = document.createElement('div');
+        div.style.background = '#eee';
+        div.style.padding = '10px';
+        div.style.borderRadius = '10px';
+        div.style.textAlign = 'center';
+        div.style.border = '2px solid #ccc';
+
+        const owned = ShopSys.inventory.includes(item.id);
+        const equipped = ShopSys.equipped[item.type] === item.id;
+
+        let btnHtml = '';
+        if (equipped) {
+            div.style.borderColor = '#2ECC71';
+            div.style.background = '#e8f8f5';
+            btnHtml = `<button disabled style="background:#2ECC71; opacity:0.8;">EQUIPPED</button>`;
+        } else if (owned) {
+            btnHtml = `<button onclick="equipItem('${item.id}', '${item.type}')" style="background:#3498DB;">EQUIP</button>`;
+        } else {
+            const canAfford = ShopSys.coins >= item.cost;
+            btnHtml = `<button onclick="buyItem('${item.id}')" ${canAfford ? '' : 'disabled'} style="background:${canAfford ? '#F1C40F' : '#95a5a6'};">${item.cost} 🪙</button>`;
+        }
+
+        div.innerHTML = `
+            <h3>${item.name}</h3>
+            <div style="width: 50px; height: 50px; background: ${item.color}; margin: 10px auto; border-radius: 50%;"></div>
+            ${btnHtml}
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Global helpers for inline HTML onclicks
+window.buyItem = (id) => {
+    if (ShopSys.buy(id)) {
+        AudioSys.playCorrect();
+        renderShop();
+    } else {
+        AudioSys.playWrong();
+    }
+};
+
+window.equipItem = (id, type) => {
+    ShopSys.equip(id, type);
+    AudioSys.playClick();
+    renderShop();
+};
+
+
+
+function startGame(mode) {
+    console.log("startGame called with mode:", mode);
+    currentDifficultyMode = mode || 'MEDIUM';
+
+    gameState = 'PLAYING';
+    score = 0;
+    lives = 3;
+    currentTime = maxTime;
+    difficulty = 1;
+
+    try {
+        updateUI();
+    } catch (e) { console.error("Error in updateUI", e); throw e; }
+
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+    setHidden('reward-select-screen', true);
+    setHidden('reward-hud', true);
+    setHidden('hud', false);
+
+    try {
+        startNextMiniGame();
+    } catch (e) { console.error("Error in startNextMiniGame", e); throw e; }
+}
+
+function gameOver() {
+    gameState = 'GAMEOVER';
+    const finalScoreEl = document.getElementById('final-score');
+    const isNewHigh = HighScoreSys.check(currentDifficultyMode, score);
+    const highScore = HighScoreSys.get(currentDifficultyMode);
+
+    // Convert Score to Coins
+    // ShopSys.addCoins(score); // Removed: Instant payouts now
+
+    if (finalScoreEl) {
+        finalScoreEl.innerHTML = `${score}<br><span style="font-size: 1.5rem; color: gold;">High Score: ${highScore}</span>`;
+        // finalScoreEl.innerHTML += `<br><span style="font-size: 1.2rem; color: #aaa;">+${score} Coins Earned!</span>`;
+
+        if (isNewHigh) {
+            finalScoreEl.innerHTML += `<br><span style="color: #2ECC71; font-size: 2rem; animation: pulse 0.5s infinite;">🏆 NEW RECORD! 🏆</span>`;
+            AudioSys.playCorrect(); // Victory fanfare!
+        }
+    }
+
+    setHidden('game-over-screen', false);
+    setHidden('hud', true);
+}
+
+// Reward System
+function triggerRewardSelect() {
+    gameState = 'REWARD_SELECT';
+    setHidden('reward-select-screen', false);
+    setHidden('hud', true);
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+}
+
+function startRewardGame(GameClass) {
+    console.log("Starting Reward Game:", GameClass ? GameClass.name : "None");
+    try {
+        currentRewardGame = new GameClass();
+        console.log("Reward Game Instance created:", currentRewardGame);
+    } catch (e) {
+        console.error("Failed to create reward game:", e);
+        return;
+    }
+
+    gameState = 'REWARD_PLAYING';
+    rewardTime = 300; // 5 mins
+
+    setHidden('reward-select-screen', true);
+    setHidden('reward-hud', false);
+    setHidden('title-screen', true);
+    setHidden('game-over-screen', true);
+}
+
+function endRewardGame() {
+    console.log("Ending Reward Game");
+    // Reset to Math Game
+    gameState = 'PLAYING';
+    lives = 3; // Restore lives
+    currentTime = maxTime; // Reset time too
+
+    // Explicitly clear reward game
+    currentRewardGame = null;
+
+    updateUI();
+
+    setHidden('reward-hud', true);
+    setHidden('hud', false);
+
+    startNextMiniGame();
+}
+
+function update(dt) {
+    if (gameState === 'PLAYING') {
+        // Difficulty Logic
+        let baseDecay = 0.1;
+        let diffMult = 0.03;
+
+        if (currentDifficultyMode === 'MEDIUM') {
+            baseDecay = 0.2;
+            diffMult = 0.05;
+        } else if (currentDifficultyMode === 'HARD') {
+            baseDecay = 0.4;
+            diffMult = 0.08;
+        }
+
+        const decayRate = baseDecay + (difficulty * diffMult);
+        currentTime -= decayRate;
+
+        if (currentTime <= 0) {
+            handleTimeOut();
+        }
+
+        const pct = Math.max(0, (currentTime / maxTime) * 100);
+        const timerBar = document.getElementById('timer-bar');
+        if (timerBar) timerBar.style.width = `${pct}%`;
+
+        if (currentMiniGame) {
+            currentMiniGame.update(dt);
+        }
+        updateParticles(); // INTEGRATED
+    } else if (gameState === 'REWARD_PLAYING') {
+        // Update Reward Timer
+        rewardTime -= dt / 1000;
+        if (rewardTime <= 0) {
+            endRewardGame();
+        }
+        let mins = Math.floor(rewardTime / 60);
+        let secs = Math.floor(rewardTime % 60);
+        const timerEl = document.getElementById('reward-timer');
+        if (timerEl) timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (currentRewardGame) {
+            try {
+                currentRewardGame.update(dt / 1000);
+            } catch (e) { console.error("Error updating reward game:", e); }
+        }
+    }
+}
+
+function draw() {
+    ctx.globalAlpha = 1.0; // SAFETY RESET
+
+    // Background
+    if (gameState === 'REWARD_PLAYING') {
+        // Reward games handle their own BG
+        if (!currentRewardGame) {
+            // Fallback if game missing
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillText("No Reward Game Loaded", 50, 50);
+        }
+    } else {
+        // Main Game BG
+        const bgId = ShopSys.equipped.bg;
+        const bgItem = ShopSys.items.find(i => i.id === bgId);
+        ctx.fillStyle = bgItem ? bgItem.color : '#f0f4f8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (gameState === 'PLAYING') {
+        if (currentMiniGame) {
+            currentMiniGame.draw(ctx);
+        }
+        drawParticles(ctx); // INTEGRATED
+    } else if (gameState === 'REWARD_PLAYING') {
+        if (currentRewardGame) {
+            try {
+                currentRewardGame.draw(ctx);
+            } catch (e) { console.error("Error drawing reward game:", e); }
+        }
+    }
+}
+
+let lastTime = 0;
+function loop(timestamp) {
+    const dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    try {
+        update(dt);
+        draw();
+    } catch (e) {
+        console.error("Game Loop Error:", e);
+        // Try to draw error
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, 400, 100);
+        ctx.fillStyle = 'red';
+        ctx.font = '20px monospace';
+        ctx.fillText(e.message, 10, 50);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// Input Handling
+function handleInput(e) {
+    if (gameState === 'REWARD_PLAYING') {
+        if (currentRewardGame) currentRewardGame.handleInput(e);
+        return;
+    }
+
+    if (gameState !== 'PLAYING' || !currentMiniGame) return;
+
+    let mx, my;
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+        mx = e.touches[0].clientX - rect.left;
+        my = e.touches[0].clientY - rect.top;
+    } else {
+        mx = e.clientX - rect.left;
+        my = e.clientY - rect.top;
+    }
+
+    // Spawn Confetti
+    spawnConfetti(mx, my);
+
+    currentMiniGame.checkClick(mx, my);
+}
+
+
+
+function handleTimeOut() {
+    lives--;
+    updateUI();
+    flashScreen('red');
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function handleSuccess() {
+    score++;
+    ShopSys.addCoins(10); // Instant loot
+    difficulty += 0.2;
+    updateUI();
+
+    if (score > 0 && score % 100 === 0) {
+        triggerRewardSelect();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function handleFailure() {
+    lives--;
+    updateUI();
+    flashScreen('red');
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        startNextMiniGame();
+    }
+}
+
+function updateUI() {
+    document.getElementById('score-display').innerText = score;
+    const livesEl = document.getElementById('lives-display');
+    if (livesEl) livesEl.innerText = '❤️'.repeat(Math.max(0, lives));
+
+    const coinsEl = document.getElementById('coins-display');
+    if (coinsEl) coinsEl.innerText = ShopSys.coins;
+}
+
+function flashScreen(color) {
+    const flash = document.createElement('div');
+    flash.style.position = 'absolute';
+    flash.style.top = '0';
+    flash.style.left = '0';
+    flash.style.width = '100%';
+    flash.style.height = '100%';
+    flash.style.backgroundColor = color;
+    flash.style.opacity = '0.3';
+    flash.style.pointerEvents = 'none';
+    flash.style.transition = 'opacity 0.2s';
+    document.getElementById('ui-layer').appendChild(flash);
+
+    setTimeout(() => {
+        flash.style.opacity = '0';
+        setTimeout(() => flash.remove(), 200);
+    }, 50);
+}
+
+// Helper: Button Class
+class GameButton {
+    constructor(x, y, w, h, text, color, cb) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.text = text;
+        this.color = color;
+        this.cb = cb;
+    }
+
+    draw(ctx) {
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y + 8, this.w, this.h, 20);
+        ctx.fill();
+
+        // Body
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.w, this.h, 20);
+        ctx.fill();
+
+        // Text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 40px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.text, this.x + this.w / 2, this.y + this.h / 2);
+    }
+
+    checkClick(mx, my) {
+        if (mx >= this.x && mx <= this.x + this.w &&
+            my >= this.y && my <= this.y + this.h) {
+            this.cb();
+        }
+    }
+}
+
+// Mini Game 1: Quick Sum
+class QuickSumGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        // Gen numbers
+        const max = Math.floor(5 + diff * 2);
+        const a = Math.floor(Math.random() * max) + 1;
+        const b = Math.floor(Math.random() * max) + 1;
+        this.answer = a + b;
+        this.question = `${a} + ${b} = ?`;
+
+        // Gen Options
+        const options = [this.answer];
+        while (options.length < 3) {
+            const fake = this.answer + Math.floor(Math.random() * 6) - 3;
+            if (fake > 0 && !options.includes(fake)) options.push(fake);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        // Layout Buttons
+        const bw = 200;
+        const bh = 100;
+        const gap = 20;
+        const totalW = (options.length * bw) + ((options.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        options.forEach((opt, i) => {
+            const isCorrect = (opt === this.answer);
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y,
+                bw,
+                bh,
+                opt.toString(),
+                '#4ECDC4',
+                () => {
+                    if (isCorrect) handleSuccess();
+                    else handleFailure();
+                }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        // Draw Question
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '100px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        // Draw Buttons
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 2: True or False
+class TrueFalseGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const max = Math.floor(10 + diff * 5);
+        const a = Math.floor(Math.random() * max);
+        const b = Math.floor(Math.random() * max);
+        const isGreater = Math.random() > 0.5;
+        const sign = isGreater ? '>' : '<';
+
+        const correct = isGreater ? (a > b) : (a < b);
+        this.question = `${a} ${sign} ${b}`;
+
+        // Buttons
+        const bw = 250;
+        const bh = 100;
+        const cx = canvas.width / 2;
+        const y = canvas.height * 0.6;
+
+        this.buttons.push(new GameButton(cx - bw - 20, y, bw, bh, "TRUE", '#6BFF8E', () => {
+            if (correct) handleSuccess();
+            else handleFailure();
+        }));
+
+        this.buttons.push(new GameButton(cx + 20, y, bw, bh, "FALSE", '#FF6B6B', () => {
+            if (!correct) handleSuccess();
+            else handleFailure();
+        }));
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '100px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 3: Count 'Em
+class CountEmGame {
+    constructor(diff) {
+        this.items = [];
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const count = Math.floor(Math.random() * (3 + diff)) + 3; // 3 to 12ish
+        this.answer = count;
+        this.question = "How many?";
+
+        // Spawn Items randomly
+        const emojis = ['🍎', '🍌', '🍇', '🍕', '⚽', '🚗', '🐶'];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+        for (let i = 0; i < count; i++) {
+            this.items.push({
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: Math.random() * (canvas.height * 0.4) + 100, // Top half
+                icon: emoji
+            });
+        }
+
+        // Options
+        const options = [this.answer];
+        while (options.length < 3) {
+            const fake = this.answer + Math.floor(Math.random() * 5) - 2;
+            if (fake > 0 && !options.includes(fake)) options.push(fake);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        // Buttons
+        const bw = 150;
+        const bh = 100;
+        const gap = 30;
+        const totalW = (options.length * bw) + ((options.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.7;
+
+        options.forEach((opt, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, opt.toString(), '#FFD93D',
+                () => { if (opt === this.answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '60px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, 80);
+
+        ctx.font = '50px serif';
+        this.items.forEach(item => {
+            ctx.fillText(item.icon, item.x, item.y);
+        });
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 4: Even or Odd
+class EvenOddGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        const findEven = Math.random() > 0.5;
+        this.question = findEven ? "Find EVEN" : "Find ODD";
+        this.color = findEven ? '#4ECDC4' : '#FF6B6B';
+
+        // Generate numbers
+        // We need exactly one correct answer and 2-3 wrong ones
+        const numCount = 4;
+        const numbers = [];
+
+        // Add Correct Answer
+        let correctNum;
+        do {
+            correctNum = Math.floor(Math.random() * 50) + 1;
+        } while ((correctNum % 2 === 0) !== findEven);
+        numbers.push({ val: correctNum, correct: true });
+
+        // Add Wrong Answers
+        while (numbers.length < numCount) {
+            let wrongNum;
+            do {
+                wrongNum = Math.floor(Math.random() * 50) + 1;
+            } while ((wrongNum % 2 === 0) === findEven || numbers.some(n => n.val === wrongNum));
+            numbers.push({ val: wrongNum, correct: false });
+        }
+
+        numbers.sort(() => Math.random() - 0.5);
+
+        // Layout
+        const bw = 120;
+        const bh = 120;
+        const gap = 20;
+        const totalW = (numbers.length * bw) + ((numbers.length - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.5;
+
+        numbers.forEach((n, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, n.val.toString(), '#fff',
+                () => { if (n.correct) handleSuccess(); else handleFailure(); }
+            ));
+        });
+
+        // Hack: Inverse button colors for visual diff
+        this.buttons.forEach(b => {
+            b.textColor = this.color;
+            // Custom draw for white buttons
+            b.draw = function (ctx) {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.roundRect(this.x, this.y + 8, this.w, this.h, 50); // Circle-ish
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.roundRect(this.x, this.y, this.w, this.h, 50);
+                ctx.fill();
+
+                ctx.fillStyle = '#2E2E2E';
+                ctx.font = 'bold 40px Fredoka One';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.text, this.x + this.w / 2, this.y + this.h / 2);
+            }
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = this.color; // Colored BG for this mode
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = 'white';
+        ctx.font = '80px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 5: Find Max
+class FindMaxGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        this.question = "Which is Biggest?";
+
+        const count = 3;
+        const nums = [];
+        const maxVal = 20 + (diff * 10);
+
+        for (let i = 0; i < count; i++) {
+            let n;
+            do {
+                n = Math.floor(Math.random() * maxVal);
+            } while (nums.includes(n));
+            nums.push(n);
+        }
+
+        const answer = Math.max(...nums);
+
+        // Buttons
+        const bw = 150;
+        const bh = 100;
+        const gap = 30;
+        const totalW = (count * bw) + ((count - 1) * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        nums.forEach((n, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, n.toString(), '#FF8E53',
+                () => { if (n === answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '70px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 6: Missing Symbol
+class MissingSymbolGame {
+    constructor(diff) {
+        this.buttons = [];
+        this.init(diff);
+    }
+
+    init(diff) {
+        // A ? B = C
+        const ops = ['+', '-', 'x'];
+        const op = ops[Math.floor(Math.random() * ops.length)];
+
+        let a, b, c;
+        const max = 10 + diff * 2;
+
+        if (op === '+') {
+            a = Math.floor(Math.random() * max);
+            b = Math.floor(Math.random() * max);
+            c = a + b;
+        } else if (op === '-') {
+            a = Math.floor(Math.random() * max) + 5;
+            b = Math.floor(Math.random() * a);
+            c = a - b;
+        } else {
+            a = Math.floor(Math.random() * 5) + 2;
+            b = Math.floor(Math.random() * 5) + 2;
+            c = a * b;
+        }
+
+        this.question = `${a} ? ${b} = ${c}`;
+        this.answer = op;
+
+        // Buttons
+        const bw = 120;
+        const bh = 120;
+        const gap = 40;
+        const totalW = (3 * bw) + (2 * gap);
+        let startX = (canvas.width - totalW) / 2;
+        const y = canvas.height * 0.6;
+
+        ops.forEach((sym, i) => {
+            this.buttons.push(new GameButton(
+                startX + i * (bw + gap),
+                y, bw, bh, sym, '#4ECDC4',
+                () => { if (sym === this.answer) handleSuccess(); else handleFailure(); }
+            ));
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '80px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+        this.buttons.forEach(btn => btn.draw(ctx));
+    }
+
+    checkClick(mx, my) {
+        this.buttons.forEach(btn => btn.checkClick(mx, my));
+    }
+}
+
+// Mini Game 7: Shape Match
+class ShapeMatchGame {
+    constructor(diff) {
+        this.shapes = []; // {type, x, y, color, isCorrect}
+        this.init(diff);
+    }
+
+    init(diff) {
+        const types = ['CIRCLE', 'RECT', 'TRIANGLE'];
+        const targetType = types[Math.floor(Math.random() * types.length)];
+        this.question = "Find the " + targetType;
+
+        // Generate Shapes
+        const count = 4;
+        const spacing = canvas.width / (count + 1);
+        const y = canvas.height * 0.6;
+
+        // One correct
+        const items = [];
+        items.push({ type: targetType, correct: true });
+
+        // Fill rest with wrong
+        while (items.length < count) {
+            const wrongType = types[Math.floor(Math.random() * types.length)];
+            if (wrongType !== targetType) items.push({ type: wrongType, correct: false });
+        }
+        items.sort(() => Math.random() - 0.5);
+
+        items.forEach((item, i) => {
+            this.shapes.push({
+                type: item.type,
+                correct: item.correct,
+                x: spacing * (i + 1),
+                y: y,
+                size: 60,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        });
+    }
+
+    update(dt) { }
+
+    draw(ctx) {
+        ctx.fillStyle = '#2E2E2E';
+        ctx.font = '70px Fredoka One';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.question, canvas.width / 2, canvas.height * 0.3);
+
+        this.shapes.forEach(s => {
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            if (s.type === 'CIRCLE') {
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            } else if (s.type === 'RECT') {
+                ctx.rect(s.x - s.size, s.y - s.size, s.size * 2, s.size * 2);
+            } else if (s.type === 'TRIANGLE') {
+                ctx.moveTo(s.x, s.y - s.size);
+                ctx.lineTo(s.x + s.size, s.y + s.size);
+                ctx.lineTo(s.x - s.size, s.y + s.size);
+                ctx.closePath();
+            }
+            ctx.fill();
+        });
+    }
+
+    checkClick(mx, my) {
+        // Simple dist check for now, rects are close enough to circles for this prototype
+        this.shapes.forEach(s => {
+            const dist = Math.sqrt((mx - s.x) ** 2 + (my - s.y) ** 2);
+            if (dist < s.size + 10) { // +10 padding
+                if (s.correct) handleSuccess();
+                else handleFailure();
+            }
+        });
+    }
+}
+
+// Shop System
+const ShopSys = {
+    coins: 0,
+    inventory: ['default_ship', 'default_bg', 'default_part'],
+    equipped: { ship: 'default_ship', bg: 'default_bg', part: 'default_part' },
+    items: [
+        // Ships (Asteroids)
+        { id: 'gold_ship', name: 'Golden Ship 🚀', type: 'ship', cost: 500, color: '#FFD700' },
+        { id: 'cyber_ship', name: 'Cyber Ship 🤖', type: 'ship', cost: 1000, color: '#00FF00' },
+
+        // Themes (Main Game BG)
+        { id: 'night_bg', name: 'Night Mode 🌙', type: 'bg', cost: 200, color: '#2c3e50' },
+        { id: 'royal_bg', name: 'Royal Court 👑', type: 'bg', cost: 600, color: '#4a148c' },
+        { id: 'matrix_bg', name: 'The Matrix 💻', type: 'bg', cost: 1000, color: '#000000' },
+
+        // Particles
+        { id: 'fire_part', name: 'Fire Sparks 🔥', type: 'part', cost: 300, color: '#e74c3c' },
+        { id: 'ice_part', name: 'Ice Shards ❄️', type: 'part', cost: 300, color: '#00d2ff' },
+        { id: 'money_part', name: 'Money Rain 💸', type: 'part', cost: 2000, color: '#FFD700' }
+    ],
+    load: function () {
+        const stored = localStorage.getItem('brainyRushShop');
+        if (stored) {
+            const data = JSON.parse(stored);
+            this.coins = data.coins || 0;
+            this.inventory = data.inventory || ['default_ship', 'default_bg', 'default_part'];
+            // Merge defaults in case of new slots
+            this.equipped = { ...{ ship: 'default_ship', bg: 'default_bg', part: 'default_part' }, ...data.equipped };
+        }
+    },
+    save: function () {
+        localStorage.setItem('brainyRushShop', JSON.stringify({
+            coins: this.coins,
+            inventory: this.inventory,
+            equipped: this.equipped
+        }));
+    },
+    buy: function (itemId) {
+        const item = this.items.find(i => i.id === itemId);
+        if (item && this.coins >= item.cost && !this.inventory.includes(itemId)) {
+            this.coins -= item.cost;
+            this.inventory.push(itemId);
+            this.save();
+            return true;
+        }
+        return false;
+    },
+    equip: function (itemId, type) {
+        if (this.inventory.includes(itemId)) {
+            this.equipped[type] = itemId;
+            this.save();
+            return true;
+        }
+        return false;
+    },
+    addCoins: function (amount) {
+        this.coins += amount;
+        this.save();
+    }
+};
+ShopSys.load();
+
+// Visual Effects
+const VisualFX = {
+    shake: function (elementId, intensity = 5, duration = 200) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        const start = Date.now();
+        const origin = el.style.transform;
+
+        const shakeInterval = setInterval(() => {
+            const now = Date.now();
+            if (now - start > duration) {
+                clearInterval(shakeInterval);
+                el.style.transform = origin;
+                return;
+            }
+            const dx = (Math.random() - 0.5) * intensity;
+            const dy = (Math.random() - 0.5) * intensity;
+            el.style.transform = `translate(${dx}px, ${dy}px)`;
+        }, 16);
+    }
+};
+
+// Particle System
+const particles = [];
+
+function spawnConfetti(x, y) {
+    // Custom Part Color
+    const partId = ShopSys.equipped.part;
+    const partItem = ShopSys.items.find(i => i.id === partId);
+    // Base colors
+    let colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6'];
+
+    // Override if custom set (except default which is multi-color)
+    if (partItem && partItem.id !== 'default_part') {
+        colors = [partItem.color];
+    }
+
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+}
+
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        p.vy += 0.5; // Gravity
+
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function drawParticles(ctx) {
+    if (particles.length === 0) return;
+
+    particles.forEach(p => {
+        if (p.life > 0) {
+            ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        }
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+
+
+// Updated Game List
+function startNextMiniGame() {
+    console.log("startNextMiniGame called");
+    currentTime = maxTime;
+
+    const games = [
+        QuickSumGame,
+        TrueFalseGame,
+        CountEmGame,
+        EvenOddGame,
+        FindMaxGame,
+        MissingSymbolGame,
+        ShapeMatchGame
+    ];
+    const index = Math.floor(Math.random() * games.length);
+    console.log("Selected game index:", index);
+    const GameClass = games[index];
+
+    if (!GameClass) {
+        throw new Error("GameClass is null/undefined for index " + index);
+    }
+
+    console.log("Initializing game:", GameClass.name);
+    currentMiniGame = new GameClass(difficulty);
+    console.log("Game initialized");
+}
+</script>
 
   </body>
   
