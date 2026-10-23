@@ -98,6 +98,8 @@
 				scope.domElement.ownerDocument.addEventListener( 'mousemove', onMouseMove );
 				window.addEventListener( 'bitlook', onBitLook );
 				scope.domElement.ownerDocument.addEventListener( 'pointerlockchange', onPointerlockChange );
+				// Bit mobile: touch devices cannot pointer-lock; the kit's 'bitlock' event arms the lock state
+				window.addEventListener( 'bitlock', function () { if ( scope.isLocked === false ) { scope.isLocked = true; scope.dispatchEvent( { type: 'lock' } ); } } );
 				scope.domElement.ownerDocument.addEventListener( 'pointerlockerror', onPointerlockError );
 
 			};

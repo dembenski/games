@@ -911,6 +911,8 @@
 
 
 
+
+
 <script>window.BIT_MOBILE={"bridge": true};</script>
 <script>
 /* Bit Mobile Kit v3.1 — per-game touch control schemes over the PC controls.
@@ -990,6 +992,11 @@
     var t = document.querySelector('canvas') || document.body;
     var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: btn || 0 });
     if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+  function bitClick(x, y) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
     t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
   }
   function lookDelta(dx, dy) {
@@ -1107,7 +1114,7 @@
       }, { passive: false });
       btn.addEventListener('touchend', function (e) {
         e.preventDefault();
-        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0);
+        if (b.mouse) { fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0); bitClick(window.innerWidth / 2, window.innerHeight / 2); }
         if (b.code) fireKey('keyup', b.code);
       }, { passive: false });
       wrap.appendChild(btn);
@@ -1143,7 +1150,7 @@
     }, { passive: false });
     function endLook(e) {
       for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
-        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        if (cfg.bridge) { fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY); bitClick(e.changedTouches[i].clientX, e.changedTouches[i].clientY); }
         lookId = null;
       }
     }

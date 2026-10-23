@@ -1303,9 +1303,13 @@
 
 
 
-<script>window.BIT_MOBILE={"move": "wasd", "look": "bitlook", "rightStick": "look", "buttons": [{"mouse": true, "label": "\ud83c\udf88 POP"}], "btnSlot": "aboveR"};</script>
+
+
+
+
+<script>window.BIT_MOBILE={"move": "wasd", "look": "bitlook", "spoofLock": true, "rightStick": "look", "buttons": [{"mouse": true, "label": "\ud83c\udf88 POP"}], "btnSlot": "aboveR"};</script>
 <script>
-/* Bit Mobile Kit v3 — per-game touch control schemes over the PC controls.
+/* Bit Mobile Kit v3.1 — per-game touch control schemes over the PC controls.
    Activates ONLY on touch devices; desktop play is completely untouched.
    v3: twin-stick support — left stick moves, right stick aims/looks —
    plus per-game button placement. Ghost-translucent, auto-fades when idle,
@@ -1323,10 +1327,27 @@
   var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (!isTouch) return;
 
+  /* ---- lock spoofing for pointer-lock-gated games (mobile has no real lock) ---- */
+  function armLocks() {
+    if (cfg.spoofLock) window.dispatchEvent(new Event('bitlock'));
+    if (cfg.fakeLock && !window.__bitFakeLock) {
+      window.__bitFakeLock = true;
+      try {
+        var proto = Object.getPrototypeOf(document);
+        var desc = Object.getOwnPropertyDescriptor(proto, 'pointerLockElement') || Object.getOwnPropertyDescriptor(document, 'pointerLockElement');
+        var realGet = desc && desc.get;
+        Object.defineProperty(document, 'pointerLockElement', { configurable: true,
+          get: function () { var r = realGet ? realGet.call(document) : null; return r || document.body; } });
+      } catch (err) {}
+    }
+  }
+  document.addEventListener('touchstart', armLocks, { passive: true });
+  setTimeout(armLocks, 600); setTimeout(armLocks, 2000);
+
   var style = document.createElement('style');
   style.textContent = [
     'html,body{touch-action:none;overscroll-behavior:none}',
-    '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
+    '#bit-kit{position:fixed;inset:0;z-index:2147483000;pointer-events:none;font-family:sans-serif}',
     '#bit-ui{transition:opacity .45s ease}',
     '#bit-kit.bit-idle #bit-ui{opacity:.22}',
     '#bit-kit.bit-hidden #bit-ui{display:none}',
@@ -1352,7 +1373,7 @@
   var KEYMAP = {
     KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 68], KeyE: ['e', 69],
     KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32], KeyM: ['m', 77], KeyT: ['t', 84],
-    ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
+    ShiftLeft: ['Shift', 16], ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
   };
   function fireKey(type, code) {
     var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
@@ -1361,10 +1382,15 @@
     window.dispatchEvent(e); document.dispatchEvent(e);
     if (document.body) document.body.dispatchEvent(e);
   }
-  function fireMouse(type, x, y, dx, dy) {
+  function fireMouse(type, x, y, dx, dy, btn) {
     var t = document.querySelector('canvas') || document.body;
-    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: btn || 0 });
     if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+  function bitClick(x, y) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
     t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
   }
   function lookDelta(dx, dy) {
@@ -1477,12 +1503,12 @@
       var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
       btn.addEventListener('touchstart', function (e) {
         e.preventDefault();
-        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0);
         if (b.code) fireKey('keydown', b.code);
       }, { passive: false });
       btn.addEventListener('touchend', function (e) {
         e.preventDefault();
-        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.mouse) { fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0); bitClick(window.innerWidth / 2, window.innerHeight / 2); }
         if (b.code) fireKey('keyup', b.code);
       }, { passive: false });
       wrap.appendChild(btn);
@@ -1518,7 +1544,7 @@
     }, { passive: false });
     function endLook(e) {
       for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
-        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        if (cfg.bridge) { fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY); bitClick(e.changedTouches[i].clientX, e.changedTouches[i].clientY); }
         lookId = null;
       }
     }
