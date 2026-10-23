@@ -907,14 +907,23 @@
     </script>
 
 
+
+
 <script>window.BIT_MOBILE={"bridge": true};</script>
 <script>
-/* Bit Mobile Kit v2 — touch controls layered over the PC controls.
+/* Bit Mobile Kit v3 — per-game touch control schemes over the PC controls.
    Activates ONLY on touch devices; desktop play is completely untouched.
-   v2: smaller + ghost-translucent, auto-fades when idle, and a hide/show
-   toggle so the overlay never blocks the game's own UI for long.
-   Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
-     lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+   v3: twin-stick support — left stick moves, right stick aims/looks —
+   plus per-game button placement. Ghost-translucent, auto-fades when idle,
+   and a hide/show toggle so the overlay never blocks the game's own UI.
+   Config: window.BIT_MOBILE = {
+     move:'wasd'|'both',
+     look:'mouse'|'bitlook'|'none',          // drag-look channel (fallback)
+     rightStick:'look'|'aim'|null,          // right stick behavior
+     aimFire:true,                          // aim stick fires past 55% push
+     lockTry:true, bridge:true,
+     btnSlot:'aboveR'|'midR'|'topR',
+     buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
 (function () {
   var cfg = window.BIT_MOBILE || {};
   var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
@@ -925,17 +934,22 @@
     'html,body{touch-action:none;overscroll-behavior:none}',
     '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
     '#bit-ui{transition:opacity .45s ease}',
-    '#bit-kit.bit-idle #bit-ui{opacity:.25}',
+    '#bit-kit.bit-idle #bit-ui{opacity:.22}',
     '#bit-kit.bit-hidden #bit-ui{display:none}',
-    '#bit-stick{position:absolute;left:12px;bottom:16px;width:92px;height:92px;border-radius:50%;',
+    '.bit-stick{position:absolute;width:92px;height:92px;border-radius:50%;',
     'background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.22);pointer-events:auto}',
-    '#bit-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;border-radius:50%;',
+    '#bit-stickL{left:12px;bottom:16px}',
+    '#bit-stickR{right:12px;bottom:16px}',
+    '.bit-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;border-radius:50%;',
     'background:rgba(255,255,255,.30);transform:translate(-50%,-50%)}',
-    '#bit-btns{position:absolute;right:10px;bottom:16px;display:flex;flex-direction:column;gap:8px;pointer-events:auto;align-items:flex-end}',
-    '.bit-btn{min-width:52px;height:44px;padding:0 10px;border-radius:13px;border:1.5px solid rgba(255,255,255,.22);',
+    '#bit-btns{position:absolute;display:flex;flex-direction:column;gap:8px;pointer-events:auto;align-items:flex-end}',
+    '#bit-btns.slot-aboveR{right:14px;bottom:122px}',
+    '#bit-btns.slot-midR{right:10px;top:50%;transform:translateY(-50%)}',
+    '#bit-btns.slot-topR{right:10px;top:54px}',
+    '.bit-btn{min-width:50px;height:42px;padding:0 10px;border-radius:13px;border:1.5px solid rgba(255,255,255,.22);',
     'background:rgba(20,20,40,.38);color:rgba(255,255,255,.85);font-size:13px;font-weight:700;text-align:center}',
     '.bit-btn:active{background:rgba(255,159,243,.45)}',
-    '#bit-toggle{position:absolute;right:10px;top:42%;width:36px;height:36px;border-radius:50%;pointer-events:auto;',
+    '#bit-toggle{position:absolute;right:10px;top:8px;width:36px;height:36px;border-radius:50%;pointer-events:auto;',
     'border:1.5px solid rgba(255,255,255,.25);background:rgba(20,20,40,.40);color:#fff;font-size:16px;line-height:1;',
     'display:flex;align-items:center;justify-content:center;opacity:.55}'
   ].join('');
@@ -946,7 +960,6 @@
     KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32], KeyM: ['m', 77], KeyT: ['t', 84],
     ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
   };
-
   function fireKey(type, code) {
     var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
     var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
@@ -959,6 +972,10 @@
     var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
     if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
     t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+  function lookDelta(dx, dy) {
+    if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx, dy: dy } }));
+    else if (cfg.look === 'mouse') fireMouse('mousemove', window.innerWidth / 2, window.innerHeight / 2, dx, dy);
   }
 
   var kit = document.createElement('div'); kit.id = 'bit-kit';
@@ -985,52 +1002,83 @@
   }, { passive: false });
   kit.appendChild(toggle);
 
-  /* ---- virtual joystick -> movement keys ---- */
+  /* ---- stick factory ---- */
+  function makeStick(id) {
+    var stick = document.createElement('div'); stick.className = 'bit-stick'; stick.id = id;
+    var nub = document.createElement('div'); nub.className = 'bit-nub';
+    stick.appendChild(nub); ui.appendChild(stick);
+    return { el: stick, nub: nub, tid: null, dx: 0, dy: 0 };
+  }
+  function stickTrack(st, onMove, onEnd) {
+    st.el.addEventListener('touchstart', function (e) {
+      e.preventDefault(); st.tid = e.changedTouches[0].identifier;
+    }, { passive: false });
+    st.el.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== st.tid) continue;
+        var r = st.el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
+        var len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
+        st.dx = dx; st.dy = dy;
+        st.nub.style.transform = 'translate(calc(-50% + ' + dx * 25 + 'px), calc(-50% + ' + dy * 25 + 'px))';
+        onMove(dx, dy);
+      }
+    }, { passive: false });
+    function end(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === st.tid) {
+        st.tid = null; st.dx = 0; st.dy = 0;
+        st.nub.style.transform = 'translate(-50%,-50%)';
+        onEnd();
+      }
+    }
+    st.el.addEventListener('touchend', end); st.el.addEventListener('touchcancel', end);
+  }
+
+  /* ---- left stick: movement keys ---- */
   var pressed = {};
   function setKey(code, down) {
     if (pressed[code] === down) return; pressed[code] = down;
     fireKey(down ? 'keydown' : 'keyup', code);
   }
   if (cfg.move) {
-    var stick = document.createElement('div'); stick.id = 'bit-stick';
-    var nub = document.createElement('div'); nub.id = 'bit-nub';
-    stick.appendChild(nub); ui.appendChild(stick);
-    var stickId = null;
-    function groups() {
-      return cfg.move === 'both'
-        ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
-        : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
-    }
-    function applyStick(dx, dy) {
-      var g = groups(), on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
+    var g = cfg.move === 'both'
+      ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
+      : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
+    var L = makeStick('bit-stickL');
+    stickTrack(L, function (dx, dy) {
+      var on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
       for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
-    }
-    function clearStick() { var g = groups(); for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); }
-    stick.addEventListener('touchstart', function (e) {
-      e.preventDefault(); var t = e.changedTouches[0]; stickId = t.identifier;
-    }, { passive: false });
-    stick.addEventListener('touchmove', function (e) {
-      e.preventDefault();
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
-        var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
-        var len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
-        nub.style.transform = 'translate(calc(-50% + ' + dx * 25 + 'px), calc(-50% + ' + dy * 25 + 'px))';
-        applyStick(dx, dy);
+    }, function () { for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); });
+  }
+
+  /* ---- right stick: look (continuous turn) or aim (absolute + autofire) ---- */
+  if (cfg.rightStick) {
+    var R = makeStick('bit-stickR');
+    var firing = false;
+    var turnTimer = setInterval(function () {
+      if (cfg.rightStick === 'look' && (Math.abs(R.dx) > 0.18 || Math.abs(R.dy) > 0.18)) {
+        lookDelta(R.dx * 11, R.dy * 11);
       }
-    }, { passive: false });
-    function endStick(e) {
-      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === stickId) {
-        stickId = null; nub.style.transform = 'translate(-50%,-50%)'; clearStick();
+    }, 50);
+    stickTrack(R, function (dx, dy) {
+      if (cfg.rightStick === 'aim') {
+        var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+        fireMouse('mousemove', cx + dx * 150, cy + dy * 150);
+        var mag = Math.hypot(dx, dy);
+        if (cfg.aimFire && mag > 0.55 && !firing) { firing = true; fireMouse('mousedown', cx + dx * 150, cy + dy * 150); }
+        if (cfg.aimFire && mag <= 0.55 && firing) { firing = false; fireMouse('mouseup', cx, cy); }
       }
-    }
-    stick.addEventListener('touchend', endStick); stick.addEventListener('touchcancel', endStick);
+    }, function () {
+      if (firing) { firing = false; fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2); }
+    });
   }
 
   /* ---- action buttons ---- */
   if (cfg.buttons && cfg.buttons.length) {
     var wrap = document.createElement('div'); wrap.id = 'bit-btns';
+    wrap.className = 'slot-' + (cfg.btnSlot || (cfg.rightStick ? 'aboveR' : 'midR'));
+    if (!cfg.rightStick && !cfg.btnSlot) { wrap.style.right = '10px'; wrap.style.bottom = '16px'; }
     cfg.buttons.forEach(function (b) {
       var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
       btn.addEventListener('touchstart', function (e) {
@@ -1048,8 +1096,8 @@
     ui.appendChild(wrap);
   }
 
-  /* ---- drag-look / drawing bridge on the canvas ---- */
-  if (cfg.look && cfg.look !== 'none' || cfg.bridge) {
+  /* ---- drag-look / drawing bridge on the canvas (fallback / drawing games) ---- */
+  if ((cfg.look && cfg.look !== 'none' && !cfg.rightStick) || cfg.bridge) {
     var lookId = null, lx = 0, ly = 0, locked = false;
     document.addEventListener('touchstart', function (e) {
       for (var i = 0; i < e.changedTouches.length; i++) {
@@ -1070,8 +1118,7 @@
         var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
         var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
         if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
-        else if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx * 1.6, dy: dy * 1.6 } }));
-        else if (cfg.look === 'mouse') fireMouse('mousemove', t.clientX, t.clientY, dx, dy);
+        else lookDelta(dx * 1.6, dy * 1.6);
       }
       if (lookId !== null && !cfg.bridge) e.preventDefault();
     }, { passive: false });
