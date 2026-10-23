@@ -1,0 +1,2632 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>POLYFIGHTER 95</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyFighter 95 - Trimesh Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fff;
+            user-select: none;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #main-menu, #char-select, #char-creator, #level-select, #level-editor, #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        /* Background Styling */
+        #main-menu, #char-creator, #level-editor {
+            background: rgba(0, 0, 0, 0.85); 
+        }
+        
+        #char-select, #level-select, #game-over {
+             background: rgba(0, 0, 0, 0.85); 
+        }
+
+        #intro-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5; 
+            background-color: #0d001a;
+            background-image: 
+                linear-gradient(0deg, transparent 95%, #ff00ff 95%, #00ffff 100%),
+                linear-gradient(90deg, transparent 95%, #ff00ff 95%, #00ffff 100%);
+            background-size: 50px 50px;
+            animation: grid-scroll 10s linear infinite;
+        }
+
+        @keyframes grid-scroll {
+            from { background-position: 0 0; }
+            to { background-position: 50px 50px; }
+        }
+
+        .hidden { display: none !important; }
+        h1 {
+            font-size: 4rem;
+            text-transform: uppercase;
+            color: #ff0055;
+            text-shadow: 4px 4px 0px #fff;
+            margin-bottom: 20px;
+            transform: skew(-10deg);
+        }
+        h2 {
+            font-size: 2rem;
+            color: #00eaff;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background: transparent;
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            margin: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            text-transform: uppercase;
+            transform: skew(-10deg);
+        }
+        .btn:hover, .btn:focus {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px #fff;
+        }
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 1rem;
+        }
+        
+        /* Selection Screen Layout */
+        #select-scroll-area, #level-scroll-area {
+            width: 90%;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #00eaff #222;
+            border: 1px solid #333;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .roster-section {
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .section-header {
+            width: 100%;
+            text-align: left;
+            color: #00eaff;
+            border-bottom: 2px solid #00eaff;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            padding-left: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .card-grid {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .selection-card {
+            border: 2px solid #555;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            background: rgba(255,255,255,0.05);
+            width: 100px;
+        }
+        .selection-card:hover, .selection-card.selected {
+            border-color: #ff0055;
+            background: rgba(255, 0, 85, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .custom-card {
+            border-color: #ffd700; /* Gold border for customs */
+        }
+        .custom-card:hover {
+            border-color: #fff;
+            background: rgba(255, 215, 0, 0.2);
+        }
+        
+        /* Creator Styles */
+        .creator-controls {
+            display: flex;
+            gap: 40px;
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border: 2px solid #555;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-align: left;
+        }
+        .control-group label {
+            color: #00eaff;
+            font-weight: bold;
+        }
+        input[type=text], select {
+            background: #222;
+            border: 1px solid #00eaff;
+            color: #fff;
+            padding: 5px;
+            font-family: inherit;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type=range] {
+            cursor: pointer;
+            width: 100%;
+        }
+        input[type=checkbox] {
+            transform: scale(1.5);
+            margin-right: 10px;
+        }
+        .stat-val {
+            float: right;
+            color: #ff0055;
+        }
+        
+        /* HUD */
+        #hud {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .health-container {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+        }
+        .bar-frame {
+            width: 100%;
+            height: 30px;
+            border: 3px solid #fff;
+            background: #333;
+            transform: skew(-20deg);
+            overflow: hidden;
+        }
+        .hp-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffcc00, #ff0000);
+            transition: width 0.2s ease-out;
+            transform-origin: left;
+        }
+        #p2-hp-bar {
+            background: linear-gradient(90deg, #ff0000, #ffcc00);
+            transform-origin: right;
+            float: right;
+        }
+        .name-tag {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+        }
+        #timer {
+            font-size: 3rem;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 2px 2px #000;
+        }
+
+        /* Controls Hint */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+        
+        #message-overlay {
+            position: absolute;
+            top: 30%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 5rem;
+            color: #ffcc00;
+            text-shadow: 4px 4px 0 #000;
+            font-weight: bold;
+            transform: skew(-10deg);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        #save-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 234, 255, 0.9);
+            color: #000;
+            padding: 20px 40px;
+            font-size: 2rem;
+            font-weight: bold;
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            opacity: 0;
+        }
+
+        /* Damage Number Styling */
+        .damage-number {
+            position: absolute;
+            color: #ff0000;
+            font-family: 'Courier New', monospace;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px #fff, -1px -1px 0 #000;
+            pointer-events: none;
+            animation: floatUp 1.2s forwards;
+            z-index: 99;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            50% { opacity: 1; transform: translateY(-30px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1); }
+        }
+    </style>
+    <!-- Three.js from CDN -->
+    <script src="./three-r128.min.js"></script>
+</head>
+<body>
+
+    <!-- 90s Animated Background -->
+    <div id="intro-background"></div>
+    <div id="save-toast">SAVED!</div>
+
+    <!-- Audio Start Overlay -->
+    <div id="main-menu">
+        <h1>POLYFIGHTER 95</h1>
+        <h2>Trimesh Combat</h2>
+        <button class="btn" id="start-btn">INSERT COIN (Start)</button>
+        <div style="display:flex;">
+            <button class="btn" id="create-btn" style="border-color: #00eaff; color: #00eaff;">CREATE FIGHTER</button>
+            <button class="btn" id="create-level-btn" style="border-color: #00eaff; color: #00eaff;">CREATE STAGE</button>
+        </div>
+    </div>
+
+    <!-- Character Creator -->
+    <div id="char-creator" class="hidden">
+        <div style="width:100%; display:flex; justify-content:space-between; padding:0 50px; box-sizing:border-box;">
+            <h2>CHARACTER CREATION</h2>
+            <button class="btn btn-small" id="creator-main-btn" style="border-color: #555; color: #aaa;">MAIN MENU (SAVE)</button>
+        </div>
+        
+        <div class="creator-controls">
+            <div class="control-group">
+                <label>IDENTITY</label>
+                <input type="text" id="c-name" value="CUSTOM 01" maxlength="10" placeholder="NAME">
+                
+                <label style="margin-top: 10px;">STYLE</label>
+                <div style="display:flex; align-items:center;">
+                    <input type="checkbox" id="c-wire"> <label for="c-wire" style="font-weight:normal; color:#fff;">Wireframe Mode</label>
+                </div>
+
+                <label style="margin-top: 10px;">APPEARANCE</label>
+                <select id="c-head">
+                    <option value="standard">Standard Head</option>
+                    <option value="box">Robot Box</option>
+                    <option value="cone">Conehead</option>
+                    <option value="dome">Dome (Sphere)</option>
+                    <option value="pyramid">Pyramid</option>
+                    <option value="tv">TV Head</option>
+                    <option value="cylinder">Cylinder</option>
+                    <option value="spiked">Spiked</option>
+                </select>
+                <select id="c-torso">
+                    <option value="standard">Standard Gi</option>
+                    <option value="box">Mecha Chest</option>
+                    <option value="wide">Muscle Bod</option>
+                    <option value="orb">Orb Body</option>
+                    <option value="triangle">V-Shape</option>
+                    <option value="hourglass">Hourglass</option>
+                    <option value="plated">Plated Armor</option>
+                </select>
+
+                <label style="margin-top: 10px;">COLOR (RGB)</label>
+                <input type="range" id="c-red" min="0" max="255" value="200">
+                <input type="range" id="c-green" min="0" max="255" value="100">
+                <input type="range" id="c-blue" min="0" max="255" value="255">
+                <div id="color-preview" style="width: 100%; height: 20px; background: #fff; border: 1px solid #fff;"></div>
+            </div>
+            
+            <div class="control-group">
+                <label>STATS <span id="points-left" style="color:#fff; font-size:0.8rem;">(Points: 0)</span></label>
+                
+                <div>Speed <span id="val-speed" class="stat-val">1.0</span></div>
+                <input type="range" id="c-speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                
+                <div>Power <span id="val-power" class="stat-val">1.0</span></div>
+                <input type="range" id="c-power" min="0.5" max="2.0" step="0.1" value="1.0">
+                
+                <div>Reach <span id="val-reach" class="stat-val">1.0</span></div>
+                <input type="range" id="c-reach" min="0.5" max="2.0" step="0.1" value="1.0">
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <button class="btn" id="save-char-btn">SAVE & SELECT</button>
+        </div>
+    </div>
+
+    <!-- Level Editor -->
+    <div id="level-editor" class="hidden">
+        <div style="width:100%; display:flex; justify-content:space-between; padding:0 50px; box-sizing:border-box;">
+            <h2>STAGE CREATION</h2>
+            <button class="btn btn-small" id="level-main-btn" style="border-color: #555; color: #aaa;">MAIN MENU</button>
+        </div>
+        
+        <div class="creator-controls">
+            <div class="control-group">
+                <label>INFO</label>
+                <input type="text" id="l-name" value="CUSTOM STAGE" maxlength="15">
+                
+                <label style="margin-top: 20px;">ENVIRONMENT</label>
+                <select id="l-floor">
+                    <option value="grid">Neon Grid</option>
+                    <option value="plain">Solid Plain</option>
+                    <option value="checkers">Checkers</option>
+                    <option value="hd_city">Urban Asphalt (HD)</option>
+                </select>
+                
+                <select id="l-sky">
+                    <option value="space">Space Stars</option>
+                    <option value="solid">Solid Fog</option>
+                    <option value="gradient">Sunset Gradient</option>
+                    <option value="night_city">City Lights (HD)</option>
+                </select>
+
+                <label style="margin-top: 10px;">SCENERY</label>
+                <select id="l-scenery">
+                    <option value="none">None (Empty)</option>
+                    <option value="cyber">Cyber Towers</option>
+                    <option value="nature">Zen Garden</option>
+                    <option value="space">Space Station</option>
+                    <option value="floating">Floating Geometry</option>
+                    <option value="hd_city">Modern Skyscrapers</option>
+                </select>
+                
+                <label style="margin-top: 20px;">COLORS</label>
+                <label style="font-size:0.8rem; color:#aaa;">GROUND COLOR (RGB)</label>
+                <input type="range" id="l-g-red" min="0" max="255" value="50">
+                <input type="range" id="l-g-green" min="0" max="255" value="50">
+                <input type="range" id="l-g-blue" min="0" max="255" value="100">
+                
+                <label style="font-size:0.8rem; color:#aaa; margin-top:10px;">SKY COLOR (RGB)</label>
+                <input type="range" id="l-s-red" min="0" max="255" value="0">
+                <input type="range" id="l-s-green" min="0" max="255" value="0">
+                <input type="range" id="l-s-blue" min="0" max="255" value="50">
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button class="btn" id="save-level-btn">SAVE & SELECT</button>
+        </div>
+    </div>
+
+    <!-- Character Select -->
+    <div id="char-select" class="hidden">
+        <h2 id="select-title">SELECT FIGHTER</h2>
+        
+        <!-- Scrollable Area for Rosters -->
+        <div id="select-scroll-area">
+            <!-- Standard Arcade Characters -->
+            <div class="roster-section">
+                <div class="section-header">ARCADE ROSTER</div>
+                <div class="card-grid" id="arcade-container">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- Custom Characters -->
+            <div class="roster-section" id="custom-section">
+                <div class="section-header">CUSTOM HANGAR</div>
+                <div class="card-grid" id="custom-container">
+                    <!-- Filled by JS -->
+                    <div style="color:#555; font-style:italic;">No saved data.</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button class="btn btn-small" id="sel-back-menu-btn" style="border-color: #777;">MAIN MENU</button>
+            <button class="btn btn-small" id="sel-create-btn" style="border-color: #00eaff; color: #00eaff;">CREATE NEW</button>
+        </div>
+        <h3 id="char-desc" style="margin-top:20px; color:#aaa;">-</h3>
+    </div>
+
+    <!-- Level Select -->
+    <div id="level-select" class="hidden">
+        <h2>SELECT STAGE</h2>
+        
+        <div id="level-scroll-area">
+            <div class="roster-section">
+                <div class="section-header">ARCADE STAGES</div>
+                <div class="card-grid" id="level-container" style="justify-content: center; gap: 20px;">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+            
+            <div class="roster-section">
+                <div class="section-header">CUSTOM SECTOR</div>
+                <div class="card-grid" id="custom-level-container" style="justify-content: center; gap: 20px;">
+                    <div style="color:#555; font-style:italic;">No saved levels.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over" class="hidden">
+        <h1 id="winner-text">PLAYER 1 WINS</h1>
+        <div style="display:flex; flex-direction:column;">
+            <button class="btn" id="go-rematch">REMATCH</button>
+            <button class="btn" id="go-select">SELECT FIGHTER</button>
+            <button class="btn" id="go-stage">SELECT STAGE</button>
+            <button class="btn" id="go-menu" style="border-color:#555; color:#aaa;">MAIN MENU</button>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="ui-layer" class="hidden">
+        <div id="hud">
+            <div class="health-container">
+                <div class="name-tag" id="p1-name">PLAYER 1</div>
+                <div class="bar-frame"><div class="hp-bar" id="p1-hp"></div></div>
+            </div>
+            <div id="timer">60</div>
+            <div class="health-container" style="align-items: flex-end;">
+                <div class="name-tag" id="p2-name">CPU</div>
+                <div class="bar-frame"><div class="hp-bar" id="p2-hp"></div></div>
+            </div>
+        </div>
+        <div id="message-overlay">FIGHT!</div>
+        <div id="controls">
+            ARROWS/AD: Move | LEFT MOUSE: Punch | RIGHT MOUSE: Kick | C: Grab | E: Headbutt | R: Dropkick | SPACE: Block
+        </div>
+    </div>
+
+<script>
+/**
+ * AUDIO ENGINE (Web Audio API)
+ * Retro Synth & Music Generator
+ */
+// ... (AudioEngine code remains the same) ...
+const AudioEngine = (() => {
+    let ctx;
+    let musicInterval;
+    let enabled = false;
+
+    const frequencies = {
+        'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
+        'C3': 130.81, 'G3': 196.00, 'A3': 220.00
+    };
+
+    function init() {
+        if (!ctx) {
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            enabled = true;
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+    }
+
+    function playTone(freq, type, duration, vol = 0.1) {
+        if (!enabled) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(vol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+    }
+
+    function playNoise(duration, vol = 0.5) {
+        if (!enabled) return;
+        const bufferSize = ctx.sampleRate * duration;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(vol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        noise.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+    }
+
+    function startMusic() {
+        if (!enabled) return;
+        let step = 0;
+        const bassline = ['C3', 'C3', 'G3', 'C3', 'A3', 'A3', 'G3', 'G3'];
+        const lead = ['C4', null, 'E4', 'G4', null, 'A4', 'G4', null];
+        
+        clearInterval(musicInterval);
+        musicInterval = setInterval(() => {
+            // Bass
+            const bassNote = bassline[step % bassline.length];
+            if (bassNote) playTone(frequencies[bassNote], 'sawtooth', 0.1, 0.05);
+
+            // Lead (every other beat mostly)
+            if (step % 2 === 0) {
+                const leadNote = lead[Math.floor(step/2) % lead.length];
+                if (leadNote) playTone(frequencies[leadNote], 'square', 0.1, 0.03);
+            }
+            step++;
+        }, 150); // BPM control
+    }
+
+    function stopMusic() {
+        clearInterval(musicInterval);
+    }
+
+    return {
+        init,
+        playHit: () => { playNoise(0.1, 0.3); playTone(100, 'sawtooth', 0.1, 0.2); },
+        playBlock: () => { playTone(50, 'square', 0.05, 0.2); },
+        playWhoosh: () => { playNoise(0.05, 0.1); },
+        playSelect: () => { playTone(880, 'sine', 0.1, 0.1); },
+        playStart: () => { 
+            playTone(440, 'square', 0.1); 
+            setTimeout(() => playTone(554, 'square', 0.1), 100);
+            setTimeout(() => playTone(659, 'square', 0.4), 200);
+        },
+        startMusic,
+        stopMusic
+    };
+})();
+
+// ... (ParticleSystem and DamageNumberSystem remain unchanged) ...
+// PARTICLE SYSTEM
+const ParticleSystem = (() => {
+    let particles = [];
+    let sceneRef;
+
+    function init(scene) {
+        sceneRef = scene;
+        particles = [];
+    }
+
+    function emit(position, color, count, speed) {
+        if (!sceneRef) return;
+        
+        // Use simple cubes for retro blood
+        const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        const mat = new THREE.MeshBasicMaterial({ color: color });
+
+        for(let i=0; i<count; i++) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(position);
+            
+            // Random velocity with slight upward bias
+            const vel = new THREE.Vector3(
+                (Math.random() - 0.5) * speed,
+                (Math.random() * 0.5 + 0.5) * speed, // Upwards
+                (Math.random() - 0.5) * speed
+            );
+
+            sceneRef.add(mesh);
+            particles.push({ mesh, vel, life: 1.0 });
+        }
+    }
+
+    function update(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.life -= dt * 2; // Decay rate
+            
+            if (p.life <= 0) {
+                sceneRef.remove(p.mesh);
+                particles.splice(i, 1);
+            } else {
+                p.vel.y -= 9.8 * dt; // Gravity
+                p.mesh.position.addScaledVector(p.vel, dt);
+                p.mesh.rotation.x += p.vel.z;
+                p.mesh.rotation.y += p.vel.x;
+                // Shrink over time
+                p.mesh.scale.setScalar(Math.max(0, p.life));
+            }
+        }
+    }
+
+    return { init, emit, update };
+})();
+
+// DAMAGE NUMBERS SYSTEM
+const DamageNumberSystem = (() => {
+    let active = [];
+    
+    function spawn(pos3d, amount, camera) {
+        // Project 3D pos to 2D screen
+        const vector = pos3d.clone();
+        vector.project(camera);
+        
+        const x = (vector.x * .5 + .5) * window.innerWidth;
+        const y = (-(vector.y * .5) + .5) * window.innerHeight;
+        
+        const el = document.createElement('div');
+        el.className = 'damage-number';
+        el.innerText = `-${Math.round(amount)}`;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        
+        document.getElementById('ui-layer').appendChild(el);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if(el.parentNode) el.parentNode.removeChild(el);
+        }, 1200);
+    }
+    
+    return { spawn };
+})();
+
+// Texture Generator
+function generateTexture(baseColorHex, type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; // Increased resolution for HD feel
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const color = new THREE.Color(baseColorHex);
+
+    // Fill base
+    ctx.fillStyle = `#${color.getHexString()}`;
+    ctx.fillRect(0, 0, 512, 512);
+
+    if (type === 'virtua') { 
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        for(let i=0; i<50; i++) {
+            ctx.fillRect(0, i*10, 512, 2);
+            ctx.fillRect(i*10, 0, 2, 512);
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(256, 512); ctx.lineTo(512, 0);
+        ctx.fill();
+    } else if (type === 'poly') { 
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        for(let i=0; i<12; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, i*40);
+            ctx.lineTo(512, i*40 + 100);
+            ctx.lineTo(512, i*40 + 120);
+            ctx.lineTo(0, i*40 + 20);
+            ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(200,255,255,0.6)';
+        for(let i=0; i<6; i++) {
+            ctx.fillRect(Math.random()*400, Math.random()*400, 30, 30);
+        }
+    } else if (type === 'cube') { 
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        for(let i=0; i<4; i++) {
+            for(let j=0; j<4; j++) {
+                ctx.strokeRect(i*128, j*128, 128, 128);
+                ctx.fillRect(i*128 + 10, j*128 + 10, 108, 108);
+            }
+        }
+    } else if (type === 'building') {
+        // Cyber City Building Texture
+        ctx.fillStyle = '#050505'; // Dark metallic
+        ctx.fillRect(0, 0, 512, 512);
+        // Windows
+        ctx.fillStyle = '#' + new THREE.Color(baseColorHex).getHexString();
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = ctx.fillStyle;
+        
+        const rows = 8 + Math.floor(Math.random()*8);
+        const cols = 4 + Math.floor(Math.random()*4);
+        const w = 512/cols;
+        const h = 512/rows;
+        
+        for(let y=0; y<rows; y++) {
+            for(let x=0; x<cols; x++) {
+                if(Math.random() > 0.4) { // Random lights on/off
+                    ctx.fillRect(x*w + 5, y*h + 5, w-10, h-10);
+                }
+            }
+        }
+    } else if (type === 'floor_grid') {
+        // Neon Floor Grid
+        ctx.fillStyle = '#050010'; 
+        ctx.fillRect(0, 0, 512, 512);
+        
+        ctx.strokeStyle = '#' + new THREE.Color(baseColorHex).getHexString();
+        ctx.lineWidth = 6;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = ctx.strokeStyle;
+        
+        ctx.beginPath();
+        ctx.strokeRect(0,0,512,512);
+        ctx.moveTo(0, 0); ctx.lineTo(512, 0);
+        ctx.moveTo(0, 0); ctx.lineTo(0, 512);
+        ctx.stroke();
+    } else if (type === 'hd_asphalt') {
+        // HD Asphalt / Concrete Texture
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Noise
+        for (let i = 0; i < 5000; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#333333' : '#111111';
+            ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        }
+        
+        // Cracks
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.random()*512, Math.random()*512);
+        ctx.lineTo(Math.random()*512, Math.random()*512);
+        ctx.stroke();
+
+        // Road Markings
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(240, 0, 32, 150); // Dashed Line
+        ctx.fillRect(240, 250, 32, 150);
+        ctx.globalAlpha = 1.0;
+
+    } else if (type === 'hd_building') {
+        // HD Modern Skyscraper Texture
+        // Glass Gradient
+        const grd = ctx.createLinearGradient(0, 0, 0, 512);
+        grd.addColorStop(0, '#004488');
+        grd.addColorStop(1, '#001122');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Window Grid
+        ctx.fillStyle = '#ffffff';
+        const winW = 40;
+        const winH = 20;
+        const gap = 10;
+        
+        for (let y = 20; y < 512; y += winH + gap) {
+            for (let x = 20; x < 512; x += winW + gap) {
+                // Randomly lit windows
+                if (Math.random() > 0.6) {
+                    // Warm or Cool light
+                    ctx.fillStyle = Math.random() > 0.5 ? '#ffffee' : '#ccffff';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = ctx.fillStyle;
+                    ctx.fillRect(x, y, winW, winH);
+                    ctx.shadowBlur = 0;
+                } else {
+                    // Reflection
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                    ctx.fillRect(x, y, winW, winH);
+                }
+            }
+        }
+        // Vertical Beams
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(0, 0, 15, 512);
+        ctx.fillRect(497, 0, 15, 512);
+    } else {
+        // Custom
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(0, 100, 512, 112);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 10;
+        ctx.strokeRect(20, 20, 472, 472);
+    }
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.LinearFilter; 
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+}
+
+// Character Configs
+const CHARACTERS = [
+    { id: 'virtua', name: 'AKIRA', color: 0xdddddd, speed: 1.0, power: 1.0, reach: 1.0, headType: 'standard', torsoType: 'standard', isWireframe: false, desc: "Balanced Fighter. Master of Trimesh Arts." },
+    { id: 'poly', name: 'SARAH', color: 0x22ff55, speed: 1.3, power: 0.8, reach: 0.9, headType: 'standard', torsoType: 'standard', isWireframe: false, desc: "High Speed. Deadly Kicks." },
+    { id: 'cube', name: 'JEFFRY', color: 0x3366cc, speed: 0.7, power: 1.4, reach: 1.2, headType: 'box', torsoType: 'wide', isWireframe: false, desc: "Powerhouse. Heavy Grabs." },
+    { id: 'wire', name: 'VIRTUAL MAN', color: 0xff00ff, speed: 1.1, power: 1.0, reach: 1.0, headType: 'pyramid', torsoType: 'orb', isWireframe: true, desc: "Vector entity. Pure Speed." },
+    { id: 'stick', name: 'STICKMAN', color: 0xffffff, speed: 1.5, power: 0.7, reach: 1.1, headType: 'sphere', torsoType: 'stick', isWireframe: false, desc: "2D legend in a 3D world." },
+    { id: 'bubbles', name: 'BUBBLES', color: 0x00ffff, speed: 0.8, power: 1.2, reach: 0.9, headType: 'sphere', torsoType: 'orb', isWireframe: false, desc: "Float like a butterfly, hit like a rock." },
+    { id: 'voxel', name: 'VOXELATOR', color: 0xffaa00, speed: 0.6, power: 1.8, reach: 1.3, headType: 'voxel', torsoType: 'voxel', isWireframe: false, desc: "Swarm Intelligence. 5000+ Parts." }
+];
+
+// Level Configs
+const LEVELS = [
+    { id: 'grid', name: 'NEON GRID', color1: 0x220033, color2: 0x00ffff, type: 'grid', sky: 'solid', scenery: 'cyber' },
+    { id: 'sunset', name: 'DOJO SUNSET', color1: 0xff5500, color2: 0xffff00, type: 'plain', sky: 'gradient', scenery: 'nature' },
+    { id: 'space', name: 'ZERO G', color1: 0x000000, color2: 0x555555, type: 'stars', sky: 'space', scenery: 'space' },
+    { id: 'vector', name: 'VECTOR ARENA', color1: 0x00ff00, color2: 0x000000, type: 'grid', sky: 'solid', scenery: 'floating' },
+    { id: 'hd_city', name: 'GEMINI CITY', color1: 0x333333, color2: 0x0088ff, type: 'hd_city', sky: 'night_city', scenery: 'hd_city' }
+];
+
+class Fighter {
+    constructor(scene, config, isPlayer, startX) {
+        this.scene = scene;
+        this.config = config;
+        this.isPlayer = isPlayer;
+        this.mesh = new THREE.Group();
+        this.hp = 100;
+        this.maxHp = 100;
+        this.hitFlashTime = 0;
+        
+        // State
+        this.action = 'idle'; // idle, walk, punch, kick, grab, hit, block, stunned
+        this.frame = 0;
+        this.hasHit = false; // Prevent multiple hits per animation
+        this.velocity = new THREE.Vector3();
+        this.direction = isPlayer ? 1 : -1; // 1 facing right, -1 facing left
+        this.targetRotation = isPlayer ? Math.PI / 2 : -Math.PI / 2;
+        
+        // Build Model
+        this.createModel(config);
+        
+        this.mesh.position.set(startX, 0, 0);
+        this.mesh.rotation.y = this.targetRotation;
+        
+        scene.add(this.mesh);
+
+        // Hitbox (Simple abstraction)
+        this.radius = 1.5; 
+    }
+
+    createModel(config) {
+        const tex = generateTexture(config.color, config.id);
+        let mat;
+        
+        if(config.isWireframe) {
+            mat = new THREE.MeshBasicMaterial({ 
+                color: config.color,
+                wireframe: true
+            });
+        } else {
+            mat = new THREE.MeshStandardMaterial({ 
+                map: tex,
+                roughness: 0.3,
+                metalness: 0.4,
+            });
+        }
+        
+        this.material = mat; // Save ref for flash effect
+
+        // Dynamic Light (Aura)
+        this.aura = new THREE.PointLight(config.color, 0, 5);
+        this.aura.position.set(0, 2, 0);
+        this.mesh.add(this.aura);
+
+        // Shadow Decal
+        const shadowGeo = new THREE.CircleGeometry(1.2, 16);
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4 });
+        this.shadow = new THREE.Mesh(shadowGeo, shadowMat);
+        this.shadow.rotation.x = -Math.PI / 2;
+        this.shadow.position.y = 0.05; // Just above ground
+        this.mesh.add(this.shadow);
+
+        // === VOXEL GENERATOR HELPER ===
+        const createVoxelGroup = (w, h, d, yOff, isSphere = false) => {
+            const voxSize = 0.08; // Size of individual voxel
+            const gap = 0.01; // Gap for grid look
+            const fullSize = voxSize + gap;
+            
+            // Calculate counts
+            const cx = Math.ceil(w / fullSize);
+            const cy = Math.ceil(h / fullSize);
+            const cz = Math.ceil(d / fullSize);
+            const maxCount = cx * cy * cz;
+            
+            const g = new THREE.BoxGeometry(voxSize, voxSize, voxSize);
+            const m = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.5, metalness: 0.6 });
+            const imesh = new THREE.InstancedMesh(g, m, maxCount);
+            
+            const dummy = new THREE.Object3D();
+            let count = 0;
+            
+            const radiusSq = (w/2)*(w/2); // For sphere check (approx based on width)
+
+            for(let x=0; x<cx; x++) {
+                for(let y=0; y<cy; y++) {
+                    for(let z=0; z<cz; z++) {
+                        // Centered coords
+                        const posX = (x - cx/2) * fullSize + (fullSize/2);
+                        const posY = (y - cy/2) * fullSize + (fullSize/2);
+                        const posZ = (z - cz/2) * fullSize + (fullSize/2);
+                        
+                        // Sphere Cull
+                        if (isSphere) {
+                            if ((posX*posX + posY*posY + posZ*posZ) > radiusSq) continue;
+                        }
+
+                        // Offset for pivot (yOff shifts the center)
+                        // Standard pivot logic: 0 is top.
+                        // Current posY is centered around 0. 
+                        // To make top pivot, shift down by h/2.
+                        dummy.position.set(posX, posY - h/2 + yOff, posZ);
+                        dummy.updateMatrix();
+                        imesh.setMatrixAt(count++, dummy.matrix);
+                    }
+                }
+            }
+            imesh.instanceMatrix.needsUpdate = true;
+            return imesh;
+        };
+
+        // Helper to create limb segments
+        const createLimb = (w, h, d, yOff) => {
+            if (config.id === 'voxel') {
+                // High detail voxel limbs
+                return createVoxelGroup(w, h, d, yOff, false);
+            }
+
+            let g;
+            if (config.id === 'stick' || config.torsoType === 'stick') {
+                 // Stickman limbs: Thin cylinders
+                 g = new THREE.CylinderGeometry(0.15, 0.15, h, 8);
+            } else if (config.id === 'bubbles' || config.torsoType === 'orb') {
+                 // Bubble limbs: Stretched spheres
+                 g = new THREE.SphereGeometry(w, 8, 8);
+                 g.scale(1, h/w * 0.5, 1); // Scale vertically
+            } else {
+                 // Standard box limbs
+                 g = new THREE.BoxGeometry(w, h, d);
+            }
+            g.translate(0, -h/2 + yOff, 0); // Pivot at top
+            return new THREE.Mesh(g, mat);
+        };
+
+        // === TORSO GENERATION ===
+        let torsoGeo;
+        // Defaults
+        const headType = config.headType || 'standard';
+        const torsoType = config.torsoType || 'standard';
+
+        if (config.id === 'voxel') {
+            // Voxel Torso
+            this.torso = createVoxelGroup(1.5, 2.5, 1.0, 1.25, false); // yOff adjusted to center
+            // InstancedMesh pivot is usually 0,0,0. We need to shift it.
+            // Actually createVoxelGroup puts center at 0,-h/2. 
+            // So pivot is at top of torso.
+            // Wait, torso usually rotates from center or bottom? 
+            // In this rig, torso.position.y is set, and limbs attach to it.
+            // Rotation is usually y-axis (twist) and x (lean).
+            // Standard torso geometry is centered.
+            
+            // Let's rebuild torso logic for Voxel specifically to match pivot
+            // We want visual center at 0,0,0 relative to this.torso mesh
+            // createVoxelGroup with yOff=h/2 puts center at 0.
+            this.torso = createVoxelGroup(1.6, 2.5, 1.2, 2.5/2, false); 
+        } else {
+            if (torsoType === 'box') {
+                torsoGeo = new THREE.BoxGeometry(2, 2.5, 1.5);
+            } else if (torsoType === 'wide') {
+                torsoGeo = new THREE.CylinderGeometry(1.5, 1.0, 2.5, 4);
+            } else if (torsoType === 'orb') {
+                torsoGeo = new THREE.SphereGeometry(1.3, 8, 8);
+            } else if (torsoType === 'triangle') {
+                torsoGeo = new THREE.CylinderGeometry(1.6, 0.6, 2.5, 4);
+            } else if (torsoType === 'hourglass') {
+                torsoGeo = new THREE.CylinderGeometry(1.2, 1.2, 2.5, 4, 1, true); // simplified as tube
+                // Better Hourglass: Two cones
+                // Since single mesh is easier for hierarchy, we stick to cylinder for now or group
+                torsoGeo = new THREE.CylinderGeometry(1.0, 1.0, 2.5, 8); // placeholder
+            } else if (torsoType === 'plated') {
+                torsoGeo = new THREE.IcosahedronGeometry(1.4, 0);
+            } else if (torsoType === 'stick') {
+                torsoGeo = new THREE.CylinderGeometry(0.2, 0.2, 2.5, 8);
+            } else {
+                // Standard
+                torsoGeo = new THREE.CylinderGeometry(1, 0.8, 2.5, 8);
+            }
+            this.torso = new THREE.Mesh(torsoGeo, mat);
+        }
+        
+        this.torso.position.y = 2.8;
+        this.mesh.add(this.torso);
+
+        // === HEAD GENERATION ===
+        if (config.id === 'voxel') {
+            this.head = createVoxelGroup(1.0, 1.0, 1.0, 0.5, true); // Sphere voxel
+        } else {
+            let headGeo;
+            if (headType === 'box') {
+                headGeo = new THREE.BoxGeometry(1, 1, 1);
+            } else if (headType === 'cone') {
+                headGeo = new THREE.ConeGeometry(0.6, 1.2, 8);
+            } else if (headType === 'dome') {
+                 headGeo = new THREE.SphereGeometry(0.7, 8, 6);
+            } else if (headType === 'pyramid') {
+                 headGeo = new THREE.ConeGeometry(0.8, 1.0, 4);
+            } else if (headType === 'tv') {
+                 headGeo = new THREE.BoxGeometry(1.2, 0.9, 0.8);
+            } else if (headType === 'cylinder') {
+                 headGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 8);
+            } else if (headType === 'spiked') {
+                 headGeo = new THREE.IcosahedronGeometry(0.6, 0);
+            } else if (headType === 'sphere') {
+                 headGeo = new THREE.SphereGeometry(0.7, 16, 16);
+            } else {
+                // Standard
+                headGeo = new THREE.IcosahedronGeometry(0.7, 1);
+            }
+            this.head = new THREE.Mesh(headGeo, mat);
+        }
+        
+        this.head.position.y = 1.8; // relative to torso
+        this.torso.add(this.head);
+
+        // Shoulders
+        this.lShoulder = new THREE.Group(); this.lShoulder.position.set(1.1, 1.0, 0);
+        this.rShoulder = new THREE.Group(); this.rShoulder.position.set(-1.1, 1.0, 0);
+        
+        // Adjust shoulder pos for stickman
+        if (torsoType === 'stick') {
+             this.lShoulder.position.set(0.3, 1.0, 0);
+             this.rShoulder.position.set(-0.3, 1.0, 0);
+        }
+        
+        this.torso.add(this.lShoulder);
+        this.torso.add(this.rShoulder);
+
+        // Arms
+        this.lArm = createLimb(0.5, 1.5, 0.5, 0);
+        this.lForeArm = createLimb(0.4, 1.5, 0.4, 0);
+        this.lForeArm.position.y = -1.5;
+        this.lArm.add(this.lForeArm);
+        this.lShoulder.add(this.lArm);
+
+        this.rArm = createLimb(0.5, 1.5, 0.5, 0);
+        this.rForeArm = createLimb(0.4, 1.5, 0.4, 0);
+        this.rForeArm.position.y = -1.5;
+        this.rArm.add(this.rForeArm);
+        this.rShoulder.add(this.rArm);
+
+        // Hips
+        this.hips = new THREE.Group();
+        this.hips.position.y = -1.2;
+        this.torso.add(this.hips);
+
+        // Legs
+        this.lHip = new THREE.Group(); this.lHip.position.set(0.6, 0, 0);
+        this.rHip = new THREE.Group(); this.rHip.position.set(-0.6, 0, 0);
+        
+        if (torsoType === 'stick') {
+            this.lHip.position.set(0.2, 0, 0);
+            this.rHip.position.set(-0.2, 0, 0);
+        }
+
+        this.hips.add(this.lHip);
+        this.hips.add(this.rHip);
+
+        this.lThigh = createLimb(0.6, 1.8, 0.6, 0);
+        this.lShin = createLimb(0.5, 1.8, 0.5, 0);
+        this.lShin.position.y = -1.8;
+        this.lThigh.add(this.lShin);
+        this.lHip.add(this.lThigh);
+
+        this.rThigh = createLimb(0.6, 1.8, 0.6, 0);
+        this.rShin = createLimb(0.5, 1.8, 0.5, 0);
+        this.rShin.position.y = -1.8;
+        this.rThigh.add(this.rShin);
+        this.rHip.add(this.rThigh);
+    }
+
+    triggerFlash() {
+        this.hitFlashTime = 0.1; // Flash duration
+        if (this.material) {
+            if (this.config.isWireframe) {
+                 this.material.color.setHex(0xffffff);
+            } else {
+                 this.material.emissive = new THREE.Color(0xffffff);
+                 this.material.emissiveIntensity = 1.0;
+            }
+        }
+    }
+
+    update(dt, opponent) {
+        // Handle Flash Decay
+        if (this.hitFlashTime > 0) {
+            this.hitFlashTime -= dt;
+            if (this.hitFlashTime <= 0 && this.material) {
+                if (this.config.isWireframe) {
+                      this.material.color.setHex(this.config.color);
+                } else {
+                      this.material.emissive = new THREE.Color(0x000000);
+                      this.material.emissiveIntensity = 0;
+                }
+            }
+        }
+        
+        // Update Aura Intensity based on Action
+        if (this.action === 'punch' || this.action === 'kick' || this.action === 'grab') {
+            // Lerp up
+            this.aura.intensity += (2.0 - this.aura.intensity) * 5 * dt;
+        } else {
+            // Lerp down
+            this.aura.intensity += (0 - this.aura.intensity) * 5 * dt;
+        }
+
+        // Physics & Orientation
+        this.mesh.position.addScaledVector(this.velocity, dt);
+        
+        // Always face opponent
+        const dx = opponent.mesh.position.x - this.mesh.position.x;
+        this.direction = dx > 0 ? 1 : -1;
+        const desiredRot = this.direction > 0 ? Math.PI/2 : -Math.PI/2;
+        this.mesh.rotation.y += (desiredRot - this.mesh.rotation.y) * 0.1;
+
+        // Friction
+        this.velocity.multiplyScalar(0.9);
+
+        // Animation State Machine
+        this.animate(dt * 1000); // ms for sine waves
+        
+        if (this.action !== 'idle' && this.action !== 'walk') {
+            this.frame++;
+            if (this.frame > this.totalFrames) {
+                this.setOp('idle');
+            }
+        }
+
+        // Boundaries
+        if(this.mesh.position.x > 12) this.mesh.position.x = 12;
+        if(this.mesh.position.x < -12) this.mesh.position.x = -12;
+    }
+
+    setOp(op) {
+        if (this.action === 'hit' && op !== 'idle' && this.frame < 20) return; // Stun lock
+        if (this.action === op) return;
+        
+        this.action = op;
+        this.frame = 0;
+        this.hasHit = false; // Reset hit flag for new moves
+
+        // Frame data
+        if (op === 'punch') this.totalFrames = 20;
+        if (op === 'kick') this.totalFrames = 30;
+        if (op === 'headbutt') this.totalFrames = 25; 
+        if (op === 'dropkick') this.totalFrames = 35; // New Move (Slower recovery)
+        if (op === 'grab') this.totalFrames = 40;
+        if (op === 'hit') this.totalFrames = 25;
+        if (op === 'block') this.totalFrames = 9999; // Hold to block
+        if (op === 'idle' || op === 'walk') this.totalFrames = 0;
+
+        if(op === 'punch') AudioEngine.playWhoosh();
+        if(op === 'kick') AudioEngine.playWhoosh();
+        if(op === 'headbutt') AudioEngine.playWhoosh();
+        if(op === 'dropkick') AudioEngine.playWhoosh();
+    }
+
+    animate(time) {
+        const s = Math.sin(time * 0.005 * this.config.speed);
+        const c = Math.cos(time * 0.005 * this.config.speed);
+        
+        // Reset poses roughly
+        this.lShoulder.rotation.set(0,0,0);
+        this.rShoulder.rotation.set(0,0,0);
+        this.lArm.rotation.set(0,0,0);
+        this.rArm.rotation.set(0,0,0);
+        this.lHip.rotation.set(0,0,0);
+        this.rHip.rotation.set(0,0,0);
+        this.lThigh.rotation.set(0,0,0);
+        this.rThigh.rotation.set(0,0,0);
+        this.torso.rotation.y = 0;
+        this.torso.rotation.x = 0; // Reset lean
+        this.torso.rotation.z = 0; // Reset tilt
+        
+        // Reset Head Position (important for headbutt reset)
+        this.head.position.set(0, 1.8, 0);
+
+        if (this.action === 'idle') {
+            // Bouncing
+            this.torso.position.y = 2.8 + Math.abs(s) * 0.1;
+            // Fighting Stance
+            this.lShoulder.rotation.z = 0.5; this.lArm.rotation.x = -0.5; this.lForeArm.rotation.x = -1.5;
+            this.rShoulder.rotation.z = -0.5; this.rArm.rotation.x = -0.8; this.rForeArm.rotation.x = -1.8;
+            this.lHip.rotation.x = -0.2; this.lThigh.rotation.x = 0.2;
+            this.rHip.rotation.x = 0.2; this.rThigh.rotation.x = -0.2;
+        } else if (this.action === 'walk') {
+            this.torso.position.y = 2.8 + Math.abs(s*2) * 0.1;
+            this.lThigh.rotation.x = s * 0.8; this.lShin.rotation.x = s > 0 ? s : 0;
+            this.rThigh.rotation.x = -s * 0.8; this.rShin.rotation.x = -s > 0 ? -s : 0;
+            this.lShoulder.rotation.x = -s * 0.5;
+            this.rShoulder.rotation.x = s * 0.5;
+        } else if (this.action === 'dropkick') {
+            const progress = this.frame / this.totalFrames;
+            
+            // Parabolic jump height
+            // 4 * x * (1 - x) gives a parabola from 0 to 1 to 0
+            const jumpHeight = 4 * progress * (1 - progress);
+            this.torso.position.y = 2.8 + (jumpHeight * 2.0);
+
+            // Rotate body horizontal
+            // -1.5 rads is roughly -90 degrees (facing down/forward)
+            // We want legs pointing at enemy. 
+            // If direction is 1 (right), rotate Z clockwise (-Z).
+            this.torso.rotation.z = -1.2 * this.direction * Math.sin(progress * Math.PI); 
+
+            // Extend both legs
+            const ext = Math.sin(progress * Math.PI);
+            this.lThigh.rotation.x = -1.5 * ext; // Leg forward relative to hips
+            this.rThigh.rotation.x = -1.5 * ext;
+            this.lShin.rotation.x = 0; // Straight
+            this.rShin.rotation.x = 0;
+
+            // Arms out for balance
+            this.lShoulder.rotation.z = 2.0 * ext;
+            this.rShoulder.rotation.z = -2.0 * ext;
+
+        } else if (this.action === 'punch') {
+            // Jab logic
+            const progress = this.frame / this.totalFrames;
+            const ext = Math.sin(progress * Math.PI);
+            
+            // Determine Lead Hand based on direction is tricky, simplified:
+            // Right hand punch
+            this.rShoulder.rotation.x = -1.5 * ext; // Raise arm
+            this.rArm.rotation.x = -1.5; // Point forward
+            this.rForeArm.rotation.x = 0; // Straighten
+            this.torso.rotation.y = -0.5 * ext * this.direction; // Twist
+        } else if (this.action === 'kick') {
+            const progress = this.frame / this.totalFrames;
+            const ext = Math.sin(progress * Math.PI);
+            
+            this.rThigh.rotation.x = -1.5 * ext;
+            this.rShin.rotation.x = 0.5 * ext; // Snap
+        } else if (this.action === 'headbutt') {
+            const progress = this.frame / this.totalFrames;
+            const ext = Math.sin(progress * Math.PI);
+            
+            // Lean forward aggressively
+            // Wind up then snap
+            let snap = 0;
+            if (progress < 0.3) snap = -progress; // Wind back
+            else snap = (progress - 0.3) * 1.5; // Snap forward
+            
+            this.torso.rotation.x = 0.8 * ext; // Lean torso forward
+            
+            this.head.position.z = 0.5 * ext; 
+            this.head.position.y = 1.8 - (0.2 * ext); // Duck slightly
+            
+            // Arms back like a naruto run/headbutt
+            this.lShoulder.rotation.x = 1.2 * ext;
+            this.rShoulder.rotation.x = 1.2 * ext;
+            
+        } else if (this.action === 'grab') {
+             const progress = this.frame / this.totalFrames;
+             const ext = Math.sin(progress * Math.PI);
+             // Bear hug pose
+             this.lShoulder.rotation.z = 1.5 * ext;
+             this.rShoulder.rotation.z = -1.5 * ext;
+             this.lArm.rotation.x = -1.5;
+             this.rArm.rotation.x = -1.5;
+        } else if (this.action === 'hit') {
+             this.torso.rotation.x = -0.5;
+             this.head.rotation.x = -0.5;
+             this.mesh.position.x -= 0.1 * this.direction; // Knockback
+        } else if (this.action === 'block') {
+             this.lForeArm.rotation.x = -2.5;
+             this.rForeArm.rotation.x = -2.5;
+             this.head.rotation.x = 0.5;
+        }
+    }
+
+    getHitbox() {
+        // Returns active hitbox data
+        if (this.action === 'idle' || this.action === 'walk' || this.action === 'hit' || this.action === 'block') return null;
+        
+        // Simplified: if in active frames of attack
+        let activeStart = 5;
+        let activeEnd = 15;
+        let type = 'mid';
+        let damage = 10 * this.config.power;
+        let rangeMult = 1.0;
+        
+        if (this.action === 'kick') { activeStart = 10; activeEnd = 20; damage = 15 * this.config.power; rangeMult = 2.5; }
+        else if (this.action === 'grab') { activeStart = 10; activeEnd = 30; damage = 25 * this.config.power; type = 'grab'; rangeMult = 1.0; }
+        else if (this.action === 'punch') { rangeMult = 1.8; }
+        else if (this.action === 'headbutt') { 
+            activeStart = 8; activeEnd = 18; 
+            damage = 22 * this.config.power; 
+            rangeMult = 2.0; 
+            type = 'high';
+        }
+        else if (this.action === 'dropkick') {
+            activeStart = 10; activeEnd = 25;
+            damage = 25 * this.config.power;
+            rangeMult = 3.0; // Long range due to jump+legs
+            type = 'high';
+        }
+
+        if (this.frame >= activeStart && this.frame <= activeEnd) {
+            return { damage, type, range: rangeMult * this.config.reach };
+        }
+        return null;
+    }
+}
+
+/**
+ * GAME LOGIC
+ */
+const Game = (() => {
+    let scene, camera, renderer;
+    let p1, p2;
+    let previewFighter; // For creator
+    let keys = {};
+    let lastTime = 0;
+    let gameState = 'menu'; // menu, char_select, cpu_select, level_select, fighting, gameover, creator, level_editor
+    let p1Selection = 0;
+    let p2Selection = 0; // CPU selection
+    let levelSelection = 0;
+    let timer = 60;
+    let timerInterval;
+    
+    // Effects
+    let shakeIntensity = 0;
+
+    // Init DOM
+    const ui = {
+        menu: document.getElementById('main-menu'),
+        creator: document.getElementById('char-creator'),
+        levelEditor: document.getElementById('level-editor'),
+        charSelect: document.getElementById('char-select'),
+        charSelectTitle: document.getElementById('select-title'),
+        levelSelect: document.getElementById('level-select'),
+        hud: document.getElementById('ui-layer'),
+        gameOver: document.getElementById('game-over'),
+        p1Hp: document.getElementById('p1-hp'),
+        p2Hp: document.getElementById('p2-hp'),
+        timer: document.getElementById('timer'),
+        msg: document.getElementById('message-overlay')
+    };
+    
+    // Creator DOM
+    const cUI = {
+        name: document.getElementById('c-name'),
+        wire: document.getElementById('c-wire'),
+        head: document.getElementById('c-head'),
+        torso: document.getElementById('c-torso'),
+        red: document.getElementById('c-red'),
+        green: document.getElementById('c-green'),
+        blue: document.getElementById('c-blue'),
+        speed: document.getElementById('c-speed'),
+        power: document.getElementById('c-power'),
+        reach: document.getElementById('c-reach'),
+        preview: document.getElementById('color-preview'),
+        points: document.getElementById('points-left')
+    };
+    
+    // Level Editor DOM
+    const lUI = {
+        name: document.getElementById('l-name'),
+        floor: document.getElementById('l-floor'),
+        sky: document.getElementById('l-sky'),
+        scenery: document.getElementById('l-scenery'), // Added
+        gRed: document.getElementById('l-g-red'),
+        gGreen: document.getElementById('l-g-green'),
+        gBlue: document.getElementById('l-g-blue'),
+        sRed: document.getElementById('l-s-red'),
+        sGreen: document.getElementById('l-s-green'),
+        sBlue: document.getElementById('l-s-blue')
+    };
+
+    function init() {
+        // Setup ThreeJS
+        scene = new THREE.Scene();
+        
+        // Init Particles
+        ParticleSystem.init(scene);
+        
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
+        camera.position.set(0, 3, 15); 
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        // This is needed to suppress the context menu when right-clicking on the canvas
+        renderer.domElement.oncontextmenu = function(e) { e.preventDefault(); };
+
+        // Lights
+        const amb = new THREE.AmbientLight(0x404040);
+        scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 1);
+        dir.position.set(5, 10, 7);
+        dir.castShadow = true;
+        scene.add(dir);
+
+        // Input - UPDATED TO USE CODE FOR BETTER RELIABILITY
+        window.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            keys[e.code] = true; // Track physical key code (e.g., KeyE)
+            if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key) > -1) {
+                e.preventDefault();
+            }
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key] = false;
+            keys[e.code] = false;
+        });
+
+        // MOUSE INPUT
+        renderer.domElement.addEventListener('mousedown', e => {
+            if (e.button === 0) keys['Mouse0'] = true; // Left Click for Punch
+            if (e.button === 2) keys['Mouse2'] = true; // Right Click for Kick
+        });
+        renderer.domElement.addEventListener('mouseup', e => {
+            if (e.button === 0) keys['Mouse0'] = false;
+            if (e.button === 2) keys['Mouse2'] = false;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // UI Events
+        document.getElementById('start-btn').addEventListener('click', () => {
+            window.focus(); // Force focus to game
+            AudioEngine.init();
+            AudioEngine.playSelect();
+            toCharSelect();
+        });
+        
+        document.getElementById('create-btn').addEventListener('click', () => {
+             window.focus();
+             AudioEngine.init();
+             AudioEngine.playSelect();
+             toCreator();
+        });
+        
+        document.getElementById('create-level-btn').addEventListener('click', () => {
+             window.focus();
+             AudioEngine.init();
+             AudioEngine.playSelect();
+             toLevelEditor();
+        });
+        
+        // Creator Listeners
+        [cUI.red, cUI.green, cUI.blue].forEach(el => el.addEventListener('input', updateCreatorPreview));
+        [cUI.head, cUI.torso, cUI.wire].forEach(el => el.addEventListener('change', updateCreatorStructure)); // Rebuild mesh
+        [cUI.speed, cUI.power, cUI.reach].forEach(el => el.addEventListener('input', updateCreatorStats));
+        
+        // Save & Select
+        document.getElementById('save-char-btn').addEventListener('click', () => saveCreatedChar('select'));
+        
+        // Save & Main Menu
+        document.getElementById('creator-main-btn').addEventListener('click', () => saveCreatedChar('menu'));
+        
+        // Level Editor Listeners
+        [lUI.floor, lUI.sky, lUI.scenery, lUI.gRed, lUI.gGreen, lUI.gBlue, lUI.sRed, lUI.sGreen, lUI.sBlue].forEach(el => {
+            el.addEventListener('input', updateLevelPreview);
+        });
+        
+        document.getElementById('save-level-btn').addEventListener('click', saveCreatedLevel);
+        document.getElementById('level-main-btn').addEventListener('click', () => {
+            ui.levelEditor.classList.add('hidden');
+            ui.menu.classList.remove('hidden');
+            gameState = 'menu';
+            AudioEngine.playSelect();
+            // Reset scene for menu
+            while(scene.children.length > 0) scene.remove(scene.children[0]);
+            const amb = new THREE.AmbientLight(0x404040);
+            scene.add(amb);
+            const dir = new THREE.DirectionalLight(0xffffff, 1);
+            dir.position.set(5, 10, 7);
+            scene.add(dir);
+            document.getElementById('intro-background').classList.remove('hidden');
+        });
+        
+        // Navigation Buttons
+        document.getElementById('sel-back-menu-btn').addEventListener('click', () => {
+            if (gameState === 'cpu_select') {
+                // Back to fighter selection
+                toCharSelect(); // Reset to fighter pick state
+                AudioEngine.playSelect();
+            } else {
+                // Back to Main Menu
+                ui.charSelect.classList.add('hidden');
+                ui.menu.classList.remove('hidden');
+                gameState = 'menu';
+                AudioEngine.playSelect();
+            }
+        });
+        
+        document.getElementById('sel-create-btn').addEventListener('click', () => {
+            ui.charSelect.classList.add('hidden');
+            ui.creator.classList.remove('hidden');
+            toCreator();
+            AudioEngine.playSelect();
+        });
+
+        // Game Over Buttons
+        document.getElementById('go-rematch').addEventListener('click', () => {
+            AudioEngine.playSelect();
+            ui.gameOver.classList.add('hidden');
+            startGame();
+        });
+        document.getElementById('go-select').addEventListener('click', () => {
+            AudioEngine.playSelect();
+            ui.gameOver.classList.add('hidden');
+            toCharSelect();
+        });
+        document.getElementById('go-stage').addEventListener('click', () => {
+            AudioEngine.playSelect();
+            ui.gameOver.classList.add('hidden');
+            ui.levelSelect.classList.remove('hidden');
+            gameState = 'level_select';
+            
+            // Clean scene
+            while(scene.children.length > 0) scene.remove(scene.children[0]);
+            const amb = new THREE.AmbientLight(0x404040);
+            scene.add(amb);
+            const dir = new THREE.DirectionalLight(0xffffff, 1);
+            dir.position.set(5, 10, 7);
+            scene.add(dir);
+            document.getElementById('intro-background').classList.remove('hidden');
+            camera.position.set(0, 3, 15);
+        });
+        document.getElementById('go-menu').addEventListener('click', () => {
+            AudioEngine.playSelect();
+            ui.gameOver.classList.add('hidden');
+            ui.menu.classList.remove('hidden');
+            gameState = 'menu';
+            // Clean scene
+            while(scene.children.length > 0) scene.remove(scene.children[0]);
+            // Re-add basic scene
+            const amb = new THREE.AmbientLight(0x404040);
+            scene.add(amb);
+            const dir = new THREE.DirectionalLight(0xffffff, 1);
+            dir.position.set(5, 10, 7);
+            scene.add(dir);
+            document.getElementById('intro-background').classList.remove('hidden');
+            camera.position.set(0, 3, 15);
+        });
+
+        populateMenus();
+        renderLoop(0);
+    }
+    
+    // ... (toCreator, toLevelEditor, updateLevelPreview remain the same) ...
+    function toCreator() {
+        gameState = 'creator';
+        ui.menu.classList.add('hidden');
+        ui.creator.classList.remove('hidden');
+        
+        // Cleanup scene for preview
+        while(scene.children.length > 0) scene.remove(scene.children[0]);
+        const amb = new THREE.AmbientLight(0x404040);
+        scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 1);
+        dir.position.set(5, 10, 7);
+        scene.add(dir);
+        
+        updateCreatorStructure(); // Initial build
+    }
+    
+    function toLevelEditor() {
+        gameState = 'level_editor';
+        ui.menu.classList.add('hidden');
+        ui.levelEditor.classList.remove('hidden');
+        document.getElementById('intro-background').classList.add('hidden');
+        
+        // Camera position for overview
+        camera.position.set(0, 10, 20);
+        camera.lookAt(0, 0, 0);
+        
+        updateLevelPreview();
+    }
+    
+    function updateLevelPreview() {
+        if (gameState !== 'level_editor') return;
+        
+        // Construct temporary config from UI
+        const tempConfig = {
+            type: lUI.floor.value,
+            sky: lUI.sky.value,
+            scenery: lUI.scenery.value, // Added
+            color1: new THREE.Color(`rgb(${lUI.gRed.value},${lUI.gGreen.value},${lUI.gBlue.value})`).getHex(),
+            color2: new THREE.Color(`rgb(${lUI.sRed.value},${lUI.sGreen.value},${lUI.sBlue.value})`).getHex()
+        };
+        
+        // Recreate environment
+        while(scene.children.length > 0) scene.remove(scene.children[0]);
+        
+        // Basic lighting for preview
+        const amb = new THREE.AmbientLight(0x808080);
+        scene.add(amb);
+        const dir = new THREE.DirectionalLight(0xffffff, 1);
+        dir.position.set(5, 10, 5);
+        scene.add(dir);
+        
+        createEnvironmentFromConfig(tempConfig);
+    }
+    
+    function saveCreatedLevel() {
+        const name = lUI.name.value.toUpperCase() || "CUSTOM STAGE";
+        
+        const newLevel = {
+            id: 'custom',
+            name: name,
+            type: lUI.floor.value,
+            sky: lUI.sky.value,
+            scenery: lUI.scenery.value, // Added
+            color1: new THREE.Color(`rgb(${lUI.gRed.value},${lUI.gGreen.value},${lUI.gBlue.value})`).getHex(),
+            color2: new THREE.Color(`rgb(${lUI.sRed.value},${lUI.sGreen.value},${lUI.sBlue.value})`).getHex()
+        };
+        
+        LEVELS.push(newLevel);
+        
+        // Toast
+        const toast = document.getElementById('save-toast');
+        toast.innerText = "STAGE SAVED!";
+        toast.style.opacity = 1;
+        setTimeout(() => toast.style.opacity = 0, 1500);
+        
+        AudioEngine.playStart();
+        
+        // Go to Level Select
+        ui.levelEditor.classList.add('hidden');
+        populateMenus();
+        
+        // Hack to trigger level selection flow
+        // We need to have chars selected first generally, but here we can just go back to main or char select
+        ui.charSelect.classList.remove('hidden');
+        gameState = 'char_select';
+        toCharSelect();
+    }
+    
+    function updateCreatorStructure() {
+        if(previewFighter) scene.remove(previewFighter.mesh);
+        
+        const r = parseInt(cUI.red.value);
+        const g = parseInt(cUI.green.value);
+        const b = parseInt(cUI.blue.value);
+        const colorHex = new THREE.Color(`rgb(${r},${g},${b})`).getHex();
+        
+        const tempConfig = { 
+            id: 'custom', 
+            name: 'PREVIEW', 
+            color: colorHex, 
+            speed: 1, power: 1, reach: 1,
+            headType: cUI.head.value,
+            torsoType: cUI.torso.value,
+            isWireframe: cUI.wire.checked
+        };
+        
+        previewFighter = new Fighter(scene, tempConfig, true, 0);
+        previewFighter.mesh.rotation.y = 0;
+        
+        // Adjust camera for close up
+        camera.position.set(0, 2.5, 8);
+        camera.lookAt(0, 2, 0);
+    }
+    
+    function updateCreatorPreview() {
+        // Used for color updates only (cheaper)
+        if(!previewFighter) return;
+        const r = parseInt(cUI.red.value);
+        const g = parseInt(cUI.green.value);
+        const b = parseInt(cUI.blue.value);
+        const colStr = `rgb(${r},${g},${b})`;
+        const colHex = new THREE.Color(colStr);
+        
+        cUI.preview.style.background = colStr;
+        
+        if (!cUI.wire.checked) {
+             const newTex = generateTexture(colHex.getHex(), 'custom');
+             previewFighter.mesh.traverse(child => {
+                if(child.isMesh && child.material) {
+                    child.material.map = newTex;
+                    child.material.color.setHex(0xffffff); // Reset color tint for texture
+                    child.material.wireframe = false;
+                    child.material.needsUpdate = true;
+                }
+            });
+        } else {
+             previewFighter.mesh.traverse(child => {
+                if(child.isMesh && child.material) {
+                    child.material.map = null;
+                    child.material.color.setHex(colHex.getHex());
+                    child.material.wireframe = true;
+                    child.material.needsUpdate = true;
+                }
+            });
+        }
+    }
+    
+    function updateCreatorStats() {
+        const s = parseFloat(cUI.speed.value);
+        const p = parseFloat(cUI.power.value);
+        const r = parseFloat(cUI.reach.value);
+        
+        const total = s + p + r;
+        const maxPoints = 3.5;
+        const remaining = (maxPoints - total).toFixed(1);
+        
+        document.getElementById('val-speed').innerText = s;
+        document.getElementById('val-power').innerText = p;
+        document.getElementById('val-reach').innerText = r;
+        cUI.points.innerText = `(Points Left: ${remaining})`;
+        
+        // Color code validation
+        cUI.points.style.color = remaining < 0 ? '#ff0000' : '#fff';
+    }
+    
+    function saveCreatedChar(destination = 'select') {
+        const s = parseFloat(cUI.speed.value);
+        const p = parseFloat(cUI.power.value);
+        const r = parseFloat(cUI.reach.value);
+        if (s + p + r > 3.5) {
+            alert("Stats too high! Reduce points.");
+            return;
+        }
+        
+        const rVal = parseInt(cUI.red.value);
+        const gVal = parseInt(cUI.green.value);
+        const bVal = parseInt(cUI.blue.value);
+        const color = new THREE.Color(`rgb(${rVal},${gVal},${bVal})`).getHex();
+        
+        const name = cUI.name.value.toUpperCase() || "UNKNOWN";
+        
+        const newChar = {
+            id: 'custom',
+            name: name,
+            color: color,
+            speed: s,
+            power: p,
+            reach: r,
+            headType: cUI.head.value,
+            torsoType: cUI.torso.value,
+            isWireframe: cUI.wire.checked,
+            desc: `Custom Fighter. S:${s} P:${p} R:${r}`
+        };
+        
+        CHARACTERS.push(newChar);
+        
+        // Toast Effect
+        const toast = document.getElementById('save-toast');
+        toast.innerText = "FIGHTER SAVED!";
+        toast.style.opacity = 1;
+        setTimeout(() => toast.style.opacity = 0, 1500);
+        
+        AudioEngine.playStart();
+        ui.creator.classList.add('hidden');
+        
+        // Clear preview
+        if(previewFighter) {
+            scene.remove(previewFighter.mesh);
+            previewFighter = null;
+        }
+        
+        populateMenus(); // Update DOM
+        
+        if (destination === 'menu') {
+             ui.menu.classList.remove('hidden');
+             gameState = 'menu';
+             document.getElementById('intro-background').classList.remove('hidden'); // Show grid
+             // Reset scene to empty to save resources/prevent glitches
+             while(scene.children.length > 0) scene.remove(scene.children[0]);
+             // Re-add generic lights just in case
+             const amb = new THREE.AmbientLight(0x404040);
+             scene.add(amb);
+             const dir = new THREE.DirectionalLight(0xffffff, 1);
+             dir.position.set(5, 10, 7);
+             scene.add(dir);
+             camera.position.set(0, 3, 15);
+        } else {
+             toCharSelect();
+             // Auto scroll to bottom to show new custom char
+             setTimeout(() => {
+                const scrollArea = document.getElementById('select-scroll-area');
+                if(scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+            }, 100);
+        }
+    }
+
+    // ... (populateMenus, createCharCard, etc. remain the same) ...
+    function populateMenus() {
+        const arcadeCont = document.getElementById('arcade-container');
+        arcadeCont.innerHTML = ''; 
+        
+        const customCont = document.getElementById('custom-container');
+        customCont.innerHTML = ''; 
+
+        CHARACTERS.forEach((c, i) => {
+            if (c.id !== 'custom') {
+                createCharCard(c, i, arcadeCont);
+            } else {
+                createCharCard(c, i, customCont, true);
+            }
+        });
+        
+        // Show 'no saved data' if empty
+        if (customCont.children.length === 0) {
+            customCont.innerHTML = '<div style="color:#555; font-style:italic; width:100%; text-align:center; padding:10px;">No saved data.</div>';
+        }
+
+        // Populate Levels
+        const arcadeLevelCont = document.getElementById('level-container');
+        arcadeLevelCont.innerHTML = '';
+        
+        const customLevelCont = document.getElementById('custom-level-container');
+        customLevelCont.innerHTML = '';
+        
+        LEVELS.forEach((l, i) => {
+            const d = document.createElement('div');
+            d.className = 'selection-card';
+            // Visual preview of floor color
+            const c = new THREE.Color(l.color1).getHexString();
+            d.innerHTML = `<div style="width:50px;height:50px;background:#${c};margin:0 auto;border:1px solid #fff;"></div><h3>${l.name}</h3>`;
+            d.onclick = () => selectLevel(i);
+            
+            if (l.id === 'custom') {
+                d.classList.add('custom-card');
+                customLevelCont.appendChild(d);
+            } else {
+                arcadeLevelCont.appendChild(d);
+            }
+        });
+        
+        if (customLevelCont.children.length === 0) {
+            customLevelCont.innerHTML = '<div style="color:#555; font-style:italic;">No saved levels.</div>';
+        }
+    }
+
+    function createCharCard(c, i, container, isCustom = false) {
+        const d = document.createElement('div');
+        d.className = 'selection-card';
+        if(isCustom) d.classList.add('custom-card');
+        
+        const colorHex = new THREE.Color(c.color).getHexString();
+        let style;
+        
+        if (c.isWireframe) {
+             style = `border: 2px solid #${colorHex}; background: transparent;`;
+        } else {
+             style = `background: #${colorHex};`;
+        }
+            
+        d.innerHTML = `<div style="width:50px;height:50px;${style}margin:0 auto;"></div><h3>${c.name}</h3>`;
+        d.onclick = () => {
+            if(gameState === 'char_select') selectChar(i);
+            else if (gameState === 'cpu_select') selectCpu(i);
+        };
+        container.appendChild(d);
+    }
+
+    function toCharSelect() {
+        populateMenus(); // Refresh list every entry to be sure
+        gameState = 'char_select';
+        ui.charSelectTitle.innerText = "SELECT FIGHTER";
+        document.getElementById('sel-back-menu-btn').innerText = "MAIN MENU"; 
+        ui.menu.classList.add('hidden');
+        ui.charSelect.classList.remove('hidden');
+        
+        // Reset camera
+        camera.position.set(0, 3, 15); 
+    }
+
+    function selectChar(i) {
+        p1Selection = i;
+        AudioEngine.playSelect();
+        gameState = 'cpu_select';
+        ui.charSelectTitle.innerText = "SELECT OPPONENT";
+        document.getElementById('sel-back-menu-btn').innerText = "BACK";
+    }
+    
+    function selectCpu(i) {
+        p2Selection = i;
+        AudioEngine.playSelect();
+        ui.charSelect.classList.add('hidden');
+        ui.levelSelect.classList.remove('hidden');
+        gameState = 'level_select';
+    }
+
+    function selectLevel(i) {
+        levelSelection = i;
+        AudioEngine.playSelect();
+        ui.levelSelect.classList.add('hidden');
+        startGame();
+    }
+
+    function createEnvironment(type) {
+        createEnvironmentFromConfig(LEVELS[levelSelection]);
+    }
+    
+    function createEnvironmentFromConfig(config) {
+        // Floor
+        const floorGeo = new THREE.PlaneGeometry(60, 60);
+        let floorMat;
+        
+        const c1 = config.color1;
+        const c2 = config.color2;
+
+        if (config.type === 'hd_city') {
+            // HD Ground
+            const tex = generateTexture(c1, 'hd_asphalt');
+            tex.repeat.set(3, 3);
+            floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
+        } else if (config.type === 'grid') {
+            const tex = generateTexture(c2, 'floor_grid');
+            // Make the floor emissive for Vector/Grid modes
+            floorMat = new THREE.MeshStandardMaterial({ 
+                map: tex, 
+                color: 0xffffff,
+                emissive: c2,
+                emissiveIntensity: 0.2
+            });
+        } else if (config.type === 'checkers') {
+            const cvs = document.createElement('canvas');
+            cvs.width = 64; cvs.height = 64;
+            const x = cvs.getContext('2d');
+            x.fillStyle = `#${new THREE.Color(c1).getHexString()}`;
+            x.fillRect(0,0,64,64);
+            x.fillStyle = `#${new THREE.Color(c1).clone().offsetHSL(0,0,0.2).getHexString()}`;
+            x.fillRect(0,0,32,32);
+            x.fillRect(32,32,32,32);
+            const tex = new THREE.CanvasTexture(cvs);
+            tex.magFilter = THREE.NearestFilter;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(10,10);
+            floorMat = new THREE.MeshStandardMaterial({ map: tex });
+        } else {
+            // Plain
+            floorMat = new THREE.MeshStandardMaterial({ color: c1 });
+        }
+        
+        // Sky
+        if (config.sky === 'night_city') {
+            scene.background = new THREE.Color(0x050510);
+            // Add distant city lights (particles)
+            const pGeo = new THREE.BufferGeometry();
+            const count = 500;
+            const pos = new Float32Array(count*3);
+            for(let i=0; i<count*3; i++) pos[i] = (Math.random()-0.5)*200;
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const pMat = new THREE.PointsMaterial({color: 0xffaa00, size: 0.5});
+            scene.add(new THREE.Points(pGeo, pMat));
+        } else if (config.sky === 'space') {
+            scene.background = new THREE.Color(0x000000);
+            const starsGeo = new THREE.BufferGeometry();
+            const starsCount = 800;
+            const pos = new Float32Array(starsCount * 3);
+            for(let i=0; i<starsCount*3; i++) pos[i] = (Math.random()-0.5)*150;
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const starMat = new THREE.PointsMaterial({color: 0xffffff, size:0.5});
+            scene.add(new THREE.Points(starsGeo, starMat));
+        } else if (config.sky === 'gradient') {
+            scene.background = new THREE.Color(c2);
+        } else {
+            scene.background = new THREE.Color(c2);
+        }
+
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        scene.add(floor);
+        
+        if (config.type !== 'grid' && config.type !== 'hd_city') {
+            const grid = new THREE.GridHelper(60, 30, 0xffffff, 0x555555);
+            scene.add(grid);
+        }
+
+        const sceneryGroup = new THREE.Group();
+        scene.add(sceneryGroup);
+
+        // SCENERY SWITCH
+        const sceneryType = config.scenery; // Uses new property
+
+        if (sceneryType === 'hd_city') {
+            // HD BUILDINGS
+            const bMat = new THREE.MeshStandardMaterial({
+                map: generateTexture(0x88ccff, 'hd_building'),
+                roughness: 0.1,
+                metalness: 0.8
+            });
+
+            for(let i=0; i<30; i++) {
+                const h = 10 + Math.random() * 25;
+                const w = 3 + Math.random() * 4;
+                const geo = new THREE.BoxGeometry(w, h, w);
+                const mesh = new THREE.Mesh(geo, bMat);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 15 + Math.random() * 25;
+                mesh.position.set(Math.cos(angle) * radius, h/2 - 5, Math.sin(angle) * radius);
+                mesh.lookAt(0, h/2 - 5, 0); // Face center
+                
+                sceneryGroup.add(mesh);
+            }
+        } else if (sceneryType === 'floating') {
+            // VECTOR ARENA GRAPHICS
+            const wireMat = new THREE.MeshBasicMaterial({ color: config.color2, wireframe: true });
+            
+            // Wireframe Landscape
+            const mountGeo = new THREE.PlaneGeometry(80, 30, 16, 8);
+            const pos = mountGeo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                const z = pos.getZ(i); 
+                if (z > 0) { 
+                    const noise = Math.sin(pos.getX(i) * 0.5) * 5 + Math.random() * 3;
+                    pos.setZ(i, z + noise);
+                }
+            }
+            mountGeo.computeVertexNormals();
+
+            for(let i=0; i<4; i++) {
+                const m = new THREE.Mesh(mountGeo, wireMat);
+                m.position.y = 5;
+                m.rotation.x = -Math.PI / 4;
+                const dist = 40;
+                if(i===0) { m.position.z = -dist; }
+                if(i===1) { m.position.z = dist; m.rotation.y = Math.PI; }
+                if(i===2) { m.position.x = -dist; m.rotation.y = Math.PI/2; }
+                if(i===3) { m.position.x = dist; m.rotation.y = -Math.PI/2; }
+                sceneryGroup.add(m);
+            }
+
+            const geoms = [new THREE.IcosahedronGeometry(2, 0), new THREE.OctahedronGeometry(2, 0)];
+            for(let i=0; i<12; i++) {
+                const g = geoms[i%2];
+                const shape = new THREE.Mesh(g, wireMat);
+                const angle = Math.random() * Math.PI * 2;
+                const rad = 20 + Math.random() * 15;
+                const y = 10 + Math.random() * 10;
+                shape.position.set(Math.cos(angle)*rad, y, Math.sin(angle)*rad);
+                shape.rotation.set(Math.random(), Math.random(), Math.random());
+                sceneryGroup.add(shape);
+            }
+            
+            const beamGeo = new THREE.BoxGeometry(0.5, 100, 0.5);
+            for(let i=0; i<8; i++) {
+                const beam = new THREE.Mesh(beamGeo, wireMat);
+                const angle = (i / 8) * Math.PI * 2;
+                const rad = 30;
+                beam.position.set(Math.cos(angle)*rad, 0, Math.sin(angle)*rad);
+                sceneryGroup.add(beam);
+            }
+
+        } else if (sceneryType === 'cyber') {
+            // CYBER CITY
+            const bMat = new THREE.MeshStandardMaterial({
+                color: 0x222222, 
+                roughness: 0.2,
+                metalness: 0.5,
+                map: generateTexture(config.color2, 'building') 
+            });
+            const wireMat = new THREE.MeshBasicMaterial({ color: config.color2, wireframe: true });
+
+            for(let i=0; i<40; i++) {
+                const h = 5 + Math.random() * 15;
+                const w = 2 + Math.random() * 3;
+                const geo = new THREE.BoxGeometry(w, h, w);
+                const mesh = new THREE.Mesh(geo, bMat);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 20 + Math.random() * 20;
+                mesh.position.set(Math.cos(angle) * radius, h/2 - 5, Math.sin(angle) * radius);
+                
+                sceneryGroup.add(mesh);
+            }
+        } else if (sceneryType === 'nature') {
+            // ZEN GARDEN
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 2, 6);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x553311 });
+            const leafGeo = new THREE.ConeGeometry(2.5, 6, 8);
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x228822, flatShading: true });
+
+            for(let i=0; i<15; i++) {
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                const leaves = new THREE.Mesh(leafGeo, leafMat);
+                leaves.position.y = 3;
+                tree.add(trunk);
+                tree.add(leaves);
+
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 18 + Math.random() * 15;
+                tree.position.set(Math.cos(angle) * radius, 1, Math.sin(angle) * radius);
+                
+                const s = 0.8 + Math.random() * 0.6;
+                tree.scale.set(s,s,s);
+                sceneryGroup.add(tree);
+            }
+            
+            const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555, flatShading: true });
+            for(let i=0; i<10; i++) {
+                const rock = new THREE.Mesh(rockGeo, rockMat);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 12 + Math.random() * 25;
+                rock.position.set(Math.cos(angle) * radius, 0.5, Math.sin(angle) * radius);
+                rock.scale.setScalar(1 + Math.random());
+                sceneryGroup.add(rock);
+            }
+        } else if (sceneryType === 'space') {
+            // SPACE STATION
+            const astGeo = new THREE.IcosahedronGeometry(1, 1);
+            const astMat = new THREE.MeshStandardMaterial({ color: 0x888888, flatShading: true, roughness: 0.8 });
+            
+            for(let i=0; i<20; i++) {
+                const ast = new THREE.Mesh(astGeo, astMat);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 15 + Math.random() * 20;
+                const height = (Math.random() - 0.5) * 20;
+                ast.position.set(Math.cos(angle) * radius, 10 + height, Math.sin(angle) * radius);
+                ast.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                ast.scale.setScalar(1 + Math.random() * 2);
+                sceneryGroup.add(ast);
+            }
+            
+            const ringGeo = new THREE.TorusGeometry(30, 1, 16, 100);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = -10;
+            sceneryGroup.add(ring);
+        }
+    }
+
+    // ... (startGame, updatePhysics, updateAI, updateInput, endGame, renderLoop, init, etc. remain same) ...
+    function startGame() {
+        gameState = 'fighting';
+        ui.hud.classList.remove('hidden');
+        
+        document.getElementById('intro-background').classList.add('hidden');
+
+        while(scene.children.length > 0) scene.remove(scene.children[0]);
+
+        const lights = new THREE.Group();
+        lights.add(new THREE.AmbientLight(0x505050));
+        const dl = new THREE.DirectionalLight(0xffffff, 1);
+        dl.position.set(5,10,5);
+        lights.add(dl);
+        scene.add(lights);
+
+        createEnvironmentFromConfig(LEVELS[levelSelection]);
+
+        const p1Config = CHARACTERS[p1Selection];
+        const p2Config = CHARACTERS[p2Selection]; 
+
+        p1 = new Fighter(scene, p1Config, true, -4);
+        p2 = new Fighter(scene, p2Config, false, 4);
+
+        document.getElementById('p1-name').innerText = p1Config.name;
+        document.getElementById('p2-name').innerText = p2Config.name;
+
+        AudioEngine.startMusic();
+        AudioEngine.playStart();
+
+        ui.msg.innerText = "READY?";
+        ui.msg.style.opacity = 1;
+        setTimeout(() => {
+            ui.msg.innerText = "FIGHT!";
+            setTimeout(() => ui.msg.style.opacity = 0, 1000);
+        }, 2000);
+
+        timer = 60;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (gameState !== 'fighting') return;
+            timer--;
+            ui.timer.innerText = timer;
+            if (timer <= 0) endGame();
+        }, 1000);
+    }
+
+    function updatePhysics() {
+        const dist = p1.mesh.position.distanceTo(p2.mesh.position);
+        
+        const checkHit = (attacker, defender) => {
+            if (attacker.hasHit) return;
+
+            const attack = attacker.getHitbox();
+            if (attack) {
+                if (dist < attack.range) {
+                    attacker.hasHit = true; 
+
+                    if (defender.action === 'block') {
+                        AudioEngine.playBlock();
+                        const impactPos = defender.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+                        ParticleSystem.emit(impactPos, 0x00ffff, 8, 4); 
+                        
+                        defender.mesh.position.x += (attacker.direction * 0.5); 
+                    } else {
+                        defender.hp -= attack.damage;
+                        defender.setOp('hit');
+                        defender.triggerFlash();
+                        
+                        AudioEngine.playHit();
+                        
+                        const impactPos = defender.mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+                        ParticleSystem.emit(impactPos, 0xff0000, 12, 6); 
+                        
+                        shakeIntensity = 0.5;
+                        
+                        DamageNumberSystem.spawn(impactPos, attack.damage, camera);
+                        
+                        const pct = Math.max(0, (defender.hp / defender.maxHp) * 100);
+                        if(attacker === p1) ui.p2Hp.style.width = pct + '%';
+                        else ui.p1Hp.style.width = pct + '%';
+
+                        if (defender.hp <= 0) endGame();
+                    }
+                }
+            }
+        };
+
+        checkHit(p1, p2);
+        checkHit(p2, p1);
+    }
+
+    function updateAI() {
+        // Simple CPU AI
+        const dist = p2.mesh.position.distanceTo(p1.mesh.position);
+        const dirToP1 = Math.sign(p1.mesh.position.x - p2.mesh.position.x);
+
+        if (p2.action === 'idle' || p2.action === 'walk') {
+            if (dist > 2.5) {
+                // If far away, maybe dropkick?
+                if (Math.random() < 0.02) {
+                    p2.setOp('dropkick');
+                } else {
+                    p2.setOp('walk');
+                    p2.velocity.x = dirToP1 * 4.0 * p2.config.speed;
+                }
+            } else {
+                // Close range combat
+                p2.velocity.x = 0;
+                p2.setOp('idle');
+                
+                const rand = Math.random();
+                if (rand < 0.02) p2.setOp('punch');
+                else if (rand < 0.04) p2.setOp('kick');
+                else if (rand < 0.045) p2.setOp('grab');
+                else if (rand < 0.06) p2.setOp('headbutt'); 
+                else if (rand < 0.07) p2.setOp('block'); 
+            }
+        }
+        
+        // Release block randomly
+        if (p2.action === 'block' && Math.random() > 0.95) p2.setOp('idle');
+    }
+
+    function updateInput(dt) {
+        if (gameState !== 'fighting') return;
+
+        // isDown helper is used for keyboard input that might vary case (z, Z, a, A, etc.)
+        // Now also checks e.code for reliability
+        const isDown = (k, code) => keys[k] || keys[k.toLowerCase()] || keys[k.toUpperCase()] || (code && keys[code]);
+        const isMouseDown = (k) => keys[k]; // For 'Mouse0' and 'Mouse2'
+
+        // P1 Controls
+        if (p1.action === 'idle' || p1.action === 'walk') {
+            // Movement
+            let moveInput = 0;
+            if (isDown('ArrowLeft', 'KeyA') || isDown('a', 'KeyA')) moveInput = -1;
+            if (isDown('ArrowRight', 'KeyD') || isDown('d', 'KeyD')) moveInput = 1;
+
+            if (moveInput !== 0) {
+                p1.setOp('walk');
+                p1.velocity.x = moveInput * 6.0 * p1.config.speed;
+            } else {
+                p1.setOp('idle');
+                p1.velocity.x = 0;
+            }
+
+            // Actions (Override movement state if triggered)
+            let actionTriggered = false;
+            // MOUSE CONTROLS FOR PUNCH AND KICK
+            if (isMouseDown('Mouse0')) { p1.setOp('punch'); actionTriggered = true; }
+            else if (isMouseDown('Mouse2')) { p1.setOp('kick'); actionTriggered = true; }
+            // KEYBOARD CONTROLS
+            else if (isDown('c', 'KeyC')) { p1.setOp('grab'); actionTriggered = true; }
+            else if (isDown('e', 'KeyE')) { p1.setOp('headbutt'); actionTriggered = true; } 
+            else if (isDown('r', 'KeyR')) { p1.setOp('dropkick'); actionTriggered = true; } // New Input
+            else if (isDown(' ', 'Space')) { p1.setOp('block'); actionTriggered = true; }
+
+            // Stop sliding if attacking
+            if (actionTriggered && p1.action !== 'walk' && p1.action !== 'idle') {
+                p1.velocity.x = 0;
+            }
+
+        } else if (p1.action === 'block' && !isDown(' ', 'Space')) {
+            p1.setOp('idle');
+        }
+    }
+
+    function endGame() {
+        gameState = 'gameover';
+        AudioEngine.stopMusic();
+        
+        let msg = "DRAW";
+        if (p1.hp > p2.hp) msg = "PLAYER 1 WINS!";
+        else if (p2.hp > p1.hp) msg = "CPU WINS!";
+        
+        document.getElementById('winner-text').innerText = msg;
+        ui.hud.classList.add('hidden');
+        ui.gameOver.classList.remove('hidden');
+    }
+
+    function renderLoop(time) {
+        requestAnimationFrame(renderLoop);
+        
+        const dt = (time - lastTime) / 1000;
+        lastTime = time;
+
+        if (gameState === 'fighting') {
+            updateInput(dt);
+            updateAI();
+            p1.update(dt, p2);
+            p2.update(dt, p1);
+            updatePhysics();
+            ParticleSystem.update(dt);
+            
+            const midX = (p1.mesh.position.x + p2.mesh.position.x) / 2;
+            const dist = Math.abs(p1.mesh.position.x - p2.mesh.position.x);
+            
+            let shakeX = 0, shakeY = 0;
+            if (shakeIntensity > 0) {
+                shakeX = (Math.random() - 0.5) * shakeIntensity;
+                shakeY = (Math.random() - 0.5) * shakeIntensity;
+                shakeIntensity -= dt * 2; 
+                if (shakeIntensity < 0) shakeIntensity = 0;
+            }
+            
+            camera.position.x += (midX - camera.position.x) * 0.1;
+            const targetZ = 10 + dist * 0.6; 
+            camera.position.z += (targetZ - camera.position.z) * 0.1;
+            
+            camera.lookAt(midX, 1, 0);
+            
+            camera.position.x += shakeX;
+            camera.position.y = 3 + shakeY; 
+            
+        } else if (gameState === 'creator' && previewFighter) {
+            previewFighter.mesh.rotation.y += 0.01;
+            previewFighter.animate(time);
+        } else if (gameState === 'level_editor') {
+            const radius = 25;
+            camera.position.x = Math.sin(time * 0.0002) * radius;
+            camera.position.z = Math.cos(time * 0.0002) * radius;
+            camera.lookAt(0, 0, 0);
+        } else {
+            camera.position.x = Math.sin(time * 0.0005) * 10;
+            camera.position.z = Math.cos(time * 0.0005) * 10;
+            camera.lookAt(0, 0, 0);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    return { init };
+})();
+
+window.onload = Game.init;
+
+</script>
+<script>window.BIT_MOBILE={"move": "both", "buttons": [{"code": "Space", "label": "\ud83d\udc4a HIT"}]};</script>
+<script>
+/* Bit Mobile Kit — touch controls layered over the PC controls.
+   Activates ONLY on touch devices; desktop play is completely untouched.
+   Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
+     lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+(function () {
+  var cfg = window.BIT_MOBILE || {};
+  var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!isTouch) return;
+
+  var style = document.createElement('style');
+  style.textContent = [
+    'html,body{touch-action:none;overscroll-behavior:none}',
+    '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
+    '#bit-stick{position:absolute;left:18px;bottom:24px;width:118px;height:118px;border-radius:50%;',
+    'background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);pointer-events:auto}',
+    '#bit-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;',
+    'background:rgba(255,255,255,.45);transform:translate(-50%,-50%)}',
+    '#bit-btns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}',
+    '.bit-btn{min-width:64px;height:56px;padding:0 12px;border-radius:16px;border:2px solid rgba(255,255,255,.35);',
+    'background:rgba(20,20,40,.55);color:#fff;font-size:15px;font-weight:700;text-align:center}',
+    '.bit-btn:active{background:rgba(255,159,243,.55)}'
+  ].join('');
+  document.head.appendChild(style);
+
+  var KEYMAP = {
+    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 100 - 32], KeyE: ['e', 69],
+    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32],
+    ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
+  };
+  KEYMAP.KeyD = ['d', 68];
+
+  function fireKey(type, code) {
+    var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
+    var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
+    try { Object.defineProperty(e, 'keyCode', { value: m[1] }); Object.defineProperty(e, 'which', { value: m[1] }); } catch (err) {}
+    window.dispatchEvent(e); document.dispatchEvent(e);
+    if (document.body) document.body.dispatchEvent(e);
+  }
+  function fireMouse(type, x, y, dx, dy) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+    if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+
+  var kit = document.createElement('div'); kit.id = 'bit-kit';
+  document.body.appendChild(kit);
+
+  /* ---- virtual joystick -> movement keys ---- */
+  var pressed = {};
+  function setKey(code, down) {
+    if (pressed[code] === down) return; pressed[code] = down;
+    fireKey(down ? 'keydown' : 'keyup', code);
+  }
+  if (cfg.move) {
+    var stick = document.createElement('div'); stick.id = 'bit-stick';
+    var nub = document.createElement('div'); nub.id = 'bit-nub';
+    stick.appendChild(nub); kit.appendChild(stick);
+    var stickId = null;
+    function groups() {
+      return cfg.move === 'both'
+        ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
+        : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
+    }
+    function applyStick(dx, dy) {
+      var g = groups(), on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
+      for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
+    }
+    function clearStick() { var g = groups(); for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); }
+    stick.addEventListener('touchstart', function (e) {
+      e.preventDefault(); var t = e.changedTouches[0]; stickId = t.identifier;
+    }, { passive: false });
+    stick.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
+        var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
+        var len = Math.max(1, Math.hypot(dx, dy)); if (Math.hypot(dx, dy) > 1) { dx /= len; dy /= len; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx * 32 + 'px), calc(-50% + ' + dy * 32 + 'px))';
+        applyStick(dx, dy);
+      }
+    }, { passive: false });
+    function endStick(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === stickId) {
+        stickId = null; nub.style.transform = 'translate(-50%,-50%)'; clearStick();
+      }
+    }
+    stick.addEventListener('touchend', endStick); stick.addEventListener('touchcancel', endStick);
+  }
+
+  /* ---- action buttons ---- */
+  if (cfg.buttons && cfg.buttons.length) {
+    var wrap = document.createElement('div'); wrap.id = 'bit-btns';
+    cfg.buttons.forEach(function (b) {
+      var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keydown', b.code);
+      }, { passive: false });
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keyup', b.code);
+      }, { passive: false });
+      wrap.appendChild(btn);
+    });
+    kit.appendChild(wrap);
+  }
+
+  /* ---- drag-look / drawing bridge on the canvas ---- */
+  if (cfg.look && cfg.look !== 'none' || cfg.bridge) {
+    var lookId = null, lx = 0, ly = 0, locked = false;
+    document.addEventListener('touchstart', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (t.target.closest && t.target.closest('#bit-kit')) continue;
+        if (lookId !== null) continue;
+        lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousedown', t.clientX, t.clientY);
+        if (cfg.lockTry && !locked) {
+          locked = true;
+          var c = document.querySelector('canvas');
+          if (c && c.requestPointerLock) { try { var p = c.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (err) {} }
+        }
+      }
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
+        else if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx * 1.6, dy: dy * 1.6 } }));
+        else if (cfg.look === 'mouse') fireMouse('mousemove', t.clientX, t.clientY, dx, dy);
+      }
+      if (lookId !== null && !cfg.bridge) e.preventDefault();
+    }, { passive: false });
+    function endLook(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
+        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        lookId = null;
+      }
+    }
+    document.addEventListener('touchend', endLook); document.addEventListener('touchcancel', endLook);
+  }
+})();
+
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>

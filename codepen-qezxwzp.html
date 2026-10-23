@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Neon City Strike</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon City Sandbox</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; user-select: none; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+
+        /* Debug Console */
+        #debug-log {
+            position: absolute; top: 0; right: 0;
+            width: 300px; max-height: 100px; overflow-y: scroll;
+            background: rgba(0,0,0,0.8); color: #ff5555; font-size: 10px;
+            padding: 5px; border-left: 2px solid #ff0000; z-index: 99;
+            pointer-events: auto;
+        }
+
+        /* Damage Overlay */
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(255,0,0,0.5) 100%);
+            opacity: 0; pointer-events: none; transition: opacity 0.1s;
+            z-index: 5;
+        }
+
+        #crosshair {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px #0ff;
+            transition: transform 0.1s;
+        }
+
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            width: 250px;
+            color: #0ff; font-size: 16px;
+            text-shadow: 0 0 5px #0ff;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        /* Health Bar */
+        #health-container {
+            width: 100%; height: 20px;
+            background: #333; border: 2px solid #fff;
+            border-radius: 4px; overflow: hidden;
+        }
+        #health-bar {
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff4444);
+            transition: width 0.2s;
+        }
+        
+        #score-container {
+            font-size: 24px; color: #ff0055; font-weight: bold;
+            text-shadow: 0 0 10px #ff0055;
+        }
+        
+        #weapon-bar {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px; border-radius: 10px;
+            border: 1px solid #333;
+        }
+        .weapon-slot {
+            width: 50px; height: 50px;
+            background: #222; border: 2px solid #444; border-radius: 5px;
+            display: flex; justify-content: center; align-items: center;
+            color: #666; font-weight: bold; font-size: 12px;
+            position: relative; transition: all 0.2s;
+        }
+        .weapon-slot.active {
+            border-color: #0ff; background: #004444; color: #fff;
+            transform: scale(1.1); box-shadow: 0 0 15px #0ff;
+        }
+        .weapon-slot.locked { opacity: 0.3; }
+        .ammo-count { position: absolute; bottom: 2px; right: 4px; font-size: 10px; color: #fff; }
+
+        #message-box {
+            position: absolute; bottom: 100px;
+            background: rgba(0, 0, 0, 0.7); color: white;
+            padding: 10px 20px; border-radius: 5px;
+            font-size: 18px; opacity: 0; transition: opacity 0.3s;
+            border-left: 4px solid #0ff;
+        }
+
+        #wasted-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); color: #f00;
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center;
+            font-size: 80px; font-weight: bold; font-family: impact, sans-serif;
+            text-shadow: 0 0 20px #f00; z-index: 30;
+        }
+
+        /* Floating Health Bar (HTML element for 3D positioning) */
+        .npc-health-bar {
+            position: absolute;
+            width: 50px; height: 5px;
+            background: #333; border: 1px solid #111;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+        }
+        .npc-health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #44ff44);
+            transition: width 0.1s, background 0.1s;
+        }
+
+
+        #minimap-container {
+            position: absolute; bottom: 20px; left: 20px;
+            width: 200px; height: 200px;
+            border: 2px solid #0ff; border-radius: 50%;
+            overflow: hidden; background: rgba(0, 0, 0, 0.85);
+            z-index: 10; box-shadow: 0 0 10px #0ff;
+        }
+        #minimap { width: 100%; height: 100%; display: block; }
+
+        #controls-hint {
+            position: absolute; bottom: 20px; right: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px; text-align: right;
+        }
+
+        #blocker {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none; /* Hidden by default, shown after load */
+            justify-content: center; align-items: center;
+            z-index: 10; pointer-events: auto;
+        }
+
+        #instructions { text-align: center; color: white; cursor: pointer; }
+        h1 { margin-bottom: 10px; text-shadow: 0 0 10px #f0f; }
+        .key {
+            display: inline-block; padding: 2px 6px;
+            border: 1px solid #666; border-radius: 4px;
+            background: #222; font-family: monospace; margin: 0 2px;
+        }
+        
+        /* Updated Loading Screen Styles */
+        #loading-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 200; /* Higher than everything else */
+            color: #0ff; font-family: monospace;
+        }
+        #loading-bar-container {
+            width: 300px; height: 20px;
+            border: 2px solid #0ff;
+            margin-top: 20px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #111;
+        }
+        #loading-bar-fill {
+            height: 100%; width: 0%;
+            background: #0ff;
+            transition: width 0.2s;
+            box-shadow: 0 0 10px #0ff;
+        }
+        #loading-text {
+            margin-top: 10px; font-size: 14px; color: #aaa;
+        }
+        
+        #full-map-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 15;
+        }
+        #full-map-canvas {
+            border: 2px solid #0ff;
+            background: #111;
+            box-shadow: 0 0 30px #0ff;
+        }
+        #map-legend {
+            position: absolute; bottom: 40px; right: 40px;
+            color: white; font-family: monospace;
+            background: rgba(0,0,0,0.8); padding: 15px;
+            border: 1px solid #444;
+        }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; font-size: 14px; }
+        .dot { width: 12px; height: 12px; margin-right: 10px; border-radius: 50%; }
+        
+        .floating-score {
+            position: absolute;
+            color: #ffcc00; font-weight: bold; font-size: 20px;
+            text-shadow: 2px 2px 0 #000; pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Error Handler Script -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const loader = document.getElementById('loading-text');
+            if(loader) {
+                loader.innerHTML = '<span style="color:red">ERROR: ' + msg + '</span>';
+            }
+            console.error("Global Error:", msg, url, line);
+        };
+    </script>
+
+    <div id="canvas-container"></div>
+    
+    <!-- New Loading Screen -->
+    <div id="loading-screen">
+        <h1 style="margin:0; text-shadow: 0 0 15px #0ff;">NEON CITY STRIKE</h1>
+        <div id="loading-bar-container">
+            <div id="loading-bar-fill"></div>
+        </div>
+        <div id="loading-text">Initializing City...</div>
+    </div>
+
+    <div id="damage-overlay"></div>
+    <div id="debug-log"></div>
+    
+    <div id="wasted-screen">
+        <div>WASTED</div>
+        <div style="font-size: 20px; color: white; font-weight: normal; margin-top: 20px;">Click to Respawn</div>
+    </div>
+
+    <div id="full-map-layer">
+        <canvas id="full-map-canvas"></canvas>
+        <div id="map-legend">
+            <div class="legend-item"><div class="dot" style="background:#fff; border: 2px solid #000;"></div>You</div>
+            <div class="legend-item"><div class="dot" style="background:#f00"></div>Enemy</div>
+            <div class="legend-item"><div class="dot" style="background:#0ff; border-radius: 0;"></div>Vehicle</div>
+            <div class="legend-item"><div class="dot" style="background:#fa0"></div>Loot/Hearts</div>
+            <div class="legend-item"><div class="dot" style="background:#ff00ff; border-radius: 50%;"></div>Airport Zone</div>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="message-box">Press <span class="key">E</span> to Enter Vehicle</div>
+        
+        <div id="weapon-bar">
+            <div class="weapon-slot active" id="slot-0">PISTOL</div>
+            <div class="weapon-slot locked" id="slot-1">RIFLE<span class="ammo-count">0</span></div>
+            <div class="weapon-slot locked" id="slot-2">RPG<span class="ammo-count">0</span></div>
+            <div class="weapon-slot locked" id="slot-3">NADE<span class="ammo-count">0</span></div>
+            <div class="weapon-slot locked" id="slot-4">MOTOV<span class="ammo-count">0</span></div>
+        </div>
+    </div>
+
+    <div id="hud">
+        <div id="health-container"><div id="health-bar"></div></div>
+        <div><span id="vehicle-health"></span></div>
+        <div id="score-container">SCORE: <span id="score-val">0</span></div>
+        <div>MODE: <span id="mode-display">WALKING</span></div>
+        <div>NPCS: <span id="npc-count">0</span></div>
+    </div>
+
+    <div id="minimap-container">
+        <canvas id="minimap" width="200" height="200"></canvas>
+    </div>
+
+    <div id="controls-hint">WASD: Move | SPACE: Jump | CLICK: Shoot | E: Interact | M: Map | T: Teleport</div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>NEON CITY STRIKE</h1>
+            <p>Click to Start</p>
+            <br>
+            <p><span class="key">W,A,S,D</span> Move</p>
+            <p><span class="key">MOUSE</span> Look</p>
+            <p><span class="key">L-CLICK</span> Shoot</p>
+            <p><span class="key">E</span> Steal Car</p>
+            <p><span class="key">T</span> Teleport to Airport</p>
+            <p>Watch out for Gang Members!</p>
+        </div>
+    </div>
+
+    <script type="importmap">
+{
+    "imports": {
+        "three": "./three.module.js",
+        "three/addons/": "./addons/"
+    }
+}
+</script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            fogColor: 0x050510, 
+            groundColor: 0x111111,
+            buildingTextures: ['./brick_diffuse.jpg'],
+            neonColors: [0xff00ff, 0x00ffff, 0xffff00, 0xff3333],
+            citySize: 2000, 
+            cityOffset: 0, 
+            blockSize: 100,
+            roadWidth: 40,
+            npcCount: 50,
+            carCount: 20,
+            pickupCount: 15,
+            heartCount: 10,
+            // NEW: Airport Location
+            airportLocation: new THREE.Vector3(-900, 2, -900), 
+            airportRadius: 150,
+        };
+
+        const WEAPONS = [
+            { name: "Pistol", type: "raycast", damage: 35, fireRate: 0.4, auto: false, color: 0x333333, ammo: 9999 },
+            { name: "Rifle", type: "raycast", damage: 15, fireRate: 0.1, auto: true, color: 0x444444, ammo: 0 },
+            { name: "RPG", type: "rocket", damage: 200, fireRate: 1.5, auto: false, color: 0x225522, ammo: 0 },
+            { name: "Grenade", type: "throw", damage: 150, fireRate: 1.0, auto: false, color: 0x335533, ammo: 0 },
+            { name: "Molotov", type: "throw", damage: 50, fireRate: 1.0, auto: false, color: 0xaa5500, ammo: 0 } 
+        ];
+
+        // --- GLOBAL ARRAYS (Initialized outside any function) ---
+        const colliders = []; 
+        const npcs = [];
+        const cars = [];
+        const pickups = [];
+        const projectiles = [];
+        const particles = [];
+        let gunMesh;
+        let muzzleFlashLight;
+
+        // --- ASSET MANAGEMENT ---
+        // Create Loading Manager
+        const loadingManager = new THREE.LoadingManager();
+        const loadingBarFill = document.getElementById('loading-bar-fill');
+        const loadingText = document.getElementById('loading-text');
+        const loadingScreen = document.getElementById('loading-screen');
+        const blocker = document.getElementById('blocker');
+
+        loadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+            const percent = (itemsLoaded / itemsTotal) * 100;
+            loadingBarFill.style.width = percent + '%';
+            loadingText.innerText = `Loading Assets: ${Math.round(percent)}%`;
+        };
+
+        loadingManager.onLoad = function ( ) {
+            loadingText.innerText = "Compiling Shaders...";
+            // Delay hiding to allow a frame or two to render (warming up shaders)
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                blocker.style.display = 'flex';
+            }, 500);
+        };
+
+        // Use the manager for texture loading
+        const textureLoader = new THREE.TextureLoader(loadingManager);
+        let concreteTexture = null; 
+        let windowTexture = null;
+        let carBaseTexture = null;
+
+        let camera, scene, renderer, controls;
+        let raycaster;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, canJump = false;
+        let isFiring = false;
+        let fireTimer = 0;
+        let prevTime = performance.now();
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let score = 0;
+        let isMapOpen = false;
+        let playerHealth = 100;
+        let isDead = false;
+        
+        let gameState = {
+            mode: 'walking', 
+            currentVehicle: null,
+            currentWeaponIdx: 0,
+            inventory: [true, false, false, false, false], 
+            ammo: [999, 0, 0, 0, 0]
+        };
+
+        // UI Elements
+        const instructions = document.getElementById('instructions');
+        const messageBox = document.getElementById('message-box');
+        const modeDisplay = document.getElementById('mode-display');
+        const npcDisplay = document.getElementById('npc-count');
+        const scoreDisplay = document.getElementById('score-val');
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const weaponSlots = document.querySelectorAll('.weapon-slot');
+        const fullMapLayer = document.getElementById('full-map-layer');
+        const fullMapCanvas = document.getElementById('full-map-canvas');
+        const fullMapCtx = fullMapCanvas.getContext('2d');
+        const damageOverlay = document.getElementById('damage-overlay');
+        const healthBar = document.getElementById('health-bar');
+        const wastedScreen = document.getElementById('wasted-screen');
+        const debugLog = document.getElementById('debug-log');
+        const vehicleHealthDisplay = document.getElementById('vehicle-health');
+        
+        // Custom logging utility
+        function logDebug(message) {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            debugLog.innerHTML = `<p>[${time}] ${message}</p>` + debugLog.innerHTML;
+        }
+
+        // --- TEXTURE GENERATION (Run immediately) ---
+
+        function generateConcreteTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#666666'; ctx.fillRect(0, 0, 512, 512);
+            for(let i=0; i<5000; i++) { const v = Math.random() * 50 + 80; ctx.fillStyle = `rgb(${v},${v},${v})`; ctx.fillRect(Math.random()*512, Math.random()*512, 2, 2); }
+            concreteTexture = new THREE.CanvasTexture(canvas);
+            concreteTexture.wrapS = THREE.RepeatWrapping; concreteTexture.wrapT = THREE.RepeatWrapping; concreteTexture.repeat.set(4, 4);
+        }
+
+        function generateWindowTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#442222'; ctx.fillRect(0,0,256,256);
+            ctx.fillStyle = '#88ccff'; 
+            for(let y=20; y<256; y+=60) for(let x=20; x<256; x+=60) ctx.fillRect(x, y, 40, 40);
+            windowTexture = new THREE.CanvasTexture(canvas);
+            windowTexture.wrapS = THREE.RepeatWrapping; windowTexture.wrapT = THREE.RepeatWrapping;
+        }
+
+        function generateCarBaseTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 128, 128); 
+            ctx.fillStyle = '#dddddd'; ctx.fillRect(50, 0, 10, 128); 
+            ctx.fillStyle = '#dddddd'; ctx.fillRect(68, 0, 10, 128); 
+            carBaseTexture = new THREE.CanvasTexture(canvas);
+        }
+
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let carEngineOsc = null;
+        let carEngineGain = null;
+
+        function resumeAudio() { if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playSound(type) {
+            resumeAudio();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'shoot') {
+                const bSize = audioCtx.sampleRate * 0.1; const b = audioCtx.createBuffer(1, bSize, audioCtx.sampleRate); const d = b.getChannelData(0);
+                for (let i = 0; i < bSize; i++) d[i] = Math.random() * 2 - 1;
+                const n = audioCtx.createBufferSource(); n.buffer = b; n.connect(gain);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); n.start();
+            } else if (type === 'enemyShoot') {
+                const bSize = audioCtx.sampleRate * 0.1; const b = audioCtx.createBuffer(1, bSize, audioCtx.sampleRate); const d = b.getChannelData(0);
+                for (let i = 0; i < bSize; i++) d[i] = Math.random() * 2 - 1;
+                const n = audioCtx.createBufferSource(); n.buffer = b; n.connect(gain);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2); n.start();
+            } else if (type === 'explosion') {
+                const bSize = audioCtx.sampleRate * 0.5; const b = audioCtx.createBuffer(1, bSize, audioCtx.sampleRate); const d = b.getChannelData(0);
+                for (let i = 0; i < bSize; i++) d[i] = Math.random() * 2 - 1;
+                const n = audioCtx.createBufferSource(); n.buffer = b; n.connect(gain);
+                gain.gain.setValueAtTime(1.0, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); n.start();
+            } else if (type === 'die') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(); osc.stop(now + 0.3);
+            } else if (type === 'score') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(); osc.stop(now + 0.2);
+            } else if (type === 'pickup') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.1); osc.start(); osc.stop(now + 0.1);
+            } else if (type === 'heal') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(600, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(); osc.stop(now + 0.3);
+            }
+        }
+        function startCarSound() {
+            resumeAudio();
+            if (carEngineOsc) return;
+            carEngineOsc = audioCtx.createOscillator(); carEngineGain = audioCtx.createGain();
+            carEngineOsc.type = 'sawtooth'; carEngineOsc.frequency.value = 60;
+            const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 300;
+            carEngineOsc.connect(f); f.connect(carEngineGain); carEngineGain.connect(audioCtx.destination);
+            carEngineGain.gain.setValueAtTime(0, audioCtx.currentTime); carEngineGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.5);
+            carEngineOsc.start();
+        }
+        function stopCarSound() {
+            if (carEngineOsc) {
+                carEngineGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                const osc = carEngineOsc; setTimeout(() => { try { osc.stop(); osc.disconnect(); } catch(e){} }, 500);
+                carEngineOsc = null;
+            }
+        }
+        function updateCarEngine(speed) {
+            if (carEngineOsc) carEngineOsc.frequency.setTargetAtTime(60 + Math.abs(speed) * 2, audioCtx.currentTime, 0.1);
+        }
+
+        // --- INIT ---
+        try {
+            generateConcreteTexture(); 
+            generateWindowTexture(); 
+            generateCarBaseTexture();
+            init();
+        } catch (e) {
+            logDebug(`INIT CRASH: ${e.message}`);
+            document.getElementById('loading-text').innerHTML = "<span style='color:red'>FATAL ERROR</span>: " + e.message;
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.fogColor);
+            scene.fog = new THREE.FogExp2(CONFIG.fogColor, 0.0005); 
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 8000);
+            camera.position.set(0, 2, 0);
+
+            const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6); scene.add(hemi);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(50, 200, 100); dirLight.castShadow = true; scene.add(dirLight);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Set anisotropy now that renderer is defined
+            if (renderer.capabilities.getMaxAnisotropy) {
+                windowTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            }
+
+            controls = new PointerLockControls(camera, document.body);
+            blocker.addEventListener('click', () => { controls.lock(); resumeAudio(); });
+            controls.addEventListener('lock', () => { instructions.style.display = 'none'; blocker.style.display = 'none'; });
+            controls.addEventListener('unlock', () => { 
+                if (!isMapOpen && !isDead) { 
+                    blocker.style.display = 'flex'; instructions.style.display = 'block';
+                    moveForward = false; moveBackward = false; moveLeft = false; moveRight = false; isFiring = false;
+                    stopCarSound();
+                }
+            });
+
+            wastedScreen.addEventListener('click', respawn);
+            document.addEventListener('keydown', onKeyDown); document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', () => isFiring = true); document.addEventListener('mouseup', () => isFiring = false);
+            document.addEventListener('wheel', onScroll); window.addEventListener('resize', onWindowResize);
+
+            // NEW: Add map click listener
+            fullMapCanvas.addEventListener('mousedown', onFullMapClick);
+
+            raycaster = new THREE.Raycaster();
+
+            // Generate World
+            createSky();
+            createGround();
+            createCity();
+            createGun();
+            spawnNPCs();
+            spawnCars();
+            spawnPickups();
+            spawnHearts();
+
+            updateWeaponUI(); 
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- GENERATION (World) ---
+        function createSky() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(2000 * 3);
+            for (let i = 0; i < 2000; i++) {
+                const r = 1000 + Math.random() * 500;
+                const theta = 2 * Math.PI * Math.random();
+                const phi = Math.acos(2 * Math.random() - 1);
+                pos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+                pos[i*3+1] = Math.max(400, r * Math.sin(phi) * Math.sin(theta)); 
+                pos[i*3+2] = r * Math.cos(phi);
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 2, fog: false })));
+        }
+        
+        function createGround() {
+            const geo = new THREE.PlaneGeometry(CONFIG.citySize * 2, CONFIG.citySize * 2);
+            geo.rotateX(-Math.PI / 2);
+            
+            const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#181818'; ctx.fillRect(0, 0, 1024, 1024);
+            for(let i=0;i<5000;i++) { const v = Math.random() * 30 + 20; ctx.fillStyle = `rgba(${v},${v},${v}, 0.5)`; ctx.fillRect(Math.random()*1024, Math.random()*1024, 2, 2); }
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 25; ctx.strokeRect(0,0,1024,1024);
+            ctx.strokeStyle = '#555'; ctx.lineWidth = 4; ctx.setLineDash([40, 60]); 
+            ctx.beginPath(); ctx.moveTo(512, 0); ctx.lineTo(512, 1024); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 512); ctx.lineTo(1024, 512); ctx.stroke();
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(CONFIG.citySize/CONFIG.blockSize * 2, CONFIG.citySize/CONFIG.blockSize * 2);
+            const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 0.01; 
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+        }
+
+        function createCity() {
+            for (let x = -CONFIG.citySize/2; x < CONFIG.citySize/2; x += CONFIG.blockSize) {
+                for (let z = -CONFIG.citySize/2; z < CONFIG.citySize/2; z += CONFIG.blockSize) {
+                    if (Math.abs(x) < 100 && Math.abs(z) < 100) continue;
+                    createBuilding(x + CONFIG.blockSize/2 + CONFIG.cityOffset, z + CONFIG.blockSize/2);
+                }
+            }
+        }
+
+        function createBuilding(x, z) {
+            const w = CONFIG.blockSize - CONFIG.roadWidth;
+            const h = Math.random() * 80 + 20;
+            const geo = new THREE.BoxGeometry(w, h, w);
+            
+            const matBrick = new THREE.MeshStandardMaterial({ color: 0x885544 }); 
+            const matConcrete = new THREE.MeshStandardMaterial({ map: concreteTexture, color: 0x888888 });
+            const matWindow = new THREE.MeshStandardMaterial({ map: windowTexture, color: 0xffffff, roughness: 0.2, metalness: 0.5 });
+            
+            textureLoader.load(CONFIG.buildingTextures[0], (tex) => {
+                tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+                const uv = geo.attributes.uv.array;
+                const tx = w / 15; const ty = h / 10;
+                
+                // Set UVs based on size to ensure proper scaling
+                const uvMap = [
+                    // Side 1 (X+)
+                    tx, 0, tx, ty, 0, 0, 0, ty,
+                    // Front Face (Z+)
+                    tx, 0, tx, ty, 0, 0, 0, ty,
+                    // Side 2 (X-)
+                    tx, 0, tx, ty, 0, 0, 0, ty,
+                    // Back Face (Z-)
+                    tx, 0, tx, ty, 0, 0, 0, ty,
+                ];
+                
+                // Copy UVs to the side faces (Indices 0-31)
+                for(let i=0; i<32; i++) geo.attributes.uv.array[i] = uvMap[i];
+
+                matBrick.map = tex; matBrick.color.setHex(0xffffff); matBrick.needsUpdate = true;
+            });
+            
+            const building = new THREE.Mesh(geo, [matBrick, matBrick, matConcrete, matConcrete, matWindow, matWindow]);
+            building.position.set(x, h/2, z);
+            building.castShadow = true; building.receiveShadow = true;
+            scene.add(building);
+            
+            const door = new THREE.Mesh(new THREE.BoxGeometry(6, 8, 0.4), new THREE.MeshStandardMaterial({ color: 0x221100 }));
+            door.position.set(0, -h/2 + 4, w/2); building.add(door);
+            
+            const box = new THREE.Box3().setFromObject(building);
+            colliders.push(box);
+        }
+
+        function createGun() {
+            const gunGroup = new THREE.Group();
+            const mat = new THREE.MeshPhysicalMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.2 });
+            const slide = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.8), mat); slide.position.set(0, 0.1, -0.4); gunGroup.add(slide);
+            const grip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.5, 0.25), mat); grip.position.set(0, -0.3, -0.1); grip.rotation.x = 0.2; gunGroup.add(grip);
+            const guard = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.02, 8, 20, 3), mat); guard.position.set(0, -0.1, -0.2); guard.rotation.z = Math.PI/2; gunGroup.add(guard);
+            
+            gunGroup.position.set(0.4, -0.4, -0.6); camera.add(gunGroup); gunMesh = gunGroup; scene.add(camera);
+            muzzleFlashLight = new THREE.PointLight(0xffff00, 0, 10); muzzleFlashLight.position.set(0, 0.1, -0.9); gunGroup.add(muzzleFlashLight);
+        }
+
+        function spawnPickups() {
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }); 
+
+            for(let i=0; i<CONFIG.pickupCount; i++) {
+                const wId = Math.floor(Math.random() * 4) + 1; 
+                const wData = WEAPONS[wId];
+                const pMat = mat.clone(); pMat.color.setHex(wData.color);
+                
+                const mesh = new THREE.Mesh(geo, pMat);
+                const x = (Math.random() - 0.5) * CONFIG.citySize * 0.8;
+                const z = (Math.random() - 0.5) * CONFIG.citySize * 0.8;
+                mesh.position.set(x, 1.5, z);
+                
+                scene.add(mesh);
+                pickups.push({ mesh: mesh, type: 'weapon', wId: wId });
+            }
+        }
+
+        function spawnHearts() {
+            const heartShape = new THREE.Shape();
+            heartShape.moveTo(0.25, 0.25); heartShape.bezierCurveTo(0.25, 0.25, 0.20, 0, 0, 0); heartShape.bezierCurveTo(-0.30, 0, -0.30, 0.35, -0.30, 0.35);
+            heartShape.bezierCurveTo(-0.30, 0.55, -0.10, 0.77, 0.25, 0.95); heartShape.bezierCurveTo(0.60, 0.77, 0.80, 0.55, 0.80, 0.35);
+            heartShape.bezierCurveTo(0.80, 0.35, 0.80, 0, 0.50, 0); heartShape.bezierCurveTo(0.35, 0, 0.25, 0.25, 0.25, 0.25);
+
+            const geo = new THREE.ExtrudeGeometry(heartShape, { depth: 0.2, bevelEnabled: false });
+            geo.center();
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+
+            for (let i = 0; i < CONFIG.heartCount; i++) {
+                const mesh = new THREE.Mesh(geo, mat);
+                const x = (Math.random() - 0.5) * CONFIG.citySize * 0.8;
+                const z = (Math.random() - 0.5) * CONFIG.citySize * 0.8;
+                mesh.position.set(x, 1.5, z);
+                mesh.rotation.z = Math.PI; mesh.scale.set(1.5, 1.5, 1.5);
+                
+                scene.add(mesh);
+                pickups.push({ mesh: mesh, type: 'health' });
+            }
+        }
+
+        // NEW: Gang label creator
+        function createGangLabel() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 20px monospace';
+            ctx.fillStyle = '#ff0000';
+            ctx.textAlign = 'center';
+            ctx.fillText('GANG', 32, 24);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter; // Pixelated look
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+            sprite.scale.set(2, 1, 1);
+            sprite.position.y = 3.5; // Above head
+            return sprite;
+        }
+
+        function spawnNPCs() {
+            const bodyGeo = new THREE.CapsuleGeometry(0.6, 1.4, 4, 8);
+            const headGeo = new THREE.SphereGeometry(0.4, 12, 12);
+            for (let i = 0; i < CONFIG.npcCount; i++) { spawnSingleNPC(bodyGeo, headGeo); }
+            updateHUD();
+        }
+
+        function spawnSingleNPC(bodyGeo, headGeo) {
+            const grp = new THREE.Group();
+            const isGang = Math.random() < 0.3;
+            const color = isGang ? 0x550000 : Math.random() * 0xffffff;
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: color }));
+            body.position.y = 1.2; grp.add(body);
+            const headColor = isGang ? 0x222222 : 0xffccaa;
+            const head = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: headColor }));
+            head.position.y = 2.3; grp.add(head);
+            
+            if (isGang) {
+                const gGeo = new THREE.BoxGeometry(0.1, 0.1, 0.4);
+                const gMesh = new THREE.Mesh(gGeo, new THREE.MeshBasicMaterial({color:0x000}));
+                gMesh.position.set(0.5, 1.5, 0.5); grp.add(gMesh);
+                // Add pixelated label
+                grp.add(createGangLabel());
+            }
+
+            let x, z;
+            x = (Math.random() - 0.5) * CONFIG.blockSize * 4; 
+            z = (Math.random() - 0.5) * CONFIG.blockSize * 4; 
+            
+            grp.position.set(x, 0, z); grp.castShadow = true;
+            grp.userData = { 
+                health: 100, 
+                dir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), 
+                speed: 3 + Math.random() * 4, timer: 0, isGang: isGang, attackTimer: 0, type: 'npc'
+            };
+            
+            // Add floating health bar UI element
+            const healthDiv = document.createElement('div');
+            healthDiv.className = 'npc-health-bar';
+            healthDiv.innerHTML = '<div class="npc-health-fill" style="width:100%;"></div>';
+            document.getElementById('ui-layer').appendChild(healthDiv);
+            grp.userData.healthBar = healthDiv;
+
+
+            scene.add(grp); npcs.push(grp);
+        }
+
+        function spawnCars() {
+            for (let i = 0; i < CONFIG.carCount; i++) {
+                const grp = createBaseVehicle(3.5, 1, 6);
+                let bx = Math.round((Math.random() - 0.5) * 4) * CONFIG.blockSize;
+                let bz = Math.round((Math.random() - 0.5) * 4) * CONFIG.blockSize;
+                grp.position.set(bx + 50, 0.5, bz);
+                grp.userData.type = 'car';
+                grp.userData.velocity = 0; // Ensure velocity is initialized
+                grp.userData.ai = { active: Math.random() > 0.3, speed: 15 + Math.random() * 15, turnTimer: 0, state: 'forward' };
+                if(Math.random() > 0.5) { grp.rotation.y = Math.PI/2; }
+                scene.add(grp); cars.push(grp);
+            }
+        }
+        
+        function createBaseVehicle(w, h, d) {
+            const grp = new THREE.Group();
+            const colorVal = CONFIG.neonColors[Math.floor(Math.random()*CONFIG.neonColors.length)];
+            // Material setup needs to be changed slightly to allow easy emission access later
+            const bodyMat = new THREE.MeshStandardMaterial({ map: carBaseTexture, color: colorVal, metalness: 0.3, roughness: 0.5, emissive: 0x000000, emissiveIntensity: 1 });
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
+            body.position.y = 1; grp.add(body);
+            const top = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, h * 0.8, d * 0.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            top.position.set(0, 1.9, -d * 0.1); grp.add(top);
+
+            const headLight = new THREE.Mesh(new THREE.BoxGeometry(w/6, h/3, 0.1), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+            headLight.position.set(-w/2.5, 1.2, d/2); grp.add(headLight); grp.add(headLight.clone().translateX(w/1.25));
+            const tailLight = new THREE.Mesh(new THREE.BoxGeometry(w/6, h/3, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            tailLight.position.set(-w/2.5, 1.2, -d/2); grp.add(tailLight); grp.add(tailLight.clone().translateX(w/1.25));
+            
+            // ADDED: Vehicle Health Properties
+            grp.userData.health = 100;
+            grp.userData.maxHealth = 100;
+            grp.userData.damageTimer = 0; // For blink effect
+
+            return grp;
+        }
+
+        // --- CORE LOGIC ---
+
+        // NEW: Weapon switching logic
+        function switchWeapon(index) {
+            if (!gameState.inventory[index]) return;
+            gameState.currentWeaponIdx = index;
+            updateWeaponUI();
+            const weapon = WEAPONS[index];
+            showMessage(`Equipped: ${weapon.name}`);
+        }
+
+        function updateWeaponUI() {
+            weaponSlots.forEach((slot, index) => {
+                const isCurrent = index === gameState.currentWeaponIdx;
+                const isOwned = gameState.inventory[index];
+                slot.classList.toggle('active', isCurrent);
+                slot.classList.toggle('locked', !isOwned);
+                const ammoSpan = slot.querySelector('.ammo-count');
+                if (ammoSpan) {
+                    const ammo = WEAPONS[index].ammo;
+                    if (ammo > 0 || WEAPONS[index].name === "Pistol") {
+                        ammoSpan.textContent = ammo === 9999 ? 'INF' : ammo;
+                        ammoSpan.style.color = ammo <= 5 && ammo !== 9999 ? '#f00' : '#fff';
+                    } else {
+                        ammoSpan.textContent = '';
+                    }
+                }
+            });
+        }
+
+        // MODIFIED: Added 'exploded' flag to prevent infinite loops when hit by another explosion.
+        function removeVehicle(vehicle, index, exploded = false) {
+             if (vehicle === gameState.currentVehicle) {
+                exitVehicle(); 
+             }
+             // NEW: Explode if this is a vehicle death, not just an external explosion removing it.
+             if (!exploded && vehicle.position) {
+                createExplosion(vehicle.position, 5); // Massive car explosion
+                addScore(200, vehicle.position);
+             }
+             if (vehicle.parent) scene.remove(vehicle);
+             if (index !== undefined && index >= 0 && index < cars.length) {
+                cars.splice(index, 1);
+             }
+        }
+
+        // NEW: Function to handle damage to vehicles
+        function damageVehicle(vehicle, dmg, hitPoint) {
+            if (!vehicle.userData.health || vehicle.userData.health <= 0) return;
+            vehicle.userData.health -= dmg;
+            vehicle.userData.damageTimer = 0.1; // Start blink effect
+            
+            // Car death
+            if (vehicle.userData.health <= 0) {
+                vehicle.userData.health = 0;
+                removeVehicle(vehicle, cars.indexOf(vehicle), false); // Explode on death
+            }
+        }
+
+
+        // MODIFIED: Explosion now calls damageVehicle for cars instead of direct removal
+        function createExplosion(pos, scale=1) {
+            playSound('explosion');
+            const geo = new THREE.SphereGeometry(3 * scale, 12, 12);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            scene.add(mesh);
+            particles.push({ mesh: mesh, life: 0.3, type: 'blast', maxScale: 3 * scale });
+
+            const range = 15 * scale;
+            
+            // Apply explosion force/damage to NPCs
+            for (let i = npcs.length - 1; i >= 0; i--) {
+                const n = npcs[i];
+                if (!n.position || n.userData.dead) continue;
+                const d = n.position.distanceTo(pos);
+                if(d < range) { 
+                    damageNPC(n, 200); 
+                    const dir = n.position.clone().sub(pos).normalize(); 
+                    n.position.add(dir.multiplyScalar(2)); 
+                }
+            }
+            
+            // Safely check and remove pickups hit by explosion
+            for (let i = pickups.length - 1; i >= 0; i--) {
+                const p = pickups[i];
+                if (!p.mesh || !p.mesh.position) continue;
+                if (p.mesh.position.distanceTo(pos) < range) {
+                    scene.remove(p.mesh);
+                    pickups.splice(i, 1);
+                }
+            }
+
+            // MODIFIED: Apply explosion damage to cars, letting damageVehicle handle destruction
+            for (let i = cars.length - 1; i >= 0; i--) {
+                const c = cars[i];
+                if (!c.position || c.userData.health <= 0) continue;
+                const d = c.position.distanceTo(pos);
+                if(d < range) { 
+                    // Scale damage based on proximity to explosion center
+                    const damage = 500 * (1 - d/range);
+                    damageVehicle(c, damage, pos);
+                    // Apply small physics push
+                    const dir = c.position.clone().sub(pos).normalize(); 
+                    c.position.add(dir.multiplyScalar(Math.min(2, 2 * (1 - d/range))));
+                }
+            }
+        }
+
+
+        function createFire(pos) {
+            playSound('explosion');
+            const geo = new THREE.SphereGeometry(3, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.6 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            scene.add(mesh);
+            particles.push({ mesh: mesh, life: 4.0, type: 'fire' });
+        }
+
+        function addScore(points, worldPosition) {
+            score += points;
+            scoreDisplay.innerText = score;
+            playSound('score');
+            const div = document.createElement('div');
+            div.className = 'floating-score'; div.innerText = `+${points}`;
+            document.body.appendChild(div);
+            const tempV = worldPosition.clone().project(camera);
+            const x = (tempV.x * .5 + .5) * window.innerWidth;
+            const y = (-(tempV.y * .5) + .5) * window.innerHeight;
+            div.style.left = `${x}px`; div.style.top = `${y}px`;
+            setTimeout(() => div.remove(), 1000);
+        }
+
+        function takeDamage(amount) {
+            if (isDead) return;
+            playerHealth -= amount;
+            if (playerHealth <= 0) { playerHealth = 0; die(); }
+            healthBar.style.width = playerHealth + '%';
+            damageOverlay.style.opacity = 1;
+            setTimeout(() => damageOverlay.style.opacity = 0, 100);
+        }
+
+        function die() {
+            isDead = true;
+            controls.unlock();
+            wastedScreen.style.display = 'flex';
+            stopCarSound();
+        }
+
+        function respawn() {
+            isDead = false;
+            playerHealth = 100;
+            healthBar.style.width = '100%';
+            wastedScreen.style.display = 'none';
+            
+            if (gameState.currentVehicle) exitVehicle();
+
+            camera.position.set(0, 2, 0); 
+            controls.lock();
+        }
+        
+        /**
+         * Teleports the player (or vehicle) to the given world coordinates (x, z).
+         * @param {number} x World X coordinate
+         * @param {number} z World Z coordinate
+         */
+        function teleportPlayer(x, z) {
+            const newPos = new THREE.Vector3(x, 0, z);
+            
+            if (gameState.mode === 'car' && gameState.currentVehicle) {
+                // If in vehicle, move the vehicle itself
+                gameState.currentVehicle.position.copy(newPos);
+                gameState.currentVehicle.position.y = 0.5; // Vehicle resting position
+                gameState.currentVehicle.userData.velocity = 0; // Stop movement
+            } else {
+                // If walking, move the camera position
+                camera.position.copy(newPos);
+                camera.position.y = 2; // Standing height
+                velocity.set(0, 0, 0); // Stop movement
+            }
+            showMessage(`Teleported to (${Math.round(x)}, ${Math.round(z)})!`);
+            // FIX: Ensure controls are locked to prevent freezing
+            controls.lock();
+        }
+
+        /**
+         * Handles click events on the full map canvas, translating screen coordinates to world coordinates.
+         * @param {MouseEvent} event 
+         */
+        function onFullMapClick(event) {
+            if (!isMapOpen) return;
+            
+            const rect = fullMapCanvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            const w = fullMapCanvas.width;
+            const h = fullMapCanvas.height;
+            const minDim = Math.min(w, h);
+            const cityExtent = CONFIG.citySize;
+            
+            // Map scale factor used in drawFullMap
+            const scale = (minDim - 100) / cityExtent;
+            
+            // 1. Center offset: Map center (0,0) is screen center (w/2, h/2)
+            const centeredX = clickX - w / 2;
+            const centeredY = clickY - h / 2;
+
+            // 2. Unscale to world coordinates
+            // Screen X maps to World X
+            const worldX = centeredX / scale;
+            // Screen Y maps to World Z (y-axis is inverted on screen relative to world z)
+            const worldZ = centeredY / scale; 
+
+            const halfSize = cityExtent / 2;
+            
+            if (worldX >= -halfSize && worldX <= halfSize && worldZ >= -halfSize && worldZ <= halfSize) {
+                teleportPlayer(worldX, worldZ);
+                toggleMap(); // Close map immediately after teleporting
+            } else {
+                showMessage("Cannot teleport outside city boundaries.");
+            }
+        }
+
+        function onKeyDown(e) {
+            if (isDead) return;
+            if (e.code === 'KeyM') toggleMap();
+            if (e.code === 'KeyT') teleportPlayer(CONFIG.airportLocation.x, CONFIG.airportLocation.z); // MODIFIED: Use generalized teleport
+            switch(e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': 
+                    if (gameState.mode === 'walking' && canJump) { velocity.y += 25; canJump = false; }
+                    else if (gameState.mode !== 'walking' && gameState.currentVehicle) gameState.currentVehicle.userData.velocity *= 0.9;
+                    break;
+                case 'KeyE': interact(); break;
+                case 'Digit1': switchWeapon(0); break;
+                case 'Digit2': switchWeapon(1); break;
+                case 'Digit3': switchWeapon(2); break;
+                case 'Digit4': switchWeapon(3); break;
+                case 'Digit5': switchWeapon(4); break;
+            }
+        }
+        function onKeyUp(e) {
+            switch(e.code) { case 'KeyW': moveForward = false; break; case 'KeyS': moveBackward = false; break; case 'KeyA': moveLeft = false; break; case 'KeyD': moveRight = false; break; }
+        }
+        function onScroll(e) {
+            if (isDead) return;
+            const dir = e.deltaY > 0 ? 1 : -1;
+            let next = gameState.currentWeaponIdx;
+            for(let i=0; i<5; i++) {
+                next += dir; if(next>4) next=0; if(next<0) next=4;
+                if(gameState.inventory[next]) { switchWeapon(next); break; }
+            }
+        }
+
+        function toggleMap() {
+            isMapOpen = !isMapOpen;
+            if (isMapOpen) { 
+                fullMapLayer.style.display = 'flex'; 
+                drawFullMap(); 
+                controls.unlock(); // Unlock mouse for map interaction
+            } else { 
+                fullMapLayer.style.display = 'none'; 
+                controls.lock(); // Lock mouse to resume game
+            }
+        }
+
+        function isPlayerVehicle(vehicle) {
+            return gameState.currentVehicle === vehicle && gameState.mode === 'car';
+        }
+
+        function interact() {
+            if (gameState.mode === 'walking') {
+                let closest = null, dist = 15; 
+                cars.forEach(v => {
+                    const d = camera.position.distanceTo(v.position);
+                    if (d < dist) { dist = d; closest = v; }
+                });
+                if (closest && closest.userData.health > 0) enterVehicle(closest);
+            } else {
+                exitVehicle();
+            }
+        }
+
+        function enterVehicle(vehicle) {
+            try {
+                // CRITICAL FIX: Ensure velocity is stopped BEFORE attaching the camera
+                vehicle.userData.velocity = 0; 
+                vehicle.userData.ai.active = false; 
+                
+                gameState.currentVehicle = vehicle;
+                gameState.mode = vehicle.userData.type;
+                
+                stopCarSound();
+                startCarSound();
+                
+                controls.unlock();
+                vehicle.add(camera); 
+                camera.position.set(0, 4, -8);
+                camera.rotation.set(0, Math.PI, 0);
+                
+                if (gunMesh) gunMesh.visible = false;
+                document.getElementById('crosshair').style.display = 'none';
+                showMessage(`Entered CAR`); updateHUD(); 
+                controls.lock(); // Lock mouse immediately after setup
+                
+            } catch(e) {
+                logDebug(`ENTER VEHICLE CRASH: ${e.message}`);
+                // Attempt to return player to walking state if failed
+                gameState.mode = 'walking';
+                gameState.currentVehicle = null;
+                scene.add(camera);
+                controls.lock();
+            }
+        }
+
+        function exitVehicle() {
+            if (!gameState.currentVehicle || !gameState.currentVehicle.position) {
+                 logDebug("EXIT VEHICLE FAILED: Current vehicle null or position undefined.");
+                 gameState.mode = 'walking';
+                 gameState.currentVehicle = null;
+                 controls.lock();
+                 return;
+            }
+            
+            const vehicle = gameState.currentVehicle; 
+            
+            stopCarSound(); 
+
+            vehicle.userData.velocity = 0;
+            vehicle.userData.ai.active = true;
+            
+            scene.add(camera); 
+            // CRITICAL FIX: Ensure the vehicle exists before reading its matrix
+            const exitPos = vehicle.matrixWorld ? new THREE.Vector3(3, 0, 0).applyMatrix4(vehicle.matrixWorld) : vehicle.position.clone().add(new THREE.Vector3(3, 0, 0));
+            camera.position.copy(exitPos); camera.position.y = 2; camera.rotation.set(0, 0, 0);
+            
+            gameState.mode = 'walking'; gameState.currentVehicle = null;
+            if (gunMesh) gunMesh.visible = true;
+            document.getElementById('crosshair').style.display = 'block';
+            showMessage("On Foot"); updateHUD();
+        }
+
+        function getHitEntity(hitObject) {
+            let t = hitObject;
+            while (t && t.parent && t !== scene) {
+                if (t.userData && t.userData.type === 'npc') return t;
+                t = t.parent;
+            }
+            return null;
+        }
+
+        function fireWeapon() {
+            const weapon = WEAPONS[gameState.currentWeaponIdx];
+            if (weapon.ammo <= 0 && weapon.name !== "Pistol") { showMessage("No Ammo!"); return; }
+            if (weapon.name !== "Pistol") { weapon.ammo--; updateWeaponUI(); }
+            
+            if (gunMesh) {
+                gunMesh.position.z += 0.2; gunMesh.rotation.x += 0.1;
+                muzzleFlashLight.intensity = 5; setTimeout(() => muzzleFlashLight.intensity = 0, 50);
+            }
+            
+            if (weapon.type === 'raycast') {
+                playSound('shoot');
+                raycaster.setFromCamera(new THREE.Vector2(), camera);
+                const intersects = raycaster.intersectObjects(scene.children, true);
+                for (let hit of intersects) {
+                    const npc = getHitEntity(hit.object);
+                    if (npc) { damageNPC(npc, weapon.damage); return; } 
+                    
+                    // NEW: Check if hit object belongs to a car
+                    let t = hit.object;
+                    while(t && t.parent && t !== scene) {
+                        if (t.userData && t.userData.type === 'car') {
+                            damageVehicle(t, weapon.damage, hit.point); return;
+                        }
+                        t = t.parent;
+                    }
+                    
+                    // Stop raycasting after hitting a non-npc/non-car object
+                    if (hit.distance < 100 && hit.object !== gunMesh && hit.object !== camera) break;
+                }
+            } else {
+                playSound(weapon.name === 'RPG' ? 'rocket' : 'shoot');
+                const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: weapon.color }));
+                ball.position.copy(camera.position.clone().add(new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion)));
+                const vel = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(weapon.name === 'RPG' ? 30 : 15);
+                if (weapon.type === 'throw') vel.y += 5;
+                scene.add(ball);
+                projectiles.push({ mesh: ball, velocity: vel, type: weapon.type, damage: weapon.damage, life: 5.0 }); // ADDED damage to projectile data
+            }
+        }
+
+        function damageNPC(npc, dmg) {
+            if (npc.userData.dead) return;
+            npc.userData.health -= dmg;
+            
+            // Update UI health bar
+            const percent = Math.max(0, npc.userData.health) / 100;
+            if (npc.userData.healthBar) {
+                const fill = npc.userData.healthBar.querySelector('.npc-health-fill');
+                if (fill) {
+                    fill.style.width = percent * 100 + '%';
+                    fill.style.background = percent > 0.3 ? '#00ff00' : '#ff0000';
+                }
+            }
+
+            npc.children.forEach(m => { if(m.material && m.material.emissive) m.material.emissive.setHex(0xff0000); });
+            setTimeout(() => { if(npc.parent) npc.children.forEach(m => { if(m.material && m.material.emissive) m.material.emissive.setHex(0x000000); }); }, 100);
+
+            if (npc.userData.health <= 0) {
+                npc.userData.dead = true;
+                playSound('die');
+                addScore(dmg >= 100 ? 100 : 50, npc.position);
+                
+                if (npc.userData.healthBar) npc.userData.healthBar.remove();
+                
+                // NPC Death Animation and Removal
+                const k = setInterval(() => {
+                    if (!npc.parent) return clearInterval(k);
+                    npc.rotation.x += 0.1; npc.position.y -= 0.1;
+                    if (npc.rotation.x > Math.PI/2) {
+                        clearInterval(k); 
+                        scene.remove(npc);
+                        const i = npcs.indexOf(npc); if (i > -1) npcs.splice(i, 1);
+                        updateHUD();
+                    }
+                }, 16);
+            }
+        }
+
+        function updateHUD() {
+            modeDisplay.innerText = gameState.mode.toUpperCase();
+            npcDisplay.innerText = npcs.length;
+            
+            // ADDED: Update vehicle health display
+            if (gameState.currentVehicle) {
+                const h = gameState.currentVehicle.userData.health;
+                vehicleHealthDisplay.innerHTML = `VEHICLE HP: <span style="color: ${h > 50 ? '#00ff00' : (h > 20 ? '#ffff00' : '#ff0000')}">${h}/${gameState.currentVehicle.userData.maxHealth}</span>`;
+            } else {
+                vehicleHealthDisplay.innerText = '';
+            }
+        }
+
+        function showMessage(t) {
+            messageBox.innerText = t;
+            messageBox.style.opacity = 1;
+            setTimeout(() => messageBox.style.opacity = 0, 2000);
+        }
+
+        function animate() {
+            try {
+                requestAnimationFrame(animate);
+                const t = performance.now();
+                const dt = Math.min((t - prevTime) / 1000, 0.1);
+                prevTime = t;
+
+                if (isMapOpen) { drawFullMap(); }
+
+                if (isNaN(camera.position.x) || isNaN(camera.position.y) || isNaN(camera.position.z)) {
+                    logDebug("FATAL: Camera position is NaN. Respawning.");
+                    respawn(); 
+                    return; 
+                }
+
+                if (!controls.isLocked && !isDead && !isMapOpen) return;
+                
+                const cameraWorldPos = new THREE.Vector3();
+                camera.getWorldPosition(cameraWorldPos);
+                
+                // --- UI Health Bar Positioning (NPCs) ---
+                for (let i = npcs.length - 1; i >= 0; i--) {
+                    const n = npcs[i];
+                    if (!n.parent || n.userData.dead || !n.position) {
+                        if (n.userData.healthBar) n.userData.healthBar.remove();
+                        continue;
+                    }
+
+                    // 3D to 2D projection
+                    const nPos = n.position.clone();
+                    nPos.y += 3.5; 
+                    const screenPos = nPos.project(camera);
+                    
+                    const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+                    const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+                    
+                    if (n.userData.healthBar) {
+                        const bar = n.userData.healthBar;
+                        if (screenPos.z < 1 && camera.position.distanceTo(n.position) < 150) { 
+                            bar.style.display = 'block';
+                            bar.style.left = `${x}px`;
+                            bar.style.top = `${y}px`;
+                        } else {
+                            bar.style.display = 'none';
+                        }
+                    }
+                }
+                
+                // Pickups (Reverse loop for safe removal)
+                for (let i = pickups.length - 1; i >= 0; i--) {
+                    const p = pickups[i];
+                    if (!p || !p.mesh || !p.mesh.position) { pickups.splice(i, 1); continue; } 
+
+                    p.mesh.rotation.y += dt; 
+                    p.mesh.position.y = 1.5 + Math.sin(t * 0.003) * 0.2;
+                    
+                    if (cameraWorldPos.distanceTo(p.mesh.position) < 2.0) {
+                        if (p.type === 'weapon') {
+                            playSound('pickup');
+                            gameState.inventory[p.wId] = true; WEAPONS[p.wId].ammo += 5;
+                            scene.remove(p.mesh); pickups.splice(i, 1); updateWeaponUI();
+                            showMessage(`Picked up ${WEAPONS[p.wId].name}!`);
+                        } else if (p.type === 'health') {
+                            if (playerHealth < 100) {
+                                playSound('heal');
+                                playerHealth = Math.min(100, playerHealth + 25);
+                                healthBar.style.width = playerHealth + '%';
+                                scene.remove(p.mesh); pickups.splice(i, 1);
+                                showMessage("Health Restored!");
+                            }
+                        }
+                    }
+                }
+
+
+                // Projectiles, Particles (reverse for loops)
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    const p = projectiles[i]; p.life -= dt;
+                    if (!p.mesh || !p.mesh.position) { projectiles.splice(i, 1); continue; } 
+                    
+                    p.mesh.position.addScaledVector(p.velocity, dt);
+                    if (p.type === 'throw') p.velocity.y -= 9.8 * dt;
+
+                    let hit = false;
+                    if (p.mesh.position.y < 0) hit = true;
+                    if (!hit) { for(let b of colliders) if(b.containsPoint(p.mesh.position)) { hit = true; break; } }
+                    
+                    // NEW: Projectile hits a car (for RPG/Grenade)
+                    for (const c of cars) {
+                        if (!c.position || c.userData.health <= 0) continue;
+                        if (p.mesh.position.distanceTo(c.position) < 3.0) { // Check proximity
+                            if (p.type !== 'raycast') damageVehicle(c, p.damage, p.mesh.position);
+                            hit = true; break;
+                        }
+                    }
+
+                    if (hit || p.life <= 0 || p.mesh.position.y < 0) { // Added ground check here
+                        if (p.type === 'rocket' || p.type === 'throw') createExplosion(p.mesh.position, p.type === 'rocket' ? 2 : 1);
+                        if (p.type === 'throw' && WEAPONS[gameState.currentWeaponIdx].name === 'Molotov') createFire(p.mesh.position);
+                        scene.remove(p.mesh); projectiles.splice(i, 1);
+                    }
+                }
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i]; p.life -= dt;
+                    if(p.type === 'explosion' || p.type === 'blast') {
+                         p.mesh.scale.multiplyScalar(1.0 + dt * 4); p.mesh.material.opacity = p.life * 2;
+                    }
+                    if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+                }
+                if (npcs.length < CONFIG.npcCount && Math.random() < 0.01) spawnSingleNPC(new THREE.CapsuleGeometry(0.6,1.4,4,8), new THREE.SphereGeometry(0.4));
+                
+                if (isDead) { renderer.render(scene, camera); return; } 
+
+                // Fire Rate Management
+                const activeWep = WEAPONS[gameState.currentWeaponIdx];
+                if (isFiring && controls.isLocked && gameState.mode === 'walking') {
+                    fireTimer -= dt;
+                    if (fireTimer <= 0) { fireWeapon(); fireTimer = activeWep.fireRate; if (!activeWep.auto) isFiring = false; }
+                } else { fireTimer = 0; }
+
+
+                // --- VEHICLE & MOVEMENT PHYSICS ---
+                
+                if (gameState.mode === 'walking') {
+                    velocity.x -= velocity.x * 10.0 * dt; velocity.z -= velocity.z * 10.0 * dt; velocity.y -= 9.8 * 60.0 * dt;
+                    direction.z = Number(moveForward) - Number(moveBackward); direction.x = Number(moveRight) - Number(moveLeft);
+                    direction.normalize();
+                    if (moveForward || moveBackward) velocity.z -= direction.z * 500.0 * dt;
+                    if (moveLeft || moveRight) velocity.x -= direction.x * 500.0 * dt;
+                    controls.moveRight(-velocity.x * dt); controls.moveForward(-velocity.z * dt); camera.position.y += velocity.y * dt;
+                    if (camera.position.y < 2) { velocity.y = 0; camera.position.y = 2; canJump = true; }
+
+                    const pRad = 0.8;
+                    for (let b of colliders) {
+                         if (camera.position.x > b.min.x - pRad && camera.position.x < b.max.x + pRad && camera.position.z > b.min.z - pRad && camera.position.z < b.max.z + pRad) {
+                             const cx = (b.min.x + b.max.x)/2; const cz = (b.min.z + b.max.z)/2;
+                             if (Math.abs(camera.position.x - cx) > Math.abs(camera.position.z - cz)) camera.position.x = camera.position.x - cx > 0 ? b.max.x + pRad : b.min.x - pRad;
+                             else camera.position.z = camera.position.z - cz > 0 ? b.max.z + pRad : b.min.z - pRad;
+                         }
+                    }
+                    if (gunMesh) { gunMesh.rotation.x = THREE.MathUtils.lerp(gunMesh.rotation.x, 0, 0.1); gunMesh.position.z = THREE.MathUtils.lerp(gunMesh.position.z, -0.8, 0.1); }
+                }
+                
+                // Driving (Car)
+                if (gameState.mode === 'car' && gameState.currentVehicle) {
+                    const c = gameState.currentVehicle;
+                    if (moveForward) c.userData.velocity += 60 * dt; if (moveBackward) c.userData.velocity -= 60 * dt;
+                    c.userData.velocity -= c.userData.velocity * 2.0 * dt;
+                    updateCarEngine(c.userData.velocity);
+                    if (Math.abs(c.userData.velocity) > 0.1) {
+                        const rot = 2.0 * dt * Math.sign(c.userData.velocity);
+                        if (moveLeft) c.rotation.y += rot; if (moveRight) c.rotation.y -= rot;
+                    }
+                    c.translateZ(c.userData.velocity * dt);
+                    
+                    const cRad = 2.5;
+                    for (let b of colliders) {
+                         if (b.min && b.max && c.position.x > b.min.x - cRad && c.position.x < b.max.x + cRad && c.position.z > b.min.z - cRad && c.position.z < b.max.z + cRad) {
+                             c.userData.velocity *= -0.5;
+                             const cx = (b.min.x + b.max.x)/2; const cz = (b.min.z + b.max.z)/2;
+                             if (Math.abs(c.position.x - cx) > Math.abs(c.position.z - cz)) c.position.x = c.position.x > cx ? b.max.x + cRad : b.min.x - cRad;
+                             else c.position.z = c.position.z > cz ? b.max.z + cRad : b.min.z - cRad;
+                         }
+                    }
+
+                    // Car kills player when moving fast and player is not inside
+                    const isDangerous = Math.abs(c.userData.velocity) > 10;
+                    const distToPlayer = c.position.distanceTo(cameraWorldPos);
+                    
+                    // CRITICAL FIX: Only check for damage if player is *not* the current driver
+                    if (!isPlayerVehicle(c) && isDangerous && distToPlayer < 1.0) {
+                        takeDamage(100);
+                    }
+                    
+                    if (Math.abs(c.userData.velocity) > 5) {
+                        // Check NPC runover
+                        for (let i = npcs.length - 1; i >= 0; i--) {
+                            const n = npcs[i];
+                            if (!n.userData.dead && n.position && n.position.distanceTo(c.position) < 5) damageNPC(n, 100);
+                        }
+                    }
+                }
+                
+                // --- AI LOGIC ---
+
+                // NEW: Vehicle Damage Timer and Blink
+                for(const c of cars) {
+                    if(c.userData.health <= 0) continue;
+                    // Use the main body mesh, which is the first child (index 0)
+                    const bodyMesh = c.children[0];
+                    
+                    if(c.userData.damageTimer > 0) {
+                        c.userData.damageTimer -= dt;
+                        const blinkColor = Math.floor(t * 10) % 2 === 0 ? 0xff0000 : 0x000000;
+                        // MODIFIED: Check material property existence before setting
+                        if (bodyMesh.material && bodyMesh.material.emissive) bodyMesh.material.emissive.setHex(blinkColor);
+                    } else {
+                        // MODIFIED: Check material property existence before setting
+                        if (bodyMesh.material && bodyMesh.material.emissive) bodyMesh.material.emissive.setHex(0x000000);
+                    }
+                }
+                
+                // Car AI Loop
+                for (let i = cars.length - 1; i >= 0; i--) {
+                    const car = cars[i];
+                    if (!car.parent || !car.position || isPlayerVehicle(car) || !car.userData.ai.active || car.userData.health <= 0) continue;
+
+                    const ai = car.userData.ai;
+                    let blocked = false;
+                    
+                    // Collision Check
+                    for(let b of colliders) {
+                        // Check if collision box min/max are valid before distance check
+                        if (b.min && b.max && car.position.distanceTo(b.min) < 15) { blocked = true; break; }
+                    }
+
+                    if (ai.state === 'forward') {
+                        if (blocked) {
+                            ai.state = 'reverse';
+                            ai.turnTimer = 1.0;
+                        } else {
+                            car.translateZ(ai.speed * dt);
+                            ai.turnTimer -= dt;
+                            if (ai.turnTimer <= 0) {
+                                // Turn at an intersection
+                                if (Math.random() > 0.6) car.rotation.y += Math.random() > 0.5 ? Math.PI/2 : -Math.PI/2;
+                                ai.turnTimer = 3.0;
+                            }
+                        }
+                    } else if (ai.state === 'reverse') {
+                        car.translateZ(-ai.speed * dt * 0.5);
+                        ai.turnTimer -= dt;
+                        if (ai.turnTimer <= 0) {
+                            car.rotation.y += Math.random() > 0.5 ? Math.PI/2 : -Math.PI/2;
+                            ai.state = 'forward';
+                            ai.turnTimer = 3.0;
+                        }
+                    }
+
+                    // Boundary checks (simplified)
+                    const l = CONFIG.citySize/2; 
+                    if (car.position.x > l || car.position.x < -l || car.position.z > l || car.position.z < -l) {
+                        car.rotation.y += Math.PI; 
+                        car.position.set(Math.min(l, Math.max(-l, car.position.x)), 0.5, Math.min(l, Math.max(-l, car.position.z)));
+                    }
+                }
+
+                // NPC Loop
+                for (let i = npcs.length - 1; i >= 0; i--) {
+                    const n = npcs[i];
+                    if (!n.parent || n.userData.dead || !n.position) continue; 
+                    
+                    // Gang Behavior
+                    if (n.userData.isGang && !isDead) {
+                        const distToPlayer = n.position.distanceTo(cameraWorldPos);
+                        if (distToPlayer < 40) {
+                            n.lookAt(cameraWorldPos);
+                            n.userData.attackTimer -= dt;
+                            if (n.userData.attackTimer <= 0) {
+                                playSound('enemyShoot');
+                                const flash = new THREE.PointLight(0xffaa00, 1, 5); flash.position.set(0.5, 1.5, 0.5); n.add(flash); setTimeout(() => n.remove(flash), 50);
+                                if (Math.random() > 0.3) { takeDamage(10); }
+                                n.userData.attackTimer = 1.5; 
+                            }
+                            continue; // Skip movement if attacking
+                        }
+                    }
+
+                    n.userData.timer -= dt;
+                    if (n.userData.timer <= 0) { 
+                        n.userData.dir.set(Math.random()-0.5,0,Math.random()-0.5).normalize(); 
+                        n.userData.timer = Math.random()*4+1; 
+                    }
+                    
+                    // Simple movement forward
+                    n.position.addScaledVector(n.userData.dir, n.userData.speed * dt);
+                    n.lookAt(n.position.clone().add(n.userData.dir));
+
+                    // Collision (Jitter Fix: Push away and change direction)
+                    const nRad = 2.0;
+                    for (let b of colliders) {
+                         if (b.min && b.max && n.position.x > b.min.x-nRad && n.position.x < b.max.x+nRad && n.position.z > b.min.z-nRad && n.position.z < b.max.z+nRad) {
+                             const cx = (b.min.x + b.max.x)/2; const cz = (b.min.z + b.max.z)/2;
+                             const pushDir = n.position.clone().sub(new THREE.Vector3(cx, 0, cz)).normalize();
+                             n.position.addScaledVector(pushDir, 0.5); 
+                             n.userData.dir.set(Math.random()-0.5,0,Math.random()-0.5).normalize();
+                             n.userData.timer = 1.0; 
+                             break;
+                         }
+                    }
+                }
+                
+                updateHUD(); // Updated to include vehicle health display
+                drawMinimap();
+                renderer.render(scene, camera);
+            } catch (e) {
+                logDebug(`RUNTIME CRASH: ${e.message}`);
+                // Changed this back to 'loading-screen' for consistency, though it's likely hidden by this point
+                const loader = document.getElementById('loading-screen');
+                if (loader) {
+                    loader.style.display = 'flex';
+                    loader.style.background = '#800';
+                    document.getElementById('loading-text').innerHTML = `RUNTIME CRASH. See Debug Log: ${e.message}`;
+                }
+                controls.unlock();
+            }
+        }
+
+        function drawMinimap() {
+            const w = 200, h = 200;
+            minimapCtx.fillStyle = '#000'; minimapCtx.fillRect(0, 0, w, h);
+            minimapCtx.save(); minimapCtx.translate(w/2, h/2); minimapCtx.scale(0.5, 0.5);
+            const cPos = new THREE.Vector3(); camera.getWorldPosition(cPos);
+            minimapCtx.translate(-cPos.x, -cPos.z);
+
+            // Draw Bounds
+            const cityExtent = CONFIG.citySize;
+            minimapCtx.strokeStyle = '#444';
+            minimapCtx.strokeRect(-cityExtent/2, -cityExtent/2, cityExtent, cityExtent); 
+            
+            // Draw Colliders
+            minimapCtx.fillStyle = '#555'; 
+            for(let b of colliders) {
+                if (b.min && b.min.x && b.min.z) {
+                    minimapCtx.fillRect(b.min.x, b.min.z, b.max.x-b.min.x, b.max.z-b.min.z);
+                }
+            }
+            
+            // Draw Pickups
+            minimapCtx.fillStyle = '#ffaa00'; 
+            for(let p of pickups) { 
+                 if (p.mesh && p.mesh.position) {
+                    minimapCtx.beginPath(); minimapCtx.arc(p.mesh.position.x, p.mesh.position.z, 6, 0, Math.PI*2); minimapCtx.fill(); 
+                 }
+            }
+
+            // Draw NPCs
+            minimapCtx.fillStyle = '#f00'; 
+            for(let n of npcs) { 
+                if(!n.userData.dead && n.position) { 
+                    minimapCtx.beginPath(); minimapCtx.arc(n.position.x, n.position.z, 5, 0, Math.PI*2); minimapCtx.fill(); 
+                } 
+            }
+            
+            // Draw Cars
+            minimapCtx.fillStyle = '#0ff'; 
+            for(let v of cars) { 
+                if (v.position) {
+                    minimapCtx.save(); minimapCtx.translate(v.position.x, v.position.z); minimapCtx.rotate(-v.rotation.y); 
+                    minimapCtx.fillRect(-3, -5, 6, 10); minimapCtx.restore(); 
+                }
+            }
+            
+            // NEW: Draw Airport Zone (Minimap)
+            minimapCtx.fillStyle = '#ff00ff'; 
+            minimapCtx.beginPath(); 
+            minimapCtx.arc(CONFIG.airportLocation.x, CONFIG.airportLocation.z, CONFIG.airportRadius/4, 0, Math.PI*2); 
+            minimapCtx.fill();
+
+            minimapCtx.restore(); minimapCtx.save(); minimapCtx.translate(w/2, h/2);
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            minimapCtx.rotate(Math.atan2(dir.x, dir.z));
+            minimapCtx.fillStyle = 'white'; minimapCtx.beginPath(); minimapCtx.moveTo(0, -8); minimapCtx.lineTo(6, 8); minimapCtx.lineTo(-6, 8); minimapCtx.closePath(); minimapCtx.fill();
+            minimapCtx.restore();
+        }
+
+        function drawFullMap() {
+            const w = window.innerWidth; const h = window.innerHeight;
+            fullMapCanvas.width = w; fullMapCanvas.height = h; fullMapCtx.fillStyle = '#111'; fullMapCtx.fillRect(0, 0, w, h);
+            fullMapCtx.save(); fullMapCtx.translate(w/2, h/2);
+            const minDim = Math.min(w, h); const cityExtent = CONFIG.citySize;
+            const scale = (minDim - 100) / cityExtent; 
+            fullMapCtx.scale(scale, scale);
+
+            fullMapCtx.strokeStyle = '#444';
+            fullMapCtx.strokeRect(-cityExtent/2, -cityExtent/2, cityExtent, cityExtent); 
+
+            fullMapCtx.fillStyle = '#666';
+            for(let b of colliders) { 
+                if (b.min && b.max) fullMapCtx.fillRect(b.min.x, b.min.z, b.max.x - b.min.x, b.max.z - b.min.z);
+            }
+            
+            fullMapCtx.fillStyle = '#ffaa00';
+            for(let p of pickups) { 
+                if (p.mesh && p.mesh.position) { fullMapCtx.beginPath(); fullMapCtx.arc(p.mesh.position.x, p.mesh.position.z, 15, 0, Math.PI*2); fullMapCtx.fill(); } 
+            }
+
+            fullMapCtx.fillStyle = '#f00';
+            for(let n of npcs) { 
+                if(!n.userData.dead && n.position) { fullMapCtx.beginPath(); fullMapCtx.arc(n.position.x, n.position.z, 8, 0, Math.PI*2); fullMapCtx.fill(); } 
+            }
+            
+            fullMapCtx.fillStyle = '#0ff';
+            for(let v of cars) { 
+                if (v.position) {
+                    fullMapCtx.save(); fullMapCtx.translate(v.position.x, v.position.z); fullMapCtx.rotate(-v.rotation.y); 
+                    fullMapCtx.fillRect(-6, -10, 12, 20); fullMapCtx.restore(); 
+                }
+            }
+            
+            // NEW: Draw Airport Zone (Full Map)
+            fullMapCtx.fillStyle = '#ff00ff';
+            fullMapCtx.beginPath();
+            fullMapCtx.arc(CONFIG.airportLocation.x, CONFIG.airportLocation.z, CONFIG.airportRadius, 0, Math.PI*2);
+            fullMapCtx.fill();
+
+            const cPos = new THREE.Vector3(); camera.getWorldPosition(cPos);
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            
+            fullMapCtx.save(); fullMapCtx.translate(cPos.x, cPos.z); fullMapCtx.rotate(Math.atan2(dir.x, dir.z));
+            
+            fullMapCtx.fillStyle = '#fff'; fullMapCtx.strokeStyle = '#000'; fullMapCtx.lineWidth = 2;
+            fullMapCtx.beginPath(); fullMapCtx.moveTo(0, -20); fullMapCtx.lineTo(15, 20); fullMapCtx.lineTo(0, 10); fullMapCtx.lineTo(-15, 20); fullMapCtx.closePath();
+            fullMapCtx.fill(); fullMapCtx.stroke();
+            
+            fullMapCtx.restore(); fullMapCtx.restore();
+        }
+
+    </script>
+<script>window.BIT_MOBILE={"move": "wasd", "look": "bitlook", "buttons": [{"mouse": true, "label": "\ud83d\udd25 FIRE"}, {"code": "KeyT", "label": "T"}]};</script>
+<script>
+/* Bit Mobile Kit — touch controls layered over the PC controls.
+   Activates ONLY on touch devices; desktop play is completely untouched.
+   Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
+     lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+(function () {
+  var cfg = window.BIT_MOBILE || {};
+  var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!isTouch) return;
+
+  var style = document.createElement('style');
+  style.textContent = [
+    'html,body{touch-action:none;overscroll-behavior:none}',
+    '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
+    '#bit-stick{position:absolute;left:18px;bottom:24px;width:118px;height:118px;border-radius:50%;',
+    'background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);pointer-events:auto}',
+    '#bit-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;',
+    'background:rgba(255,255,255,.45);transform:translate(-50%,-50%)}',
+    '#bit-btns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}',
+    '.bit-btn{min-width:64px;height:56px;padding:0 12px;border-radius:16px;border:2px solid rgba(255,255,255,.35);',
+    'background:rgba(20,20,40,.55);color:#fff;font-size:15px;font-weight:700;text-align:center}',
+    '.bit-btn:active{background:rgba(255,159,243,.55)}'
+  ].join('');
+  document.head.appendChild(style);
+
+  var KEYMAP = {
+    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 100 - 32], KeyE: ['e', 69],
+    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32],
+    ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
+  };
+  KEYMAP.KeyD = ['d', 68];
+
+  function fireKey(type, code) {
+    var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
+    var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
+    try { Object.defineProperty(e, 'keyCode', { value: m[1] }); Object.defineProperty(e, 'which', { value: m[1] }); } catch (err) {}
+    window.dispatchEvent(e); document.dispatchEvent(e);
+    if (document.body) document.body.dispatchEvent(e);
+  }
+  function fireMouse(type, x, y, dx, dy) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+    if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+
+  var kit = document.createElement('div'); kit.id = 'bit-kit';
+  document.body.appendChild(kit);
+
+  /* ---- virtual joystick -> movement keys ---- */
+  var pressed = {};
+  function setKey(code, down) {
+    if (pressed[code] === down) return; pressed[code] = down;
+    fireKey(down ? 'keydown' : 'keyup', code);
+  }
+  if (cfg.move) {
+    var stick = document.createElement('div'); stick.id = 'bit-stick';
+    var nub = document.createElement('div'); nub.id = 'bit-nub';
+    stick.appendChild(nub); kit.appendChild(stick);
+    var stickId = null;
+    function groups() {
+      return cfg.move === 'both'
+        ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
+        : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
+    }
+    function applyStick(dx, dy) {
+      var g = groups(), on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
+      for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
+    }
+    function clearStick() { var g = groups(); for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); }
+    stick.addEventListener('touchstart', function (e) {
+      e.preventDefault(); var t = e.changedTouches[0]; stickId = t.identifier;
+    }, { passive: false });
+    stick.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
+        var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
+        var len = Math.max(1, Math.hypot(dx, dy)); if (Math.hypot(dx, dy) > 1) { dx /= len; dy /= len; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx * 32 + 'px), calc(-50% + ' + dy * 32 + 'px))';
+        applyStick(dx, dy);
+      }
+    }, { passive: false });
+    function endStick(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === stickId) {
+        stickId = null; nub.style.transform = 'translate(-50%,-50%)'; clearStick();
+      }
+    }
+    stick.addEventListener('touchend', endStick); stick.addEventListener('touchcancel', endStick);
+  }
+
+  /* ---- action buttons ---- */
+  if (cfg.buttons && cfg.buttons.length) {
+    var wrap = document.createElement('div'); wrap.id = 'bit-btns';
+    cfg.buttons.forEach(function (b) {
+      var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keydown', b.code);
+      }, { passive: false });
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keyup', b.code);
+      }, { passive: false });
+      wrap.appendChild(btn);
+    });
+    kit.appendChild(wrap);
+  }
+
+  /* ---- drag-look / drawing bridge on the canvas ---- */
+  if (cfg.look && cfg.look !== 'none' || cfg.bridge) {
+    var lookId = null, lx = 0, ly = 0, locked = false;
+    document.addEventListener('touchstart', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (t.target.closest && t.target.closest('#bit-kit')) continue;
+        if (lookId !== null) continue;
+        lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousedown', t.clientX, t.clientY);
+        if (cfg.lockTry && !locked) {
+          locked = true;
+          var c = document.querySelector('canvas');
+          if (c && c.requestPointerLock) { try { var p = c.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (err) {} }
+        }
+      }
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
+        else if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx * 1.6, dy: dy * 1.6 } }));
+        else if (cfg.look === 'mouse') fireMouse('mousemove', t.clientX, t.clientY, dx, dy);
+      }
+      if (lookId !== null && !cfg.bridge) e.preventDefault();
+    }, { passive: false });
+    function endLook(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
+        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        lookId = null;
+      }
+    }
+    document.addEventListener('touchend', endLook); document.addEventListener('touchcancel', endLook);
+  }
+})();
+
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>

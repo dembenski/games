@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>BLOCK SKATE JUMPER 2</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Skate Jumper 2</title>
+    <script src="./tailwind.js"></script>
+    <!-- Add Pixel Font (Press Start 2P) -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- Tone.js for Music and Sound Effects -->
+    <script src="./Tone.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            /* Retro Pattern Background */
+            background-color: #1a1a2e; /* Dark Base */
+            background-image: repeating-linear-gradient(
+                45deg,
+                #1e293b, /* Dark base */
+                #1e293b 10px,
+                #2d3a4b 10px, /* Slightly lighter stripe for texture */
+                #2d3a4b 20px
+            );
+            font-family: 'Inter', sans-serif; 
+            flex-direction: column;
+        }
+        #game-container {
+            border: 8px solid #334155; /* Slate-700 border */
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+        canvas {
+            background-color: #475569; /* Slate-600 for the sky/city backdrop */
+            display: block;
+            width: 100%;
+            height: 400px;
+        }
+        .controls, .score-display {
+            color: #f1f5f9; /* Slate-100 */
+            text-align: center;
+            margin-bottom: 1rem;
+            width: 80%;
+            max-width: 700px;
+        }
+        .controls h1 {
+            font-size: 2.0rem;
+            font-weight: 400;
+            color: #fca311; /* Orange/Yellow for Title */
+            text-shadow: 4px 4px #9d0208; /* Hard shadow for pixel effect */
+            font-family: 'Press Start 2P', cursive;
+        }
+        .controls p {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            font-family: 'Press Start 2P', cursive;
+            line-height: 1.5;
+        }
+        
+        /* Apply pixel font to score display */
+        .score-display {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.75rem;
+        }
+
+        /* Modal styling for Game Over/Start */
+        #message-box {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            border-radius: 4px;
+            text-align: center;
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            background: #111827; /* Dark BG */
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(252, 163, 17, 0.5); /* Orange glow */
+            color: #f1f5f9;
+            font-family: 'Press Start 2P', cursive;
+        }
+        .modal-content h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #fca311;
+            margin-bottom: 10px;
+        }
+        .modal-content button {
+            background: #fca311;
+            color: #111827;
+            padding: 10px 20px;
+            margin-top: 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 4px #9d0208;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+        }
+        .modal-content button:hover {
+            background: #fecf44;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h1>BLOCK SKATE JUMPER 2</h1>
+        <p class="font-mono text-sm">Use **SPACEBAR** to jump. Use **A/D** (or **Left/Right**) to accelerate/decelerate.<br>Use **S** (or **Down**) to **DUCK** or **GRIND**. Use **E** to **SHOOT** enemies! Use **F** to **TOGGLE GRIND MODE** (Unlock at 4000 pts).</p>
+        <p class="font-mono text-sm text-yellow-300">New! Double Jump is unlocked at 6000 points (Use SPACEBAR while airborne).</p>
+    </div>
+
+    <div id="game-container" style="width: 700px; height: 400px;">
+        <canvas id="gameCanvas" width="700" height="400"></canvas>
+        
+        <!-- Game Message Box -->
+        <div id="message-box">
+            <div class="modal-content">
+                <h2>Ready for Combat?</h2>
+                <p>Press the button to start skating!</p>
+                <button onclick="startGame()">Start Game</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="score-display mt-4 p-2 bg-gray-700 rounded-lg shadow-inner flex justify-around">
+        <span>Speed: <span id="speedValue" class="font-bold text-yellow-300">0.0</span></span>
+        <span>Score: <span id="scoreValue" class="font-bold text-yellow-300">0</span></span>
+        <span>Combo: <span id="comboValue" class="font-bold text-red-400">x1.0</span></span>
+        <span>Lives: <span id="livesValue" class="font-bold text-green-400">3</span></span>
+        <!-- NEW: Grind Mode Status -->
+        <span>Grind Mode: <span id="grindModeStatus" class="font-bold text-gray-400">LOCKED</span></span>
+        <!-- NEW: Double Jump Status -->
+        <span>Jump: <span id="doubleJumpStatus" class="font-bold text-gray-400">SINGLE</span></span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreValue');
+        const speedDisplay = document.getElementById('speedValue');
+        const messageBox = document.getElementById('message-box');
+        const livesDisplay = document.getElementById('livesValue');
+        const grindModeStatusDisplay = document.getElementById('grindModeStatus');
+        const doubleJumpStatusDisplay = document.getElementById('doubleJumpStatus'); // NEW UI ELEMENT
+
+        // --- Tone.js Audio Setup ---
+        let kick, melody, sfxJump, sfxCrash, sfxDuck, sfxGrind, sfxShoot, sfxEnemyHit, sfxExtraLife, sfxPowerUp, sfxProjectile;
+        let musicSequence;
+        const BPM = 140;
+
+        function initAudio() {
+            kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2, volume: -5 }).toDestination();
+            melody = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.5 }, volume: -10 }).toDestination();
+            sfxJump = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.15, sustain: 0.0, release: 0.05 }, volume: -5 }).toDestination();
+            sfxCrash = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.6, sustain: 0.0, release: 0.1 }, volume: 0 }).toDestination();
+            sfxDuck = new Tone.MetalSynth({ frequency: 100, envelope: { attack: 0.001, decay: 0.1, release: 0.1 }, volume: -15 }).toDestination();
+            sfxGrind = new Tone.NoiseSynth({
+                noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.1, sustain: 1.0, release: 0.1 },
+                filter: { type: "highpass", frequency: 5000 }, volume: -10 
+            }).toDestination();
+            
+            sfxShoot = new Tone.Synth({
+                oscillator: { type: "square" },
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0.0, release: 0.1 },
+                volume: -8
+            }).toDestination();
+            
+            sfxEnemyHit = new Tone.MetalSynth({
+                frequency: 200, envelope: { attack: 0.001, decay: 0.1, release: 0.05 },
+                harmonicity: 5.1, modulationIndex: 20, resonance: 600, octaves: 1, volume: -5
+            }).toDestination();
+
+            sfxExtraLife = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.0, release: 0.5 },
+                volume: -8
+            }).toDestination();
+            
+            sfxPowerUp = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.2 },
+                volume: -10
+            }).toDestination();
+
+            sfxProjectile = new Tone.NoiseSynth({
+                noise: { type: "brown" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.0, release: 0.1 },
+                volume: -15
+            }).toDestination();
+
+            Tone.Transport.bpm.value = BPM;
+        }
+
+        function createMusicSequence() {
+            const sequenceEvents = [
+                { beat: '0', kick: true, note: 'C3', duration: '8n' },
+                { beat: '0:2', kick: true, note: 'G2', duration: '8n' },
+                { beat: '1', kick: true, note: 'E3', duration: '8n' },
+                { beat: '1:2', kick: false, note: 'A2', duration: '8n' },
+                { beat: '2', kick: true, note: 'C3', duration: '8n' },
+                { beat: '2:2', kick: true, note: 'G2', duration: '8n' },
+                { beat: '3', kick: true, note: 'F3', duration: '8n' },
+                { beat: '3:2', kick: false, note: 'A2', duration: '8n' },
+            ];
+            musicSequence = new Tone.Sequence((time, data) => {
+                if (data.kick) { kick.triggerAttackRelease("C1", "8n", time); }
+                melody.triggerAttackRelease(data.note, data.duration, time);
+            }, sequenceEvents, "4n").start(0);
+        }
+
+        // --- Game Constants ---
+        const GRAVITY = 0.8;
+        const JUMP_POWER = -17;
+        const DOUBLE_JUMP_POWER = -13; // Less than initial jump
+        const GROUND_Y = canvas.height - 30;
+        const DEFAULT_PERSON_HEIGHT = 60;
+        const DUCKING_PERSON_HEIGHT = 25;
+        const DUCK_BARRIER_TOP_Y = GROUND_Y - 45;
+        
+        const INITIAL_LIVES = 3; 
+
+        const BULLET_SPEED = 18;
+        const FIRE_RATE_DELAY = 10; 
+
+        // Life Reward System Constants
+        const REWARD_MILESTONES = [500, 1500, 3000, 5000, 7500, 10000];
+        const REPEATING_REWARD_AMOUNT = 5000;
+        
+        // NEW Unlock Constants
+        const GRIND_MODE_UNLOCK_SCORE = 4000;
+        const DOUBLE_JUMP_UNLOCK_SCORE = 6000; // NEW UNLOCK SCORE
+
+        const ENEMY_PROJECTILE_SPEED = 6;
+        const ENEMY_FIRE_RATE = 150; // Frames between shots (about 2.5 seconds)
+
+        // --- Game State ---
+        let isPlaying = false;
+        let score = 0;
+        let lives = INITIAL_LIVES;
+        let animationFrameId;
+        let nextLifeScoreThreshold = REWARD_MILESTONES[0];
+        
+        // NEW Unlock States
+        let isGrindModeUnlocked = false; 
+        let isDoubleJumpUnlocked = false; // NEW
+
+        const skater = {
+            width: 50, height: 10, x: 50, y: GROUND_Y - 10, velocityY: 0,
+            isJumping: false, isDucking: false, 
+            personHeight: DEFAULT_PERSON_HEIGHT, personWidth: 20, 
+            velocityX: 0, acceleration: 0.4, friction: 0.96,
+            maxForwardSpeed: 15, maxBackwardSpeed: -5,
+            airTime: 0, comboMultiplier: 1.0, comboTimer: 0,
+            isGrinding: false,
+            currentGrindObstacle: null,
+            lastShotFrame: 0,
+            isGrindModeActive: false,
+            hasUsedDoubleJump: false, // NEW
+        };
+        
+        let obstacles = [];
+        let bullets = []; 
+        let enemyProjectiles = []; // NEW
+        let obstacleSpawnRate = 120;
+        let frameCount = 0;
+        let horizontalDirection = 0;
+
+        let skylineOffset = 0;
+        let midgroundOffset = 0;
+
+        // --- Projectile Logic (Player & Enemy) ---
+        function shootBullet() {
+            if (frameCount - skater.lastShotFrame < FIRE_RATE_DELAY) {
+                return; 
+            }
+            
+            const bulletX = skater.x + skater.width + 5;
+            const bulletY = skater.y - skater.personHeight / 2 - 10; 
+            
+            bullets.push({
+                x: bulletX,
+                y: bulletY,
+                width: 10,
+                height: 4,
+                color: '#ef4444',
+                isPlayer: true
+            });
+
+            skater.lastShotFrame = frameCount;
+
+            if (sfxShoot) sfxShoot.triggerAttackRelease('C6', '32n');
+        }
+
+        function createEnemyProjectile(obs) {
+            const projectileX = obs.x - 5;
+            const projectileY = obs.y + obs.height / 2;
+            
+            enemyProjectiles.push({
+                x: projectileX,
+                y: projectileY,
+                width: 8,
+                height: 8,
+                color: '#00ff7f', // Greenish/Hazardous color
+                isPlayer: false
+            });
+
+            if (sfxProjectile) sfxProjectile.triggerAttackRelease('32n');
+        }
+
+        function drawBullets() {
+            for (const bullet of bullets) {
+                ctx.fillStyle = bullet.color;
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                ctx.fillStyle = '#f87171';
+                ctx.fillRect(bullet.x - 5, bullet.y + 1, 5, 2);
+            }
+        }
+        
+        function drawEnemyProjectiles() {
+            for (const proj of enemyProjectiles) {
+                ctx.fillStyle = proj.color;
+                ctx.shadowColor = proj.color;
+                ctx.shadowBlur = 10;
+                ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function updateProjectiles() {
+            // Update Player Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += BULLET_SPEED; 
+                bullet.x -= skater.velocityX; 
+
+                let hit = false;
+                for (let j = obstacles.length - 1; j >= 0; j--) {
+                    const obs = obstacles[j];
+
+                    if (obs.type === 'enemy' || obs.type === 'shooter_enemy') { 
+                        if (bullet.x + bullet.width > obs.x &&
+                            bullet.x < obs.x + obs.width &&
+                            bullet.y + bullet.height > obs.y &&
+                            bullet.y < obs.y + obs.height) {
+                            
+                            hit = true;
+                            obs.health--; 
+                            if (sfxEnemyHit) sfxEnemyHit.triggerAttackRelease("8n");
+
+                            if (obs.health <= 0) {
+                                score += 20 * skater.comboMultiplier;
+                                skater.comboMultiplier = Math.min(5.0, skater.comboMultiplier + 0.5);
+                                skater.comboTimer = 90;
+                                scoreDisplay.textContent = score;
+                                document.getElementById('comboValue').textContent = `x${skater.comboMultiplier.toFixed(1)}`;
+                                
+                                obstacles.splice(j, 1); 
+                                checkLifeReward();
+                            }
+                            break; 
+                        }
+                    }
+                }
+
+                if (hit || bullet.x > canvas.width) {
+                    bullets.splice(i, 1); 
+                }
+            }
+            
+            // Update Enemy Projectiles
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                const proj = enemyProjectiles[i];
+                proj.x -= ENEMY_PROJECTILE_SPEED; // Moves slower than player bullet
+                proj.x -= skater.velocityX; 
+
+                if (proj.x < 0) {
+                    enemyProjectiles.splice(i, 1); // Remove when off-screen
+                }
+            }
+        }
+
+
+        // --- Input Handler ---
+        document.addEventListener('keydown', async (e) => {
+            if (e.code === 'Space' && isPlaying && !skater.isGrinding) {
+                if (!skater.isJumping) {
+                    // Regular Jump
+                    skater.isJumping = true; skater.velocityY = JUMP_POWER;
+                    skater.hasUsedDoubleJump = !isDoubleJumpUnlocked; // If unlocked, still has one jump left. If not unlocked, mark as used.
+                    skater.isDucking = false; skater.personHeight = DEFAULT_PERSON_HEIGHT;
+                    skater.airTime = 0;
+                    if (sfxJump) sfxJump.triggerAttackRelease(['C5', 'E5'], '16n');
+                } else if (isDoubleJumpUnlocked && !skater.hasUsedDoubleJump) {
+                    // Double Jump
+                    skater.velocityY = DOUBLE_JUMP_POWER; // Apply second, smaller vertical boost
+                    skater.hasUsedDoubleJump = true;
+                    // Play a distinct sound for double jump (higher pitched)
+                    if (sfxJump) sfxJump.triggerAttackRelease(['F6', 'A6'], '32n'); 
+                }
+
+            } else if ((e.code === 'KeyD' || e.code === 'ArrowRight') && isPlaying) {
+                horizontalDirection = 1;
+            } else if ((e.code === 'KeyA' || e.code === 'ArrowLeft') && isPlaying) {
+                horizontalDirection = -1;
+            } else if ((e.code === 'KeyS' || e.code === 'ArrowDown') && isPlaying && !skater.isJumping && !skater.isGrinding) {
+                if (!skater.isDucking) {
+                    skater.isDucking = true;
+                    skater.personHeight = DUCKING_PERSON_HEIGHT;
+                    if (sfxDuck) sfxDuck.triggerAttackRelease("8n"); 
+                }
+            } else if (e.code === 'KeyE' && isPlaying) {
+                shootBullet();
+            } else if (e.code === 'KeyF' && isPlaying && isGrindModeUnlocked) { // F to toggle Grind Mode
+                skater.isGrindModeActive = !skater.isGrindModeActive;
+                
+                if (!skater.isGrindModeActive) { endGrind(); } 
+
+                if (sfxPowerUp) {
+                    if (skater.isGrindModeActive) {
+                        sfxPowerUp.triggerAttackRelease(['C5', 'E5', 'G5'], '16n');
+                    } else {
+                        sfxPowerUp.triggerAttackRelease(['G5', 'E5', 'C5'], '16n');
+                    }
+                }
+                grindModeStatusDisplay.textContent = skater.isGrindModeActive ? 'ACTIVE' : 'READY';
+                grindModeStatusDisplay.classList.toggle('text-green-500', skater.isGrindModeActive);
+                grindModeStatusDisplay.classList.toggle('text-yellow-500', !skater.isGrindModeActive);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if ((e.code === 'KeyD' || e.code === 'ArrowRight') && horizontalDirection === 1) {
+                horizontalDirection = 0;
+            } else if ((e.code === 'KeyA' || e.code === 'ArrowLeft') && horizontalDirection === -1) {
+                horizontalDirection = 0;
+            } else if ((e.code === 'KeyS' || e.code === 'ArrowDown') && isPlaying) {
+                if (skater.isDucking) {
+                    skater.isDucking = false;
+                    skater.personHeight = DEFAULT_PERSON_HEIGHT;
+                }
+                
+                if (skater.isGrinding) {
+                    endGrind();
+                    skater.velocityY = JUMP_POWER * 0.4; 
+                    skater.isJumping = true;
+                }
+            }
+        });
+        
+        function startGrind(obstacle) {
+            skater.isGrinding = true;
+            skater.currentGrindObstacle = obstacle;
+            skater.isJumping = false; 
+            skater.velocityY = 0;
+            
+            const railY = obstacle.y + obstacle.height * 0.5;
+            skater.y = railY - skater.height; 
+
+            if (sfxGrind) sfxGrind.triggerAttack(); 
+        }
+
+        function endGrind() {
+            if (skater.isGrinding) {
+                skater.isGrinding = false;
+                skater.currentGrindObstacle = null;
+                if (sfxGrind) sfxGrind.triggerRelease();
+            }
+        }
+
+
+        // --- Drawing Functions ---
+        
+        function drawBackground() {
+            ctx.fillStyle = '#475569'; 
+            ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+            const baseScroll = skater.velocityX;
+            const canvasWidth = canvas.width;
+
+            // --- Layer 1: Distant Skyline (0.2x speed) ---
+            skylineOffset = (skylineOffset + baseScroll * 0.2) % canvasWidth; 
+            const skylineColor = '#3e495a'; 
+            ctx.fillStyle = skylineColor;
+            for (let i = 0; i < canvasWidth * 2; i += 70) {
+                const x = (i - skylineOffset) % (canvasWidth * 2);
+                if (x < canvasWidth) {
+                    const height = 150 + Math.sin(i / 100 + frameCount / 500) * 50;
+                    ctx.fillRect(x, GROUND_Y - height, 40, height);
+                }
+            }
+
+            // 2. Add slightly closer city lights (0.3x speed)
+            ctx.fillStyle = '#fde047'; 
+            const lightOffset = (skylineOffset * 1.5) % canvasWidth; 
+            for (let i = 0; i < canvasWidth * 3; i += 20) {
+                const x = (i - lightOffset) % (canvasWidth * 3);
+                const y = 200 + Math.sin(i / 50 + frameCount / 100) * 10;
+                if (x < canvasWidth) {
+                    ctx.fillRect(x, y, 2, 2); 
+                }
+            }
+
+            // --- Layer 2: Mid-ground Objects (0.8x speed) ---
+            midgroundOffset = (midgroundOffset + baseScroll * 0.8) % canvasWidth; 
+            ctx.fillStyle = '#6b7280'; // Gray Pole
+            for (let i = 0; i < canvasWidth * 3; i += 250) {
+                const x = (i - midgroundOffset) % (canvasWidth * 3);
+                if (x > 0 && x < canvasWidth + 20) { 
+                    ctx.fillRect(x, GROUND_Y - 100, 5, 100);
+                    ctx.fillStyle = '#fefefe'; 
+                    ctx.fillRect(x - 8, GROUND_Y - 110, 20, 10);
+                    ctx.fillStyle = '#6b7280'; 
+                }
+            }
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#1c1c1c';
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+            ctx.fillStyle = '#4b5563'; // Gray-600 curb
+            ctx.fillRect(0, GROUND_Y - 5, canvas.width, 5);
+
+            const scrollSpeed = skater.velocityX * 1.5;
+            ctx.fillStyle = '#4b5563'; 
+            const lineThickness = 3;
+            for (let i = 0; i < canvas.width; i += 30) {
+                const x = (i + (frameCount * scrollSpeed) % 50);
+                ctx.fillRect(x % canvas.width, GROUND_Y + lineThickness, 1, 30);
+                ctx.fillRect((x + 10) % canvas.width, GROUND_Y + lineThickness, 1, 30);
+            }
+        }
+
+
+        function drawSkater() {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 5;
+            
+            const boardY = skater.y;
+            const center = skater.x + skater.width / 2;
+
+            // Draw Grind Mode Aura if active
+            if (skater.isGrindModeActive) {
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                ctx.fillRect(skater.x - 5, boardY - skater.personHeight - 5, skater.width + 10, skater.personHeight + skater.height + 10);
+            }
+            
+            // --- 1. Skater Board (Textured Deck and Wheels) ---
+            ctx.fillStyle = '#9d0208'; 
+            ctx.fillRect(skater.x, boardY, skater.width, skater.height);
+            ctx.fillStyle = '#1e293b'; 
+            ctx.fillRect(skater.x + 2, boardY + 1, skater.width - 4, skater.height - 2);
+            ctx.fillStyle = '#000000'; 
+            const wheelSize = 5;
+            ctx.fillRect(skater.x + 5, boardY + skater.height - 2, wheelSize, wheelSize);
+            ctx.fillRect(skater.x + skater.width - 5 - wheelSize, boardY + skater.height - 2, wheelSize, wheelSize);
+            
+            if (skater.isGrinding) {
+                ctx.fillStyle = '#fef08a'; // Yellow sparks
+                const sparkY = boardY + skater.height / 2;
+                ctx.fillRect(skater.x + 10, sparkY - 3, 2, 2);
+                ctx.fillRect(skater.x + skater.width - 15, sparkY + 2, 3, 3);
+            }
+
+            if (skater.isDucking || skater.isGrinding) {
+                // --- DUCKING / GRINDING POSE ---
+                const bodyHeight = DUCKING_PERSON_HEIGHT;
+                const bodyY = boardY - bodyHeight;
+                const duckingWidth = skater.personWidth + 10;
+                
+                ctx.fillStyle = '#3b82f6'; 
+                ctx.fillRect(center - duckingWidth / 2, bodyY, duckingWidth, bodyHeight);
+                ctx.fillStyle = '#1e3a8a'; 
+                ctx.fillRect(center - duckingWidth / 2 + 2, bodyY + 5, duckingWidth / 2 - 2, bodyHeight - 5);
+                
+                const headSize = 10;
+                ctx.fillStyle = '#fde68a';
+                ctx.fillRect(center - headSize / 2, bodyY - headSize, headSize, headSize);
+                ctx.fillStyle = '#9d174d'; 
+                ctx.fillRect(center - headSize / 2 - 1, bodyY - headSize - 2, headSize + 2, headSize);
+
+            } else {
+                // --- STANDING POSE (Jump/Default) ---
+                const legHeight = 15;
+                const legWidth = 10;
+                const legY = boardY - legHeight;
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(center - legWidth - 2, legY, legWidth, legHeight);
+                ctx.fillRect(center + 2, legY, legWidth, legHeight);
+                ctx.fillStyle = '#1e3a8a';
+                ctx.fillRect(center - legWidth - 1, legY + 5, 2, 2); 
+                ctx.fillRect(center + 3, legY + 5, 2, 2); 
+                
+                const torsoHeight = 30;
+                const torsoWidth = skater.personWidth;
+                const torsoY = legY - torsoHeight;
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(center - torsoWidth / 2, torsoY, torsoWidth, torsoHeight);
+                ctx.fillStyle = '#065f46';
+                ctx.fillRect(center - torsoWidth / 2, torsoY + 10, torsoWidth, 3);
+
+                const headSize = 15;
+                const headY = torsoY - headSize;
+                ctx.fillStyle = '#fde68a'; 
+                ctx.fillRect(center - headSize / 2, headY, headSize, headSize);
+                ctx.fillStyle = '#543210';
+                ctx.fillRect(center - headSize / 2, headY - 5, headSize, 5);
+                ctx.fillRect(center - headSize / 2 - 2, headY - 2, 2, 2); 
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(center - 5, headY + 5, 2, 2);
+                ctx.fillRect(center + 3, headY + 5, 2, 2);
+                
+                // NEW: Draw the Gun/Arm
+                const gunX = skater.x + skater.width / 2 + 5;
+                const gunY = torsoY + 10;
+                ctx.fillStyle = '#4b5563'; // Gray Arm
+                ctx.fillRect(gunX, gunY, 15, 5); 
+                ctx.fillStyle = '#111827'; // Black Gun Barrel
+                ctx.fillRect(gunX + 15, gunY, 10, 3); 
+            }
+
+            ctx.shadowBlur = 0; 
+        }
+
+        // --- Obstacle Drawing with Texture Simulation ---
+        function drawCrate(obs) {
+            ctx.fillStyle = '#b45309'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.fillStyle = '#d97706'; const stripeWidth = obs.height / 3;
+            ctx.fillRect(obs.x, obs.y + stripeWidth, obs.width, 2);
+            ctx.fillRect(obs.x, obs.y + stripeWidth * 2, obs.width, 2);
+            ctx.fillStyle = '#78350f'; ctx.fillRect(obs.x + obs.width - 5, obs.y, 5, obs.height);
+        }
+
+        function drawBlock(obs) {
+            ctx.fillStyle = '#b91c1c'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.fillStyle = '#450a0a'; 
+            for (let y = obs.y + 10; y < obs.y + obs.height - 5; y += 10) { ctx.fillRect(obs.x, y, obs.width, 1); }
+            for (let y = obs.y + 5; y < obs.y + obs.height - 10; y += 10) { ctx.fillRect(obs.x + 5, y, 1, 5); ctx.fillRect(obs.x + obs.width - 5, y, 1, 5); }
+        }
+
+        function drawRail(obs) {
+            const railY = obs.y + obs.height * 0.5;
+            const railHeight = obs.height * 0.5;
+            ctx.fillStyle = '#3b82f6'; 
+            ctx.fillRect(obs.x, railY, obs.width, railHeight);
+            ctx.fillStyle = '#93c5fd'; 
+            ctx.fillRect(obs.x, railY, obs.width, 1);
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(obs.x, railY + railHeight - 2, obs.width, 2);
+        }
+
+        function drawLowBarrier(obs) {
+            ctx.fillStyle = '#9d174d'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.fillStyle = '#fde047'; 
+            const stripeWidth = 5;
+            for (let i = 0; i < obs.width; i += stripeWidth * 2) { ctx.fillRect(obs.x + i, obs.y, stripeWidth, obs.height); }
+        }
+
+        // UPDATED: Draw Enemy (Humanoid/Armored)
+        function drawEnemy(obs) {
+            const isShooter = obs.type === 'shooter_enemy';
+            const hitFlash = obs.health < 3 && frameCount % 5 < 3; 
+            const enemyColor = hitFlash ? '#f87171' : (isShooter ? '#ff00ff' : '#dc2626'); // Magenta for Shooter, Red for normal
+            const headY = obs.y - 10;
+            const bodyY = obs.y + 5;
+            const legY = obs.y + obs.height;
+            
+            // --- Head (Helmet/Visor) ---
+            ctx.fillStyle = enemyColor; 
+            ctx.fillRect(obs.x + 5, headY, obs.width - 10, 15);
+            ctx.fillStyle = '#000000'; // Visor
+            ctx.fillRect(obs.x + 7, headY + 5, obs.width - 14, 3);
+            
+            // --- Torso/Armor ---
+            ctx.fillStyle = enemyColor;
+            ctx.fillRect(obs.x, bodyY, obs.width, 35);
+            ctx.fillStyle = '#111827'; // Black under-suit/joint
+            ctx.fillRect(obs.x + 2, bodyY + 5, obs.width - 4, 25);
+
+            // --- Shooter Cannon/Arm ---
+            if (isShooter) {
+                ctx.fillStyle = '#4b5563'; // Gray Arm
+                ctx.fillRect(obs.x - 10, bodyY + 10, 15, 5); 
+                ctx.fillStyle = '#111827'; // Black Gun Barrel
+                ctx.fillRect(obs.x - 20, bodyY + 11, 10, 3); 
+            }
+            
+            // --- Legs/Feet ---
+            ctx.fillStyle = enemyColor;
+            ctx.fillRect(obs.x + 5, legY - 10, 7, 10);
+            ctx.fillRect(obs.x + obs.width - 12, legY - 10, 7, 10);
+            
+            // Health Bar (Simple visual feedback)
+            const maxHealth = 3;
+            const barWidth = obs.width;
+            const currentWidth = barWidth * (obs.health / maxHealth);
+            ctx.fillStyle = '#4b5563'; 
+            ctx.fillRect(obs.x, obs.y - 15, barWidth, 5);
+            ctx.fillStyle = obs.health > 1 ? '#10b981' : '#f59e0b'; 
+            ctx.fillRect(obs.x, obs.y - 15, currentWidth, 5);
+        }
+
+
+        function drawObstacles() {
+            for (const obs of obstacles) {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                ctx.shadowBlur = 10;
+                
+                switch (obs.type) {
+                    case 'crate': drawCrate(obs); break;
+                    case 'block': drawBlock(obs); break;
+                    case 'rail': drawRail(obs); break;
+                    case 'low_barrier': drawLowBarrier(obs); break;
+                    case 'enemy': drawEnemy(obs); break; 
+                    case 'shooter_enemy': drawEnemy(obs); break; 
+                    default: ctx.fillStyle = obs.color; ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                }
+
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // --- NEW LIFE REWARD CHECK & GRIND MODE/DOUBLE JUMP UNLOCK ---
+        function checkLifeReward() {
+            // 1. Life Rewards
+            if (score >= nextLifeScoreThreshold) { 
+                if (lives < 99) { 
+                    lives++;
+                    livesDisplay.textContent = lives;
+                    if (sfxExtraLife) sfxExtraLife.triggerAttackRelease(['E5', 'G#5', 'B5'], '8n'); 
+                }
+                const currentIndex = REWARD_MILESTONES.indexOf(nextLifeScoreThreshold);
+                if (currentIndex !== -1 && currentIndex < REWARD_MILESTONES.length - 1) {
+                    nextLifeScoreThreshold = REWARD_MILESTONES[currentIndex + 1];
+                } else {
+                    nextLifeScoreThreshold += REPEATING_REWARD_AMOUNT;
+                }
+            }
+            
+            // 2. Grind Mode Unlock Check
+            if (!isGrindModeUnlocked && score >= GRIND_MODE_UNLOCK_SCORE) {
+                isGrindModeUnlocked = true;
+                if (sfxExtraLife) sfxExtraLife.triggerAttackRelease(['F5', 'A5', 'C6'], '8n'); 
+                grindModeStatusDisplay.textContent = 'READY';
+                grindModeStatusDisplay.classList.remove('text-gray-400');
+                grindModeStatusDisplay.classList.add('text-yellow-500');
+            }
+
+            // 3. Double Jump Unlock Check (NEW)
+            if (!isDoubleJumpUnlocked && score >= DOUBLE_JUMP_UNLOCK_SCORE) {
+                isDoubleJumpUnlocked = true;
+                if (sfxExtraLife) sfxExtraLife.triggerAttackRelease(['C6', 'E6', 'G6'], '8n'); 
+                doubleJumpStatusDisplay.textContent = 'DOUBLE';
+                doubleJumpStatusDisplay.classList.remove('text-gray-400');
+                doubleJumpStatusDisplay.classList.add('text-yellow-500');
+            }
+        }
+        
+        // --- Game Logic ---
+
+        function updateSkaterJump() {
+            if (skater.isGrinding) {
+                skater.velocityY = 0;
+                skater.isJumping = false;
+                skater.airTime = 0;
+                skater.hasUsedDoubleJump = true; // Cannot double jump from a grind
+                return; 
+            }
+
+            if (skater.isJumping) {
+                skater.velocityY += GRAVITY;
+                skater.y += skater.velocityY;
+                skater.airTime++;
+
+                if (skater.y + skater.height > GROUND_Y) {
+                    skater.y = GROUND_Y - skater.height;
+                    skater.isJumping = false;
+                    skater.velocityY = 0;
+                    skater.airTime = 0;
+                    skater.hasUsedDoubleJump = false; // Reset double jump on landing
+                }
+            }
+        }
+        
+        function updateHorizontalMovement() {
+            if (horizontalDirection !== 0) {
+                skater.velocityX += skater.acceleration * horizontalDirection;
+            }
+
+            if (horizontalDirection === 0 || skater.isGrinding) {
+                skater.velocityX *= skater.friction;
+            }
+
+            skater.velocityX = Math.max(skater.maxBackwardSpeed, Math.min(skater.maxForwardSpeed, skater.velocityX));
+            
+            if (Math.abs(skater.velocityX) < 0.1) {
+                skater.velocityX = 0;
+            }
+            
+            speedDisplay.textContent = Math.abs(skater.velocityX).toFixed(1);
+        }
+
+
+        function spawnObstacle() {
+            const roll = Math.random();
+            let obstacleType;
+            
+            if (score > 1000 && roll < 0.20) {
+                // 20% chance for a shooter enemy after 1000 points
+                obstacleType = 'shooter_enemy'; 
+            } else if (roll < 0.50) {
+                // 30% chance for a normal enemy
+                obstacleType = 'enemy';
+            } else {
+                // 50% chance for block/rail obstacles
+                obstacleType = 'block_type'; 
+            }
+
+
+            const obstacleConfigs = [
+                // Jump obstacles
+                { width: 40, height: 40, type: 'crate', color: '#f59e0b', y: GROUND_Y - 40 }, 
+                { width: 25, height: 75, type: 'block', color: '#b91c1c', y: GROUND_Y - 75 },
+                // Grind/Jump/Crash
+                { width: 80, height: 15, type: 'rail', color: '#3b82f6', y: GROUND_Y - 15 },
+                // Duck
+                { width: 100, height: 20, type: 'low_barrier', color: '#9d174d', y: DUCK_BARRIER_TOP_Y },
+            ];
+
+            let config;
+            if (obstacleType === 'enemy' || obstacleType === 'shooter_enemy') {
+                 // Enemy configuration with movement properties
+                config = { 
+                    width: 30, 
+                    height: 50, 
+                    type: obstacleType, 
+                    color: '#ff0000', 
+                    y: GROUND_Y - 50, 
+                    health: 3,
+                    moveDir: (Math.random() < 0.5 ? 1 : -1), 
+                    patrolDist: 60 + Math.random() * 40,
+                    patrolSpeed: 1.5,
+                    lastShotFrame: 0,
+                };
+            } else {
+                config = obstacleConfigs[Math.floor(Math.random() * obstacleConfigs.length)];
+            }
+            
+            obstacles.push({
+                x: canvas.width,
+                y: config.y, 
+                width: config.width,
+                height: config.height,
+                type: config.type,
+                color: config.color,
+                health: config.health || 1, 
+                moveDir: config.moveDir || 0,
+                patrolDist: config.patrolDist || 0,
+                patrolSpeed: config.patrolSpeed || 0,
+                lastShotFrame: config.lastShotFrame || 0,
+            });
+            
+            const currentBaseRate = 120 - Math.abs(skater.velocityX) * 5; 
+            const minSpawnRate = 40;
+            const spawnVariance = Math.random() * 40;
+            obstacleSpawnRate = Math.max(minSpawnRate, currentBaseRate + spawnVariance);
+        }
+
+        function updateObstacles() {
+            // 1. Grind Logic
+            if (skater.isGrinding && skater.currentGrindObstacle) {
+                const obs = skater.currentGrindObstacle;
+                if (obs.x + obs.width < skater.x + skater.width / 2) {
+                    endGrind();
+                } else {
+                    score += 2;
+                    skater.comboMultiplier = Math.min(5.0, skater.comboMultiplier + 0.01);
+                    document.getElementById('comboValue').textContent = `x${skater.comboMultiplier.toFixed(1)}`;
+                    scoreDisplay.textContent = score;
+                    checkLifeReward(); // Check for reward constantly while scoring
+                }
+            }
+
+            // 2. Move Obstacles and Enemies / Enemy Shooting Logic
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+                
+                // Handle Enemy Patrol Movement
+                if ((obs.type === 'enemy' || obs.type === 'shooter_enemy') && obs.patrolDist > 0) {
+                    obs.x += obs.moveDir * obs.patrolSpeed; 
+                    obs.patrolDist -= obs.patrolSpeed; 
+
+                    if (obs.patrolDist <= 0) {
+                        obs.moveDir *= -1; 
+                        obs.patrolDist = 60 + Math.random() * 40; 
+                    }
+                }
+                
+                // NEW: Shooter Enemy firing logic
+                if (obs.type === 'shooter_enemy' && obs.x > skater.x && skater.velocityX > 3) {
+                    if (frameCount - obs.lastShotFrame > ENEMY_FIRE_RATE) {
+                        createEnemyProjectile(obs);
+                        obs.lastShotFrame = frameCount;
+                    }
+                }
+
+                // Apply world scroll
+                obs.x -= skater.velocityX;
+            }
+
+            // 3. Combo Decay Logic
+            if (skater.velocityX > 3 && !skater.isGrinding) {
+                 skater.comboTimer--;
+                 if (skater.comboTimer <= 0) {
+                    skater.comboMultiplier = Math.max(1.0, skater.comboMultiplier - 0.05); 
+                    skater.comboTimer = 30; 
+                    document.getElementById('comboValue').textContent = `x${skater.comboMultiplier.toFixed(1)}`;
+                 }
+            }
+
+            // 4. Scoring/Cleanup (Only process the first obstacle)
+            if (obstacles.length > 0) {
+                const obs = obstacles[0];
+                
+                // Condition to check if obstacle is passed and should be scored/removed
+                if (obs.x + obs.width < skater.x && skater.velocityX > 0 && obs.type !== 'rail') {
+                    
+                    // Only score non-enemy obstacles if passed successfully
+                    if (obs.type !== 'enemy' && obs.type !== 'shooter_enemy') {
+                        const currentSpeed = Math.abs(skater.velocityX);
+                        const speedFactor = Math.min(1.0, currentSpeed / skater.maxForwardSpeed); 
+                        const basePoints = 1 + Math.floor(speedFactor * 3); 
+                        
+                        checkLifeReward(); 
+                        
+                        score += Math.floor(basePoints * skater.comboMultiplier);
+                        
+                        let bonus = 0;
+                        
+                        if (obs.type === 'low_barrier' && skater.isDucking) {
+                            bonus = 5; 
+                            skater.comboMultiplier = Math.min(5.0, skater.comboMultiplier + 0.3);
+                        } else if (obs.type !== 'low_barrier' && skater.airTime > 5) {
+                            if (skater.airTime > 35) { bonus = 8; skater.comboMultiplier = Math.min(5.0, skater.comboMultiplier + 0.4); } 
+                            else if (skater.airTime > 15) { bonus = 4; skater.comboMultiplier = Math.min(5.0, skater.comboMultiplier + 0.2); }
+                        }
+                        
+                        score += Math.floor(bonus * skater.comboMultiplier);
+                        if (bonus > 0) { skater.comboTimer = 90; }
+                    }
+
+                    obstacles.shift();
+                }
+            }
+
+            // 5. Spawn new obstacle
+            if (skater.velocityX > 3) {
+                if (frameCount % Math.floor(obstacleSpawnRate) === 0) {
+                    spawnObstacle();
+                }
+            }
+
+            // 6. Cleanup far off-screen obstacles
+            if (obstacles.length > 0 && obstacles[0].x < -100) {
+                obstacles.shift();
+            }
+        }
+
+        function checkCollision() {
+            const skaterBox = {
+                left: skater.x,
+                top: skater.y, 
+                right: skater.x + skater.width,
+                bottom: skater.y + skater.height 
+            };
+            
+            // General AABB collision logic (using the combined body/board box)
+            const fullSkaterBox = { ...skaterBox, top: skaterBox.top - skater.personHeight };
+
+            // --- 1. Check Collision with Obstacles ---
+            for (const obs of obstacles) {
+                const obsBox = {
+                    left: obs.x,
+                    top: obs.y,
+                    right: obs.x + obs.width,
+                    bottom: obs.y + obs.height
+                };
+
+                // Rail/Grind Collision Check
+                if (!skater.isGrinding && obs.type === 'rail' && skaterBox.right > obsBox.left && skaterBox.left < obsBox.right) {
+                     if (skaterBox.bottom >= obsBox.top && skaterBox.bottom <= obsBox.top + 10) { 
+                         if (skater.isGrindModeActive || skater.isDucking || (skater.velocityY > 0 && skater.isJumping)) {
+                            startGrind(obs);
+                            return false; 
+                         } 
+                         gameOver(); 
+                         return true;
+                     } 
+                }
+                
+                // Ignore collision with the current rail if grinding
+                if (skater.isGrinding && obs.type === 'rail' && obs === skater.currentGrindObstacle) { continue; } 
+                
+                // General Crash Collision
+                if (fullSkaterBox.right > obsBox.left &&
+                    fullSkaterBox.left < obsBox.right &&
+                    fullSkaterBox.bottom > obsBox.top &&
+                    fullSkaterBox.top < obsBox.bottom) {
+                    
+                    gameOver();
+                    return true;
+                }
+            }
+            
+            // --- 2. Check Collision with Enemy Projectiles (NEW) ---
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                const proj = enemyProjectiles[i];
+                const projBox = {
+                    left: proj.x, top: proj.y, right: proj.x + proj.width, bottom: proj.y + proj.height
+                };
+
+                // Projectile hits skater's body/board
+                if (fullSkaterBox.right > projBox.left &&
+                    fullSkaterBox.left < projBox.right &&
+                    fullSkaterBox.bottom > projBox.top &&
+                    fullSkaterBox.top < projBox.bottom) {
+                    
+                    enemyProjectiles.splice(i, 1); // Remove projectile
+                    gameOver(); // Crash
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function gameLoopFn() {
+            if (!isPlaying) {
+                cancelAnimationFrame(animationFrameId);
+                return;
+            }
+
+            updateHorizontalMovement(); 
+            drawBackground();
+            drawGround(); 
+            updateSkaterJump(); 
+            updateObstacles();
+            updateProjectiles(); 
+            drawObstacles();
+            drawBullets(); 
+            drawEnemyProjectiles(); // NEW draw call
+            drawSkater();
+
+            checkCollision();
+
+            frameCount++;
+            animationFrameId = requestAnimationFrame(gameLoopFn);
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            cancelAnimationFrame(animationFrameId);
+            
+            endGrind(); 
+            
+            if (Tone.Transport.state === 'started') {
+                Tone.Transport.stop();
+            }
+            if (sfxCrash) sfxCrash.triggerAttackRelease("4n");
+            
+            // --- LIVES LOGIC ---
+            lives--; // Decrement life
+            const modalContent = document.querySelector('#message-box .modal-content');
+            
+            if (lives > 0) {
+                // Continue option
+                modalContent.innerHTML = `
+                    <h2>CRASH! ${lives} ${lives === 1 ? 'Life' : 'Lives'} Left!</h2>
+                    <p>You scored <span class="text-yellow-300 font-bold">${score}</span> points.</p>
+                    <p class="text-lg mt-2">Max Combo Achieved: <span class="text-red-400 font-bold">x${skater.comboMultiplier.toFixed(1)}</span></p>
+                    <button onclick="continueGame()">Continue</button>
+                    <button onclick="startGame()" class="mt-2 bg-gray-500 hover:bg-gray-400 shadow-gray-700">Quit</button>
+                `;
+            } else {
+                // Final Game Over
+                modalContent.innerHTML = `
+                    <h2>GAME OVER!</h2>
+                    <p>FINAL SCORE: <span class="text-yellow-300 font-bold">${score}</span> points.</p>
+                    <p class="text-lg mt-2">Max Combo Achieved: <span class="text-red-400 font-bold">x${skater.comboMultiplier.toFixed(1)}</span></p>
+                    <button onclick="startGame()">Play Again</button>
+                `;
+            }
+            
+            livesDisplay.textContent = lives > 0 ? lives : 0;
+            messageBox.style.opacity = '1';
+            messageBox.style.visibility = 'visible';
+        }
+
+        // --- NEW HELPER: Resets only the skater's dynamic state for a new run ---
+        function resetSkaterRunState() {
+            // Reset skater's dynamic state
+            skater.y = GROUND_Y - skater.height;
+            skater.isJumping = false;
+            skater.isDucking = false;
+            skater.isGrinding = false; 
+            skater.personHeight = DEFAULT_PERSON_HEIGHT;
+            skater.velocityY = 0;
+            skater.velocityX = 0; // Skater starts stationary, must accelerate
+            horizontalDirection = 0; 
+            skater.airTime = 0;
+            skater.comboMultiplier = 1.0;
+            skater.comboTimer = 0;
+            skater.lastShotFrame = 0; 
+            skater.hasUsedDoubleJump = false; // Reset double jump status
+            
+            // Preserve Grind Mode Unlock, but reset ACTIVE state on crash/continue
+            skater.isGrindModeActive = false; 
+
+            // Reset camera offsets
+            skylineOffset = 0;
+            midgroundOffset = 0;
+            frameCount = 0;
+            obstacleSpawnRate = 120; 
+
+            // UI Updates
+            scoreDisplay.textContent = score;
+            speedDisplay.textContent = skater.velocityX.toFixed(1);
+            document.getElementById('comboValue').textContent = `x${skater.comboMultiplier.toFixed(1)}`;
+            livesDisplay.textContent = lives; 
+            
+            // Update Grind Mode status display
+            grindModeStatusDisplay.textContent = isGrindModeUnlocked ? 'READY' : 'LOCKED';
+            grindModeStatusDisplay.classList.toggle('text-yellow-500', isGrindModeUnlocked);
+            grindModeStatusDisplay.classList.toggle('text-gray-400', !isGrindModeUnlocked);
+            grindModeStatusDisplay.classList.remove('text-green-500'); // Ensure ACTIVE state is cleared
+
+            // Update Double Jump status display
+            doubleJumpStatusDisplay.textContent = isDoubleJumpUnlocked ? 'DOUBLE' : 'SINGLE';
+            doubleJumpStatusDisplay.classList.toggle('text-yellow-500', isDoubleJumpUnlocked);
+            doubleJumpStatusDisplay.classList.toggle('text-gray-400', !isDoubleJumpUnlocked);
+
+
+            if (musicSequence) {
+                Tone.Transport.start();
+            }
+
+            messageBox.style.opacity = '0';
+            messageBox.style.visibility = 'hidden';
+            isPlaying = true;
+            animationFrameId = requestAnimationFrame(gameLoopFn);
+        }
+
+        // --- NEW HELPER: Shifts existing obstacles to a safe distance (for continue) ---
+        function shiftObstaclesToSafety() {
+            bullets = []; 
+            enemyProjectiles = []; // Clear enemy projectiles
+            const safeDistance = 350; 
+            
+            for(const obs of obstacles) {
+                obs.x += safeDistance;
+            }
+        }
+
+
+        // Global function to start a brand new game (resets everything)
+        window.startGame = async function() {
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+            lives = INITIAL_LIVES; 
+            score = 0;             
+            
+            // Full reset: Reset reward tracking AND unlock states
+            nextLifeScoreThreshold = REWARD_MILESTONES[0];
+            isGrindModeUnlocked = false;
+            isDoubleJumpUnlocked = false; 
+            
+            obstacles = []; 
+            
+            resetSkaterRunState(); 
+        };
+
+        // Global function for continuing after a crash (preserves lives/score)
+        window.continueGame = async function() {
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+            
+            // Unlock status is preserved
+            resetSkaterRunState(); 
+            
+            shiftObstaclesToSafety(); 
+        };
+        
+        // Initial setup to display the start screen
+        window.onload = function() {
+            initAudio();
+            createMusicSequence();
+
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawGround();
+            drawSkater();
+            livesDisplay.textContent = INITIAL_LIVES; 
+            grindModeStatusDisplay.textContent = isGrindModeUnlocked ? 'READY' : 'LOCKED';
+            doubleJumpStatusDisplay.textContent = isDoubleJumpUnlocked ? 'DOUBLE' : 'SINGLE';
+        };
+
+    </script>
+<script>window.BIT_MOBILE={"move": "both", "buttons": [{"code": "ArrowUp", "label": "\u2b06 JUMP"}]};</script>
+<script>
+/* Bit Mobile Kit — touch controls layered over the PC controls.
+   Activates ONLY on touch devices; desktop play is completely untouched.
+   Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
+     lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+(function () {
+  var cfg = window.BIT_MOBILE || {};
+  var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!isTouch) return;
+
+  var style = document.createElement('style');
+  style.textContent = [
+    'html,body{touch-action:none;overscroll-behavior:none}',
+    '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
+    '#bit-stick{position:absolute;left:18px;bottom:24px;width:118px;height:118px;border-radius:50%;',
+    'background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);pointer-events:auto}',
+    '#bit-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;',
+    'background:rgba(255,255,255,.45);transform:translate(-50%,-50%)}',
+    '#bit-btns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}',
+    '.bit-btn{min-width:64px;height:56px;padding:0 12px;border-radius:16px;border:2px solid rgba(255,255,255,.35);',
+    'background:rgba(20,20,40,.55);color:#fff;font-size:15px;font-weight:700;text-align:center}',
+    '.bit-btn:active{background:rgba(255,159,243,.55)}'
+  ].join('');
+  document.head.appendChild(style);
+
+  var KEYMAP = {
+    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 100 - 32], KeyE: ['e', 69],
+    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32],
+    ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
+  };
+  KEYMAP.KeyD = ['d', 68];
+
+  function fireKey(type, code) {
+    var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
+    var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
+    try { Object.defineProperty(e, 'keyCode', { value: m[1] }); Object.defineProperty(e, 'which', { value: m[1] }); } catch (err) {}
+    window.dispatchEvent(e); document.dispatchEvent(e);
+    if (document.body) document.body.dispatchEvent(e);
+  }
+  function fireMouse(type, x, y, dx, dy) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+    if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+
+  var kit = document.createElement('div'); kit.id = 'bit-kit';
+  document.body.appendChild(kit);
+
+  /* ---- virtual joystick -> movement keys ---- */
+  var pressed = {};
+  function setKey(code, down) {
+    if (pressed[code] === down) return; pressed[code] = down;
+    fireKey(down ? 'keydown' : 'keyup', code);
+  }
+  if (cfg.move) {
+    var stick = document.createElement('div'); stick.id = 'bit-stick';
+    var nub = document.createElement('div'); nub.id = 'bit-nub';
+    stick.appendChild(nub); kit.appendChild(stick);
+    var stickId = null;
+    function groups() {
+      return cfg.move === 'both'
+        ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
+        : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
+    }
+    function applyStick(dx, dy) {
+      var g = groups(), on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
+      for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
+    }
+    function clearStick() { var g = groups(); for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); }
+    stick.addEventListener('touchstart', function (e) {
+      e.preventDefault(); var t = e.changedTouches[0]; stickId = t.identifier;
+    }, { passive: false });
+    stick.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
+        var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
+        var len = Math.max(1, Math.hypot(dx, dy)); if (Math.hypot(dx, dy) > 1) { dx /= len; dy /= len; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx * 32 + 'px), calc(-50% + ' + dy * 32 + 'px))';
+        applyStick(dx, dy);
+      }
+    }, { passive: false });
+    function endStick(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === stickId) {
+        stickId = null; nub.style.transform = 'translate(-50%,-50%)'; clearStick();
+      }
+    }
+    stick.addEventListener('touchend', endStick); stick.addEventListener('touchcancel', endStick);
+  }
+
+  /* ---- action buttons ---- */
+  if (cfg.buttons && cfg.buttons.length) {
+    var wrap = document.createElement('div'); wrap.id = 'bit-btns';
+    cfg.buttons.forEach(function (b) {
+      var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keydown', b.code);
+      }, { passive: false });
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keyup', b.code);
+      }, { passive: false });
+      wrap.appendChild(btn);
+    });
+    kit.appendChild(wrap);
+  }
+
+  /* ---- drag-look / drawing bridge on the canvas ---- */
+  if (cfg.look && cfg.look !== 'none' || cfg.bridge) {
+    var lookId = null, lx = 0, ly = 0, locked = false;
+    document.addEventListener('touchstart', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (t.target.closest && t.target.closest('#bit-kit')) continue;
+        if (lookId !== null) continue;
+        lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousedown', t.clientX, t.clientY);
+        if (cfg.lockTry && !locked) {
+          locked = true;
+          var c = document.querySelector('canvas');
+          if (c && c.requestPointerLock) { try { var p = c.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (err) {} }
+        }
+      }
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
+        else if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx * 1.6, dy: dy * 1.6 } }));
+        else if (cfg.look === 'mouse') fireMouse('mousemove', t.clientX, t.clientY, dx, dy);
+      }
+      if (lookId !== null && !cfg.bridge) e.preventDefault();
+    }, { passive: false });
+    function endLook(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
+        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        lookId = null;
+      }
+    }
+    document.addEventListener('touchend', endLook); document.addEventListener('touchcancel', endLook);
+  }
+})();
+
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
