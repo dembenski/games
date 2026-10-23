@@ -45,6 +45,8 @@ class PointerLockControls extends EventDispatcher {
 		this.domElement.ownerDocument.addEventListener( 'mousemove', this._onMouseMove );
 		window.addEventListener( 'bitlook', this._onBitLook );
 		this.domElement.ownerDocument.addEventListener( 'pointerlockchange', this._onPointerlockChange );
+		// Bit mobile: touch devices cannot pointer-lock; the kit's 'bitlock' event arms the lock state
+		window.addEventListener( 'bitlock', () => { if ( this.isLocked === false ) { this.isLocked = true; this.dispatchEvent( _lockEvent ); } } );
 		this.domElement.ownerDocument.addEventListener( 'pointerlockerror', this._onPointerlockError );
 
 	}
