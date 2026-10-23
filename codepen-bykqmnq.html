@@ -926,251 +926,47 @@
 
 
 
-<script>window.BIT_MOBILE={"bridge": true};</script>
-<script>
-/* Bit Mobile Kit v3.1 — per-game touch control schemes over the PC controls.
-   Activates ONLY on touch devices; desktop play is completely untouched.
-   v3: twin-stick support — left stick moves, right stick aims/looks —
-   plus per-game button placement. Ghost-translucent, auto-fades when idle,
-   and a hide/show toggle so the overlay never blocks the game's own UI.
-   Config: window.BIT_MOBILE = {
-     move:'wasd'|'both',
-     look:'mouse'|'bitlook'|'none',          // drag-look channel (fallback)
-     rightStick:'look'|'aim'|null,          // right stick behavior
-     aimFire:true,                          // aim stick fires past 55% push
-     lockTry:true, bridge:true,
-     btnSlot:'aboveR'|'midR'|'topR',
-     buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+
+
+<script id="bit-footer">
 (function () {
-  var cfg = window.BIT_MOBILE || {};
+  var LINKS = [
+    ['\u{1F3AE} Games Hub', 'https://dembenski.github.io/games/'],
+    ['\u{1F310} Horizon', 'https://horizon.meta.com/profile/8bitvap0r/'],
+    ['\u{1F3B2} Pocket', 'https://madewithpocket.com/p/D70jh_dnz'],
+    ['\u{1F4BB} CodePen', 'https://codepen.io/Michael-Dembenski'],
+    ['\u{1F579}\u{FE0F} itch.io', 'https://8bitvapor.itch.io/8bitvapor-arcade'],
+    ['\u{1F4F8} Instagram', 'https://www.instagram.com/8bitvapor.builds'],
+    ['\u{1F9F5} Threads', 'https://www.threads.com/@8bitvapor.builds'],
+    ['\u{1F4D8} Facebook', 'https://www.facebook.com/Dembenski.M']
+  ];
+  var css = document.createElement('style');
+  css.textContent = '#bit-footbar{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(10,10,24,.88);color:#eee;font-family:sans-serif;font-size:12px;display:flex;align-items:center;gap:4px;padding:5px 8px;flex-wrap:wrap;justify-content:center}' +
+    '#bit-footbar a{color:#ff9ff3;text-decoration:none;font-weight:700;padding:2px 5px;white-space:nowrap}' +
+    '#bit-footbar a:hover{text-decoration:underline}' +
+    '#bit-footbar .bit-brand{color:#fff;font-weight:700;white-space:nowrap}' +
+    '#bit-footbar .bit-x{margin-left:auto;background:none;border:none;color:#aaa;font-size:14px;cursor:pointer;padding:0 4px}' +
+    '#bit-pcbanner{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:rgba(24,16,48,.94);color:#fff;font-family:sans-serif;font-size:14px;text-align:center;padding:10px 40px 10px 12px;line-height:1.45}' +
+    '#bit-pcbanner b{color:#ff9ff3}' +
+    '#bit-pcbanner .bit-x{position:absolute;right:8px;top:6px;background:none;border:none;color:#ccc;font-size:18px;cursor:pointer}';
+  document.head.appendChild(css);
   var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  if (!isTouch) return;
-
-  /* ---- lock spoofing for pointer-lock-gated games (mobile has no real lock) ---- */
-  function armLocks() {
-    if (cfg.spoofLock) window.dispatchEvent(new Event('bitlock'));
-    if (cfg.fakeLock && !window.__bitFakeLock) {
-      window.__bitFakeLock = true;
-      try {
-        var proto = Object.getPrototypeOf(document);
-        var desc = Object.getOwnPropertyDescriptor(proto, 'pointerLockElement') || Object.getOwnPropertyDescriptor(document, 'pointerLockElement');
-        var realGet = desc && desc.get;
-        Object.defineProperty(document, 'pointerLockElement', { configurable: true,
-          get: function () { var r = realGet ? realGet.call(document) : null; return r || document.body; } });
-      } catch (err) {}
-    }
+  if (isTouch) {
+    var b = document.createElement('div'); b.id = 'bit-pcbanner';
+    b.innerHTML = '\u{1F4F1} This game is built for <b>PC \u2014 keyboard &amp; mouse recommended!</b> You can look around on mobile, but for the real game, open this page on a computer.';
+    var bx = document.createElement('button'); bx.className = 'bit-x'; bx.textContent = '\u{2715}';
+    bx.addEventListener('click', function () { b.remove(); });
+    b.appendChild(bx); document.body.appendChild(b);
   }
-  document.addEventListener('touchstart', armLocks, { passive: true });
-  setTimeout(armLocks, 600); setTimeout(armLocks, 2000);
-
-  var style = document.createElement('style');
-  style.textContent = [
-    'html,body{touch-action:none;overscroll-behavior:none}',
-    '#bit-kit{position:fixed;inset:0;z-index:2147483000;pointer-events:none;font-family:sans-serif}',
-    '#bit-ui{transition:opacity .45s ease}',
-    '#bit-kit.bit-idle #bit-ui{opacity:.22}',
-    '#bit-kit.bit-hidden #bit-ui{display:none}',
-    '.bit-stick{position:absolute;width:92px;height:92px;border-radius:50%;',
-    'background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.22);pointer-events:auto}',
-    '#bit-stickL{left:12px;bottom:16px}',
-    '#bit-stickR{right:12px;bottom:16px}',
-    '.bit-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;border-radius:50%;',
-    'background:rgba(255,255,255,.30);transform:translate(-50%,-50%)}',
-    '#bit-btns{position:absolute;display:flex;flex-direction:column;gap:8px;pointer-events:auto;align-items:flex-end}',
-    '#bit-btns.slot-aboveR{right:14px;bottom:122px}',
-    '#bit-btns.slot-midR{right:10px;top:50%;transform:translateY(-50%)}',
-    '#bit-btns.slot-topR{right:10px;top:54px}',
-    '.bit-btn{min-width:50px;height:42px;padding:0 10px;border-radius:13px;border:1.5px solid rgba(255,255,255,.22);',
-    'background:rgba(20,20,40,.38);color:rgba(255,255,255,.85);font-size:13px;font-weight:700;text-align:center}',
-    '.bit-btn:active{background:rgba(255,159,243,.45)}',
-    '#bit-toggle{position:absolute;right:10px;top:8px;width:36px;height:36px;border-radius:50%;pointer-events:auto;',
-    'border:1.5px solid rgba(255,255,255,.25);background:rgba(20,20,40,.40);color:#fff;font-size:16px;line-height:1;',
-    'display:flex;align-items:center;justify-content:center;opacity:.55}'
-  ].join('');
-  document.head.appendChild(style);
-
-  var KEYMAP = {
-    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 68], KeyE: ['e', 69],
-    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32], KeyM: ['m', 77], KeyT: ['t', 84],
-    ShiftLeft: ['Shift', 16], ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
-  };
-  function fireKey(type, code) {
-    var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
-    var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
-    try { Object.defineProperty(e, 'keyCode', { value: m[1] }); Object.defineProperty(e, 'which', { value: m[1] }); } catch (err) {}
-    window.dispatchEvent(e); document.dispatchEvent(e);
-    if (document.body) document.body.dispatchEvent(e);
-  }
-  function fireMouse(type, x, y, dx, dy, btn) {
-    var t = document.querySelector('canvas') || document.body;
-    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: btn || 0 });
-    if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
-    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
-  }
-  function bitClick(x, y) {
-    var t = document.querySelector('canvas') || document.body;
-    var e = new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
-    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
-  }
-  function lookDelta(dx, dy) {
-    if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx, dy: dy } }));
-    else if (cfg.look === 'mouse') fireMouse('mousemove', window.innerWidth / 2, window.innerHeight / 2, dx, dy);
-  }
-
-  var kit = document.createElement('div'); kit.id = 'bit-kit';
-  var ui = document.createElement('div'); ui.id = 'bit-ui';
-  kit.appendChild(ui);
-  document.body.appendChild(kit);
-
-  /* ---- idle auto-fade + hide/show toggle ---- */
-  var idleTimer = null;
-  function wake() {
-    kit.classList.remove('bit-idle');
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(function () { kit.classList.add('bit-idle'); }, 2200);
-  }
-  document.addEventListener('touchstart', wake, { passive: true });
-  wake();
-  var toggle = document.createElement('button');
-  toggle.id = 'bit-toggle'; toggle.textContent = '🎮';
-  toggle.addEventListener('touchstart', function (e) {
-    e.preventDefault(); e.stopPropagation();
-    kit.classList.toggle('bit-hidden');
-    toggle.textContent = kit.classList.contains('bit-hidden') ? '🎮' : '✕';
-    wake();
-  }, { passive: false });
-  kit.appendChild(toggle);
-
-  /* ---- stick factory ---- */
-  function makeStick(id) {
-    var stick = document.createElement('div'); stick.className = 'bit-stick'; stick.id = id;
-    var nub = document.createElement('div'); nub.className = 'bit-nub';
-    stick.appendChild(nub); ui.appendChild(stick);
-    return { el: stick, nub: nub, tid: null, dx: 0, dy: 0 };
-  }
-  function stickTrack(st, onMove, onEnd) {
-    st.el.addEventListener('touchstart', function (e) {
-      e.preventDefault(); st.tid = e.changedTouches[0].identifier;
-    }, { passive: false });
-    st.el.addEventListener('touchmove', function (e) {
-      e.preventDefault();
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        var t = e.changedTouches[i]; if (t.identifier !== st.tid) continue;
-        var r = st.el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
-        var len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
-        st.dx = dx; st.dy = dy;
-        st.nub.style.transform = 'translate(calc(-50% + ' + dx * 25 + 'px), calc(-50% + ' + dy * 25 + 'px))';
-        onMove(dx, dy);
-      }
-    }, { passive: false });
-    function end(e) {
-      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === st.tid) {
-        st.tid = null; st.dx = 0; st.dy = 0;
-        st.nub.style.transform = 'translate(-50%,-50%)';
-        onEnd();
-      }
-    }
-    st.el.addEventListener('touchend', end); st.el.addEventListener('touchcancel', end);
-  }
-
-  /* ---- left stick: movement keys ---- */
-  var pressed = {};
-  function setKey(code, down) {
-    if (pressed[code] === down) return; pressed[code] = down;
-    fireKey(down ? 'keydown' : 'keyup', code);
-  }
-  if (cfg.move) {
-    var g = cfg.move === 'both'
-      ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
-      : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
-    var L = makeStick('bit-stickL');
-    stickTrack(L, function (dx, dy) {
-      var on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
-      for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
-    }, function () { for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); });
-  }
-
-  /* ---- right stick: look (continuous turn) or aim (absolute + autofire) ---- */
-  if (cfg.rightStick) {
-    var R = makeStick('bit-stickR');
-    var firing = false;
-    var turnTimer = setInterval(function () {
-      if (cfg.rightStick === 'look' && (Math.abs(R.dx) > 0.18 || Math.abs(R.dy) > 0.18)) {
-        lookDelta(R.dx * 11, R.dy * 11);
-      }
-    }, 50);
-    stickTrack(R, function (dx, dy) {
-      if (cfg.rightStick === 'aim') {
-        var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-        fireMouse('mousemove', cx + dx * 150, cy + dy * 150);
-        var mag = Math.hypot(dx, dy);
-        if (cfg.aimFire && mag > 0.55 && !firing) { firing = true; fireMouse('mousedown', cx + dx * 150, cy + dy * 150); }
-        if (cfg.aimFire && mag <= 0.55 && firing) { firing = false; fireMouse('mouseup', cx, cy); }
-      }
-    }, function () {
-      if (firing) { firing = false; fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2); }
-    });
-  }
-
-  /* ---- action buttons ---- */
-  if (cfg.buttons && cfg.buttons.length) {
-    var wrap = document.createElement('div'); wrap.id = 'bit-btns';
-    wrap.className = 'slot-' + (cfg.btnSlot || (cfg.rightStick ? 'aboveR' : 'midR'));
-    if (!cfg.rightStick && !cfg.btnSlot) { wrap.style.right = '10px'; wrap.style.bottom = '16px'; }
-    cfg.buttons.forEach(function (b) {
-      var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
-      btn.addEventListener('touchstart', function (e) {
-        e.preventDefault();
-        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0);
-        if (b.code) fireKey('keydown', b.code);
-      }, { passive: false });
-      btn.addEventListener('touchend', function (e) {
-        e.preventDefault();
-        if (b.mouse) { fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2, undefined, undefined, b.mouseButton || 0); bitClick(window.innerWidth / 2, window.innerHeight / 2); }
-        if (b.code) fireKey('keyup', b.code);
-      }, { passive: false });
-      wrap.appendChild(btn);
-    });
-    ui.appendChild(wrap);
-  }
-
-  /* ---- drag-look / drawing bridge on the canvas (fallback / drawing games) ---- */
-  if ((cfg.look && cfg.look !== 'none' && !cfg.rightStick) || cfg.bridge) {
-    var lookId = null, lx = 0, ly = 0, locked = false;
-    document.addEventListener('touchstart', function (e) {
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        var t = e.changedTouches[i];
-        if (t.target.closest && t.target.closest('#bit-kit')) continue;
-        if (lookId !== null) continue;
-        lookId = t.identifier; lx = t.clientX; ly = t.clientY;
-        if (cfg.bridge) fireMouse('mousedown', t.clientX, t.clientY);
-        if (cfg.lockTry && !locked) {
-          locked = true;
-          var c = document.querySelector('canvas');
-          if (c && c.requestPointerLock) { try { var p = c.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (err) {} }
-        }
-      }
-    }, { passive: true });
-    document.addEventListener('touchmove', function (e) {
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
-        var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
-        if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
-        else lookDelta(dx * 1.6, dy * 1.6);
-      }
-      if (lookId !== null && !cfg.bridge) e.preventDefault();
-    }, { passive: false });
-    function endLook(e) {
-      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
-        if (cfg.bridge) { fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY); bitClick(e.changedTouches[i].clientX, e.changedTouches[i].clientY); }
-        lookId = null;
-      }
-    }
-    document.addEventListener('touchend', endLook); document.addEventListener('touchcancel', endLook);
-  }
+  var bar = document.createElement('div'); bar.id = 'bit-footbar';
+  var brand = document.createElement('span'); brand.className = 'bit-brand'; brand.textContent = '\u{1F4EC} Contact me \u2014 Michael Dembenski & Bit \u{1F47E}:';
+  bar.appendChild(brand);
+  LINKS.forEach(function (l) { var a = document.createElement('a'); a.href = l[1]; a.textContent = l[0]; a.target = '_blank'; a.rel = 'noopener'; bar.appendChild(a); });
+  var x = document.createElement('button'); x.className = 'bit-x'; x.textContent = '\u{2715}';
+  x.addEventListener('click', function () { bar.remove(); });
+  bar.appendChild(x);
+  document.body.appendChild(bar);
 })();
-
 </script>
 </body>
 </html>

@@ -2032,7 +2032,47 @@ function startNextMiniGame() {
     console.log("Game initialized");
 }
 </script>
-<script id="bit-fit">(function(){function fit(){var c=document.getElementById("game-container");if(!c)return;var w=c.scrollWidth||820;var s=Math.min(1,window.innerWidth/w);c.style.transformOrigin="top center";c.style.transform=s<1?"scale("+s+")":"";}window.addEventListener("resize",fit);setTimeout(fit,300);setTimeout(fit,1200);})();</script>
+
+<script id="bit-footer">
+(function () {
+  var LINKS = [
+    ['\u{1F3AE} Games Hub', 'https://dembenski.github.io/games/'],
+    ['\u{1F310} Horizon', 'https://horizon.meta.com/profile/8bitvap0r/'],
+    ['\u{1F3B2} Pocket', 'https://madewithpocket.com/p/D70jh_dnz'],
+    ['\u{1F4BB} CodePen', 'https://codepen.io/Michael-Dembenski'],
+    ['\u{1F579}\u{FE0F} itch.io', 'https://8bitvapor.itch.io/8bitvapor-arcade'],
+    ['\u{1F4F8} Instagram', 'https://www.instagram.com/8bitvapor.builds'],
+    ['\u{1F9F5} Threads', 'https://www.threads.com/@8bitvapor.builds'],
+    ['\u{1F4D8} Facebook', 'https://www.facebook.com/Dembenski.M']
+  ];
+  var css = document.createElement('style');
+  css.textContent = '#bit-footbar{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(10,10,24,.88);color:#eee;font-family:sans-serif;font-size:12px;display:flex;align-items:center;gap:4px;padding:5px 8px;flex-wrap:wrap;justify-content:center}' +
+    '#bit-footbar a{color:#ff9ff3;text-decoration:none;font-weight:700;padding:2px 5px;white-space:nowrap}' +
+    '#bit-footbar a:hover{text-decoration:underline}' +
+    '#bit-footbar .bit-brand{color:#fff;font-weight:700;white-space:nowrap}' +
+    '#bit-footbar .bit-x{margin-left:auto;background:none;border:none;color:#aaa;font-size:14px;cursor:pointer;padding:0 4px}' +
+    '#bit-pcbanner{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:rgba(24,16,48,.94);color:#fff;font-family:sans-serif;font-size:14px;text-align:center;padding:10px 40px 10px 12px;line-height:1.45}' +
+    '#bit-pcbanner b{color:#ff9ff3}' +
+    '#bit-pcbanner .bit-x{position:absolute;right:8px;top:6px;background:none;border:none;color:#ccc;font-size:18px;cursor:pointer}';
+  document.head.appendChild(css);
+  var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouch) {
+    var b = document.createElement('div'); b.id = 'bit-pcbanner';
+    b.innerHTML = '\u{1F4F1} This game is built for <b>PC \u2014 keyboard &amp; mouse recommended!</b> You can look around on mobile, but for the real game, open this page on a computer.';
+    var bx = document.createElement('button'); bx.className = 'bit-x'; bx.textContent = '\u{2715}';
+    bx.addEventListener('click', function () { b.remove(); });
+    b.appendChild(bx); document.body.appendChild(b);
+  }
+  var bar = document.createElement('div'); bar.id = 'bit-footbar';
+  var brand = document.createElement('span'); brand.className = 'bit-brand'; brand.textContent = '\u{1F4EC} Contact me \u2014 Michael Dembenski & Bit \u{1F47E}:';
+  bar.appendChild(brand);
+  LINKS.forEach(function (l) { var a = document.createElement('a'); a.href = l[1]; a.textContent = l[0]; a.target = '_blank'; a.rel = 'noopener'; bar.appendChild(a); });
+  var x = document.createElement('button'); x.className = 'bit-x'; x.textContent = '\u{2715}';
+  x.addEventListener('click', function () { bar.remove(); });
+  bar.appendChild(x);
+  document.body.appendChild(bar);
+})();
+</script>
 </body>
 
 </html>
