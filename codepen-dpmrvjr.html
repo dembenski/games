@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>AI Pictionary Challenge (Dual Mode)</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Pictionary Challenge</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Pictionary board and layout */
+        :root {
+            --primary-color: #6366f1; /* Indigo-500 */
+            --secondary-color: #f97316; /* Orange-500 */
+            --canvas-border: #9ca3af; /* Gray-400 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e0f2fe; /* Light Blue / Sky-100 */
+            background-image: linear-gradient(135deg, #bae6fd 25%, transparent 25%),
+                              linear-gradient(225deg, #bae6fd 25%, transparent 25%),
+                              linear-gradient(45deg, #bae6fd 25%, transparent 25%),
+                              linear-gradient(315deg, #bae6fd 25%, #e0f2fe 25%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 0, 10px -10px, 0px 10px;
+            background-repeat: repeat;
+            min-height: 100vh;
+        }
+        #drawingCanvas {
+            border: 4px solid var(--canvas-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            background-color: white;
+            transition: border-color 0.3s;
+            cursor: crosshair; /* Indicate drawing capability */
+            touch-action: none; /* Prevent default touch actions like scrolling */
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.15s, transform 0.1s;
+        }
+        .btn-primary:hover {
+            background-color: #4f46e5; /* Indigo-600 */
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            background-color: #4338ca; /* Indigo-700 */
+            transform: translateY(1px);
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            transition: background-color 0.15s, transform 0.1s;
+        }
+        .btn-secondary:hover {
+            background-color: #ea580c; /* Orange-600 */
+            transform: translateY(-1px);
+        }
+        .loader-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+        .loader-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #ccc;
+            border-color: #ccc transparent var(--primary-color) transparent;
+            animation: loader-ring-anim 1.2s linear infinite;
+        }
+        @keyframes loader-ring-anim {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for active mode button */
+        .mode-active {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex items-center justify-center">
+
+    <div class="max-w-xl w-full bg-white p-6 md:p-10 rounded-xl shadow-2xl space-y-6">
+        <h1 class="text-3xl font-extrabold text-gray-900 text-center">AI Pictionary Challenge</h1>
+        
+        <!-- Mode Selector -->
+        <div class="flex gap-3 justify-center">
+            <button
+                id="modeAIDraws"
+                onclick="setGameMode('ai_draws')"
+                class="flex-1 p-3 rounded-lg font-bold text-lg bg-indigo-50 border-2 border-transparent text-indigo-700 hover:bg-indigo-100 mode-active"
+            >
+                AI Draws (I Guess)
+            </button>
+            <button
+                id="modeHumanDraws"
+                onclick="setGameMode('human_draws')"
+                class="flex-1 p-3 rounded-lg font-bold text-lg bg-gray-50 border-2 border-transparent text-gray-700 hover:bg-gray-100"
+            >
+                I Draw (AI Guesses)
+            </button>
+        </div>
+
+        <!-- Score and Timer Display -->
+        <div class="flex justify-between items-center text-xl font-bold text-gray-700">
+            <div class="flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                <span>Score: <span id="scoreDisplay" class="text-indigo-600">0</span></span>
+            </div>
+            <div id="timerContainer" class="flex items-center space-x-2">
+                <!-- Only visible in AI Draws mode -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.83l1.24-1.24c-.32-.37-.67-.7-.98-1.02l-1.42 1.42C17.38 6.75 18 7.84 18 9c0 3.31-2.69 6-6 6s-6-2.69-6-6c0-1.16.62-2.25 1.62-2.92l-1.42-1.42c-.31.32-.66.65-.98 1.02l1.24 1.24C6.39 7.74 6 8.36 6 9c0 3.31 2.69 6 6 6s6-2.69 6-6c0-.64-.39-1.26-.97-1.77z"/></svg>
+                <span>Time: <span id="timerDisplay" class="text-red-600">30</span>s</span>
+            </div>
+        </div>
+        
+        <!-- Canvas and Loading Area -->
+        <div class="flex items-center justify-center bg-gray-50 p-4 rounded-lg">
+            <div id="loadingIndicator" class="hidden flex-col items-center justify-center p-12 text-gray-500">
+                <div class="loader-ring"></div>
+                <p class="mt-4 font-semibold text-lg" id="loadingText">AI is sketching...</p>
+            </div>
+            <!-- Canvas is always visible, its interaction changes based on mode -->
+            <canvas id="drawingCanvas" width="512" height="512" class="w-full max-w-full h-auto"></canvas>
+        </div>
+
+        <!-- Game UI Area (Mode Dependent) -->
+        <div id="gameUI" class="space-y-4">
+            
+            <!-- AI Draws Mode UI -->
+            <div id="aiDrawsUI" class="space-y-4">
+                <div class="space-y-3 p-4 bg-indigo-50 rounded-lg">
+                    <label for="categorySelect" class="block text-sm font-medium text-gray-700">Choose Difficulty & Category:</label>
+                    <select 
+                        id="categorySelect" 
+                        onchange="updateGameSettings(this.value)"
+                        class="block w-full p-3 border border-indigo-300 rounded-lg bg-white text-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                        <option value="kids_easy">Kids' Words (Easy - 45s)</option>
+                        <option value="adults_medium" selected>Adults' Objects (Medium - 30s)</option>
+                        <option value="university_hard">University Terms (Hard - 60s)</option>
+                        <option value="phrases_hard">Idioms & Phrases (Hard - 60s)</option>
+                        <option value="programmers_expert">Programmers' Addition (Expert - 75s)</option>
+                    </select>
+                    <p id="difficultyDescription" class="text-center text-gray-600 text-sm italic">
+                        Guess a common object in 30 seconds.
+                    </p>
+                </div>
+                
+                <input
+                    type="text"
+                    id="guessInput"
+                    placeholder="Enter your guess (e.g., 'dog')"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    disabled
+                >
+                <div class="flex gap-3">
+                    <button
+                        id="guessButton"
+                        onclick="checkGuess()"
+                        class="btn-primary p-3 rounded-lg font-bold text-lg flex-1"
+                        disabled
+                    >
+                        Guess
+                    </button>
+                    <button
+                        id="hintButton"
+                        onclick="showHint()"
+                        class="bg-yellow-500 text-white p-3 rounded-lg font-bold text-lg flex-1 hover:bg-yellow-600 transition duration-150 shadow-md"
+                        disabled
+                    >
+                        Hint (-5 Pts)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Human Draws Mode UI (Hidden by default) -->
+            <div id="humanDrawsUI" class="space-y-4 hidden">
+                <button
+                    id="clearCanvasButton"
+                    onclick="clearCanvas()"
+                    class="bg-red-500 text-white p-3 rounded-lg font-bold text-lg w-full hover:bg-red-600 transition duration-150 shadow-md"
+                >
+                    Clear Canvas
+                </button>
+                <button
+                    id="submitDrawingButton"
+                    onclick="submitDrawingForGuessing()"
+                    class="btn-secondary p-3 rounded-lg font-bold text-lg w-full"
+                >
+                    Submit Drawing (AI Guesses)
+                </button>
+            </div>
+
+
+            <div id="statusMessage" class="p-3 text-center rounded-lg font-medium">
+                Select a game mode and click 'Start Game' to begin!
+            </div>
+            
+            <button
+                id="startButton"
+                onclick="startGame()"
+                class="btn-primary p-3 rounded-lg font-bold text-lg w-full"
+            >
+                Start Game
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Global variables for Game State
+        window.gameMode = 'ai_draws'; // 'ai_draws' or 'human_draws'
+        window.currentWord = '';    // The word/phrase the AI is drawing (or the human is drawing)
+        window.score = 0;           // Player's session score
+        window.timerInterval = null;
+        window.currentCategory = 'adults_medium'; // Default category
+        window.timeLimit = 30;      // Dynamic time limit based on category
+        window.hintUsedInRound = false; // Tracks if the hint has been used this round
+        
+        // Drawing specific state
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // --- WORD BANK & DIFFICULTY SETTINGS ---
+        const WORD_BANK = {
+            'kids_easy': { name: "Kids' Words", description: "Guess a simple object in 45 seconds.", words: ['cat', 'sun', 'ball', 'tree', 'house', 'shoe', 'hand', 'apple', 'fish', 'mug'], time: 45, prompt_type: 'object' },
+            'adults_medium': { name: "Adults' Objects", description: "Guess a common object in 30 seconds.", words: ['bicycle', 'rocket', 'guitar', 'umbrella', 'camera', 'mountain', 'keyboard', 'lighthouse', 'compass', 'telescope'], time: 30, prompt_type: 'object' },
+            'university_hard': { name: "University Terms", description: "Guess an advanced, multi-syllable concept or object in 60 seconds.", words: ['aqueduct', 'constellation', 'microscope', 'rhinoceros', 'thermometer', 'labyrinth', 'eucalyptus', 'chrysanthemum', 'infrastructure', 'hieroglyphics'], time: 60, prompt_type: 'object' },
+            'phrases_hard': { name: "Idioms & Phrases", description: "Guess a common idiom or phrase in 60 seconds.", words: ['sitting on the fence', 'the elephant in the room', 'raining cats and dogs', 'break a leg', 'head in the clouds', 'piece of cake', 'spill the beans', 'catch some Zs'], time: 60, prompt_type: 'phrase' },
+            'programmers_expert': { name: "Programmers' Addition", description: "Guess a complex programming concept or data structure in 75 seconds.", words: ['algorithm', 'blockchain', 'database', 'firewall', 'framework', 'recursion', 'compiler', 'interface', 'polymorphism', 'inheritance'], time: 75, prompt_type: 'object' }
+        };
+        
+        // --- UTILITY FUNCTIONS ---
+        
+        /**
+         * Converts the current canvas content to a base64 PNG string.
+         * @returns {string | null} Base64 data string without the prefix, or null if canvas is empty.
+         */
+        function getCanvasBase64Data() {
+            const canvas = document.getElementById('drawingCanvas');
+            const dataURL = canvas.toDataURL('image/png');
+            // Check if canvas is mostly white (i.e., empty)
+            if (dataURL.length < 10000) return null; 
+            return dataURL.replace(/^data:image\/(png|jpg);base64,/, '');
+        }
+
+        // Helper function for exponential backoff
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    console.warn(`Request failed, retrying in ${delay / 1000}s...`, error);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
+        
+        // --- MODE SWITCHING ---
+
+        /**
+         * Switches the game's control mode and updates the UI.
+         * @param {string} mode - 'ai_draws' or 'human_draws'.
+         */
+        window.setGameMode = function(mode) {
+            window.gameMode = mode;
+            
+            const modeAIDraws = document.getElementById('modeAIDraws');
+            const modeHumanDraws = document.getElementById('modeHumanDraws');
+            const aiDrawsUI = document.getElementById('aiDrawsUI');
+            const humanDrawsUI = document.getElementById('humanDrawsUI');
+            const timerContainer = document.getElementById('timerContainer');
+            const statusMessage = document.getElementById('statusMessage');
+
+            // Toggle active button style
+            modeAIDraws.classList.toggle('mode-active', mode === 'ai_draws');
+            modeHumanDraws.classList.toggle('mode-active', mode === 'human_draws');
+            
+            // Toggle UI visibility
+            aiDrawsUI.classList.toggle('hidden', mode !== 'ai_draws');
+            humanDrawsUI.classList.toggle('hidden', mode !== 'human_draws');
+            timerContainer.style.display = (mode === 'ai_draws' ? 'flex' : 'none');
+
+            // Reset game state and UI message
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            document.getElementById('startButton').textContent = 'Start Game';
+            document.getElementById('startButton').disabled = false;
+            clearCanvas(false); // Clear the canvas, but don't reset drawing listeners yet
+            
+            statusMessage.className = 'p-3 text-center rounded-lg font-medium';
+            if (mode === 'ai_draws') {
+                statusMessage.textContent = "AI Draws: Click 'Start Game' to guess what the AI sketches!";
+                // Disable canvas drawing in AI mode
+                document.getElementById('drawingCanvas').style.cursor = 'default';
+            } else {
+                statusMessage.textContent = "Human Draws: Click 'Start Drawing' to start your sketch for the AI to guess!";
+                // Enable canvas drawing in Human mode
+                document.getElementById('drawingCanvas').style.cursor = 'crosshair';
+            }
+        }
+
+        // --- CANVAS DRAWING (FOR HUMAN DRAWS MODE) ---
+
+        /**
+         * Draws a line on the canvas.
+         * @param {number} x1 - Start X.
+         * @param {number} y1 - Start Y.
+         * @param {number} x2 - End X.
+         * @param {number} y2 - End Y.
+         */
+        function drawLine(x1, y1, x2, y2) {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        function getCanvasCoordinates(event) {
+            const canvas = document.getElementById('drawingCanvas');
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+
+            if (event.touches) {
+                // Handle touch events
+                x = event.touches[0].clientX - rect.left;
+                y = event.touches[0].clientY - rect.top;
+            } else {
+                // Handle mouse events
+                x = event.clientX - rect.left;
+                y = event.clientY - rect.top;
+            }
+            
+            // Scale coordinates to the internal canvas resolution (512x512)
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            return { x: x * scaleX, y: y * scaleY };
+        }
+
+        function startDrawing(event) {
+            if (window.gameMode !== 'human_draws') return;
+
+            const { x, y } = getCanvasCoordinates(event);
+            isDrawing = true;
+            [lastX, lastY] = [x, y];
+            // Start a dot
+            drawLine(lastX, lastY, lastX, lastY); 
+        }
+
+        function draw(event) {
+            if (!isDrawing || window.gameMode !== 'human_draws') return;
+            event.preventDefault(); // Prevent scrolling on touch devices while drawing
+            
+            const { x, y } = getCanvasCoordinates(event);
+            drawLine(lastX, lastY, x, y);
+            [lastX, lastY] = [x, y];
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        /**
+         * Clears the canvas content.
+         * @param {boolean} resetMode - If true, reverts UI to the starting state (used in AI draws mode cleanup).
+         */
+        window.clearCanvas = function(resetMode = true) {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white'; // Explicitly set background to white
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (resetMode && window.gameMode === 'human_draws') {
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-indigo-100 text-indigo-700';
+                statusMessage.textContent = "Start drawing! Try a common object like 'bicycle' or 'cat'.";
+            }
+        }
+        
+        // --- AI GUESSING LOGIC (HUMAN DRAWS MODE) ---
+
+        /**
+         * Submits the human's drawing to the AI for a guess.
+         */
+        window.submitDrawingForGuessing = async function() {
+            const base64Data = getCanvasBase64Data();
+            const statusMessage = document.getElementById('statusMessage');
+            const startButton = document.getElementById('startButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+            const submitButton = document.getElementById('submitDrawingButton');
+
+            if (!base64Data) {
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = "Please draw something first!";
+                return;
+            }
+
+            // 1. Show Loading State
+            submitButton.disabled = true;
+            document.getElementById('clearCanvasButton').disabled = true;
+            document.getElementById('drawingCanvas').style.cursor = 'default';
+            loadingIndicator.style.display = 'flex';
+            loadingText.textContent = 'AI is analyzing your sketch...';
+            statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-indigo-100 text-indigo-700';
+            statusMessage.textContent = `Analyzing your masterpiece...`;
+            
+            // 2. Prepare API Call
+            const userPrompt = "What object is represented in this simple line drawing? Respond with a single, common noun, or a short descriptive phrase (max 3 words). Example: 'bicycle', 'cat', or 'man running'.";
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: userPrompt },
+                            {
+                                inlineData: {
+                                    mimeType: "image/png",
+                                    data: base64Data
+                                }
+                            }
+                        ]
+                    }
+                ],
+            };
+            
+            try {
+                // 3. Fetch AI Guess
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                
+                const aiGuess = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "I couldn't guess that!";
+
+                // 4. Display Guess and Scoring Buttons
+                loadingIndicator.style.display = 'none';
+                startButton.disabled = false;
+                startButton.textContent = 'Start New Drawing';
+                startButton.onclick = () => {
+                    window.clearCanvas(true);
+                    document.getElementById('drawingCanvas').style.cursor = 'crosshair';
+                    submitButton.disabled = false;
+                    document.getElementById('clearCanvasButton').disabled = false;
+                    startButton.style.display = 'none';
+                };
+                startButton.style.display = 'block';
+
+                statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-yellow-200 text-yellow-800';
+                statusMessage.innerHTML = `
+                    AI Guesses: <span class="text-indigo-800 text-xl">${aiGuess.toUpperCase()}</span>.
+                    <br>Was the AI correct?
+                `;
+                
+                // Replace the Submit button with the Score buttons temporarily
+                const scoreButtons = document.createElement('div');
+                scoreButtons.id = 'scoreButtons';
+                scoreButtons.className = 'flex gap-3';
+                scoreButtons.innerHTML = `
+                    <button onclick="scoreHumanDraws(true)" class="btn-primary p-3 rounded-lg font-bold text-lg flex-1">
+                        Yes! (+1 Point)
+                    </button>
+                    <button onclick="scoreHumanDraws(false)" class="bg-red-500 text-white p-3 rounded-lg font-bold text-lg flex-1 hover:bg-red-600">
+                        No, not close.
+                    </button>
+                `;
+                submitButton.parentNode.insertBefore(scoreButtons, submitButton);
+                submitButton.style.display = 'none';
+                document.getElementById('clearCanvasButton').disabled = true;
+
+
+            } catch (error) {
+                console.error("AI Guessing failed:", error);
+                loadingIndicator.style.display = 'none';
+                submitButton.disabled = false;
+                document.getElementById('clearCanvasButton').disabled = false;
+                document.getElementById('drawingCanvas').style.cursor = 'crosshair';
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = `Error: The AI failed to respond. Please try drawing again.`;
+            }
+        }
+        
+        /**
+         * Handles scoring after the AI guesses in Human Draws mode.
+         * @param {boolean} isCorrect - True if the AI's guess was accepted by the human.
+         */
+        window.scoreHumanDraws = function(isCorrect) {
+            const statusMessage = document.getElementById('statusMessage');
+            const scoreButtons = document.getElementById('scoreButtons');
+            const submitButton = document.getElementById('submitDrawingButton');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            
+            scoreButtons.remove();
+            submitButton.style.display = 'block';
+            submitButton.disabled = false;
+            document.getElementById('clearCanvasButton').disabled = false;
+            document.getElementById('drawingCanvas').style.cursor = 'crosshair';
+
+            if (isCorrect) {
+                window.score += 1;
+                scoreDisplay.textContent = window.score;
+                statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-green-100 text-green-700';
+                statusMessage.textContent = `🥳 Score! The AI got it right! You now have ${window.score} points.`;
+            } else {
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = `Better luck next time! Start a new drawing to challenge the AI again.`;
+            }
+        }
+        
+        // --- AI DRAWS MODE (Original Game Logic) ---
+        
+        // (Existing functions remain here, slightly modified for the dual-mode structure)
+
+        /**
+         * Updates the global game settings based on the category selection (AI Draws mode only).
+         */
+        window.updateGameSettings = function(categoryKey) {
+            const settings = WORD_BANK[categoryKey];
+            if (!settings) return;
+
+            // Update globals
+            window.currentCategory = categoryKey;
+            window.timeLimit = settings.time;
+
+            // Update UI
+            document.getElementById('timerDisplay').textContent = window.timeLimit;
+            document.getElementById('difficultyDescription').textContent = settings.description;
+            
+            // If game is active, reset state for new difficulty
+            if (document.getElementById('startButton').disabled) {
+                 if (window.timerInterval) clearInterval(window.timerInterval);
+                 document.getElementById('guessInput').disabled = true;
+                 document.getElementById('guessButton').disabled = true;
+                 document.getElementById('hintButton').disabled = true;
+                 document.getElementById('startButton').disabled = false;
+                 document.getElementById('startButton').textContent = 'Start New Game';
+                 document.getElementById('statusMessage').className = 'p-3 text-center rounded-lg font-medium';
+                 document.getElementById('statusMessage').textContent = `Settings updated. Click 'Start New Game' in the ${settings.name} category!`;
+            }
+        }
+
+        /**
+         * Starts the countdown timer (AI Draws mode only).
+         */
+        function startTimer() {
+            let timeLeft = window.timeLimit;
+            const timerDisplay = document.getElementById('timerDisplay');
+            timerDisplay.textContent = timeLeft;
+
+            if (window.timerInterval) clearInterval(window.timerInterval);
+
+            window.timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+
+                const timerDiv = timerDisplay.closest('div');
+                if (timeLeft <= 5) {
+                    timerDiv.classList.add('text-red-600');
+                    timerDiv.classList.remove('text-green-600');
+                } else if (timeLeft > 5 && timeLeft < window.timeLimit) {
+                    timerDiv.classList.remove('text-red-600');
+                    timerDiv.classList.add('text-green-600');
+                } else {
+                    timerDiv.classList.remove('text-red-600', 'text-green-600');
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(window.timerInterval);
+                    timesUp();
+                }
+            }, 1000);
+        }
+
+        /**
+         * Handles the case when the time runs out (AI Draws mode only).
+         */
+        function timesUp() {
+            const statusMessage = document.getElementById('statusMessage');
+            const startButton = document.getElementById('startButton');
+            
+            document.getElementById('guessInput').disabled = true;
+            document.getElementById('guessButton').disabled = true;
+            document.getElementById('hintButton').disabled = true;
+
+            statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-red-200 text-red-800';
+            statusMessage.textContent = `Time's up! The word was: "${window.currentWord.toUpperCase()}".`;
+            
+            startButton.textContent = 'Play Next Round';
+            startButton.disabled = false;
+            startButton.onclick = window.startGame;
+
+            document.getElementById('timerDisplay').closest('div').classList.remove('text-red-600', 'text-green-600');
+            document.getElementById('timerDisplay').textContent = window.timeLimit;
+        }
+
+        /**
+         * Clears the canvas and draws the image from a base64 string (AI Draws mode only).
+         */
+        function drawBase64Image(base64Data) {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.onerror = (e) => {
+                console.error("Error loading image:", e);
+                const msg = 'Image Load Error';
+                ctx.fillStyle = '#f87171';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '24px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
+            };
+            img.src = `data:image/png;base64,${base64Data}`;
+        }
+
+        /**
+         * Generates the drawing using the Imagen 3.0 API (AI Draws mode only).
+         */
+        async function generateDrawing(word) {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const canvas = document.getElementById('drawingCanvas');
+            const statusMessage = document.getElementById('statusMessage');
+            const startButton = document.getElementById('startButton');
+            const categorySettings = WORD_BANK[window.currentCategory];
+            const promptType = categorySettings.prompt_type;
+            const hintButton = document.getElementById('hintButton');
+
+            let userPrompt;
+            if (promptType === 'phrase') {
+                userPrompt = `A simple, clear, minimalist black and white line drawing of a visual representation of the idiom or phrase: "${word}". The style should be a fast sketch suitable for a pictionary game.`;
+            } else {
+                userPrompt = `A simple, clear, minimalist black and white line drawing of a ${word}. The style should look like a simple, fast sketch suitable for a pictionary game.`;
+            }
+
+            // 1. Show Loading State
+            canvas.style.display = 'block'; // Canvas is always visible, but we clear it
+            loadingIndicator.style.display = 'flex';
+            document.getElementById('loadingText').textContent = `AI is sketching "${word}"...`;
+            statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-indigo-100 text-indigo-700';
+            statusMessage.textContent = `AI is sketching "${word}"...`;
+            document.getElementById('timerDisplay').textContent = window.timeLimit;
+            hintButton.classList.remove('bg-gray-400');
+            hintButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+
+            // 2. Prepare API Call
+            const payload = {
+                instances: {
+                    prompt: userPrompt,
+                    negativePrompt: "text, letters, words, complex, detailed, extra limbs, multiple objects, color, cartoon, 3d, photorealistic, watermark"
+                },
+                parameters: { "sampleCount": 1, "aspectRatio": "1:1" }
+            };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+            try {
+                // 3. Fetch Image
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const base64Data = result?.predictions?.[0]?.bytesBase64Encoded;
+
+                if (!base64Data) {
+                    throw new Error("API response did not contain image data.");
+                }
+
+                // 4. Display Image and Start Game
+                drawBase64Image(base64Data);
+                loadingIndicator.style.display = 'none';
+                
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-yellow-100 text-yellow-700';
+                statusMessage.textContent = "Sketch complete! Time to guess!";
+                
+                document.getElementById('guessInput').disabled = false;
+                document.getElementById('guessButton').disabled = false;
+                document.getElementById('hintButton').disabled = false;
+                document.getElementById('guessInput').focus();
+                
+                startButton.textContent = 'Playing...';
+                startButton.disabled = true;
+                document.getElementById('categorySelect').disabled = true;
+
+                startTimer();
+
+            } catch (error) {
+                console.error("Image generation failed:", error);
+                if (window.timerInterval) clearInterval(window.timerInterval);
+
+                loadingIndicator.style.display = 'none';
+                clearCanvas(false); // Clear the canvas area
+                
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = `Error: Image generation failed. (${error.message})`;
+                
+                document.getElementById('guessInput').disabled = true;
+                document.getElementById('guessButton').disabled = true;
+                document.getElementById('hintButton').disabled = true;
+                startButton.textContent = 'Try Again';
+                startButton.disabled = false;
+                document.getElementById('categorySelect').disabled = false;
+            }
+        }
+        
+        /**
+         * Provides a hint to the player and deducts points (AI Draws mode only).
+         */
+        window.showHint = function() {
+            if (window.hintUsedInRound || window.gameMode !== 'ai_draws') return;
+
+            const statusMessage = document.getElementById('statusMessage');
+            const hintButton = document.getElementById('hintButton');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            
+            const deduction = 5;
+            const correctWord = window.currentWord.toLowerCase();
+
+            window.score = Math.max(0, window.score - deduction);
+            scoreDisplay.textContent = window.score;
+
+            window.hintUsedInRound = true;
+            hintButton.disabled = true;
+            hintButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+            hintButton.classList.add('bg-gray-400');
+            
+            const firstLetter = correctWord.charAt(0).toUpperCase();
+            const length = correctWord.length;
+            const hintText = `HINT: The word has ${length} letters and starts with "${firstLetter}". (Score -${deduction})`;
+
+            statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-yellow-200 text-yellow-800';
+            statusMessage.textContent = hintText;
+
+            document.getElementById('guessInput').focus();
+        }
+
+        /**
+         * Checks the player's guess against the current word (AI Draws mode only).
+         */
+        window.checkGuess = function() {
+            if (window.gameMode !== 'ai_draws') return;
+
+            const guessInput = document.getElementById('guessInput');
+            const statusMessage = document.getElementById('statusMessage');
+            const startButton = document.getElementById('startButton');
+
+            const playerGuess = guessInput.value.trim().toLowerCase();
+            const correctWord = window.currentWord.toLowerCase();
+
+            if (!playerGuess) {
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = "Please enter a guess!";
+                return;
+            }
+            
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            document.getElementById('timerDisplay').closest('div').classList.remove('text-red-600', 'text-green-600');
+
+            document.getElementById('guessInput').disabled = true;
+            document.getElementById('guessButton').disabled = true;
+            document.getElementById('hintButton').disabled = true;
+
+            if (playerGuess === correctWord) {
+                window.score += 10;
+                document.getElementById('scoreDisplay').textContent = window.score;
+
+                statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-green-100 text-green-700';
+                statusMessage.textContent = `🎉 Correct! +10 Points! The AI drew a "${window.currentWord.toUpperCase()}".`;
+                
+                startButton.textContent = 'Play Next Round';
+                startButton.disabled = false;
+                document.getElementById('categorySelect').disabled = false;
+                startButton.onclick = window.startGame;
+
+            } else {
+                statusMessage.className = 'p-3 text-center rounded-lg font-medium bg-red-100 text-red-700';
+                statusMessage.textContent = `Incorrect. Try again or click 'Reveal Answer' to continue.`;
+                
+                startButton.textContent = 'Reveal Answer & New Game';
+                startButton.disabled = false;
+                startButton.onclick = () => {
+                     statusMessage.className = 'p-3 text-center rounded-lg font-bold bg-red-200 text-red-800';
+                     statusMessage.textContent = `The correct answer was: "${window.currentWord.toUpperCase()}"!`;
+                     document.getElementById('categorySelect').disabled = false;
+                     setTimeout(window.startGame, 2000);
+                };
+            }
+        }
+        
+        // --- GAME START FUNCTION ---
+
+        /**
+         * The main entry point for starting a game, handles both modes.
+         */
+        window.startGame = function() {
+            if (window.gameMode === 'ai_draws') {
+                const wordList = WORD_BANK[window.currentCategory].words;
+                const randomIndex = Math.floor(Math.random() * wordList.length);
+                window.currentWord = wordList[randomIndex];
+
+                window.hintUsedInRound = false; 
+
+                document.getElementById('guessInput').value = '';
+                document.getElementById('guessInput').disabled = true;
+                document.getElementById('guessButton').disabled = true;
+                document.getElementById('hintButton').disabled = true;
+                
+                clearCanvas(false);
+
+                if (window.timerInterval) clearInterval(window.timerInterval);
+                document.getElementById('timerDisplay').closest('div').classList.remove('text-red-600', 'text-green-600');
+                document.getElementById('timerDisplay').textContent = window.timeLimit;
+
+                generateDrawing(window.currentWord);
+            } else {
+                // Human Draws mode: Start Drawing
+                window.currentWord = ''; // The human chooses the word
+                document.getElementById('startButton').disabled = true;
+                document.getElementById('startButton').textContent = 'Drawing...';
+                document.getElementById('clearCanvasButton').disabled = false;
+                document.getElementById('submitDrawingButton').disabled = false;
+                
+                clearCanvas(true);
+            }
+        }
+
+        // --- INITIALIZATION ---
+        
+        function initDrawingCanvas() {
+            const canvas = document.getElementById('drawingCanvas');
+            
+            // Set up event listeners for drawing/touch
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            canvas.addEventListener('touchstart', startDrawing);
+            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stopDrawing);
+            
+            // Initial clear to ensure white background
+            window.clearCanvas(false);
+        }
+
+        window.addEventListener('load', () => {
+             // 1. Initialize Canvas for drawing
+             initDrawingCanvas();
+             
+             // 2. Set initial score and category
+             document.getElementById('scoreDisplay').textContent = window.score;
+             window.updateGameSettings('adults_medium');
+             
+             // 3. Set the default mode to AI Draws (Pictionary)
+             window.setGameMode('ai_draws');
+
+             // Allow pressing Enter to submit guess in AI Draws mode
+             document.getElementById('guessInput').addEventListener('keydown', (event) => {
+                 if (event.key === 'Enter' && window.gameMode === 'ai_draws' && !document.getElementById('guessButton').disabled) {
+                     window.checkGuess();
+                 }
+             });
+        });
+
+    </script>
+</body>
+</html>
+    
+  </body>
+  
+</html>

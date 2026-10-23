@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Winter Wonderland Survival: The Snowman&#39;s Wrath</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christmas Outdoor Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px #000000;
+            user-select: none;
+            z-index: 10;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            text-shadow: 1px 1px 2px #000;
+            pointer-events: none;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="crosshair"></div>
+    <div id="ui">Score: 0 | Health: 100</div>
+    <div id="instructions">
+        <b>WASD</b> to Move | <b>Mouse</b> to Look | <b>Space</b> to Jump<br>
+        <b>Click</b> to Shoot | <b>E</b> to Decorate Trees<br>
+        Avoid Snowmen!<br>
+        Click to Start
+    </div>
+    <div id="gameover"
+        style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:2000; text-align:center; pointer-events: auto;">
+        <div style="color:red; font-size:48px; font-weight:bold; text-shadow:2px 2px 0 #fff;">GAME OVER</div>
+        <button id="restartBtn" onclick="location.reload()"
+            style="font-size:24px; padding: 10px 20px; cursor: pointer; background-color: #cc0000; color: white; border: 2px solid white; border-radius: 10px; margin-top: 20px; pointer-events: auto; font-family: 'Arial', sans-serif;">Restart
+            Game</button>
+    </div>
+
+    <!-- Import Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- GLOBAL VARIABLES ---
+        let camera, scene, renderer, controls;
+        let score = 0;
+        let health = 100;
+        let scoreElement;
+        let isGameOver = false;
+        const objects = [];
+        let prevTime = performance.now();
+
+        // Player stats
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let canJump = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let snowballGun;
+
+        // Game Entities
+        const snowballs = [];
+        const presents = [];
+        const hearts = [];
+        const enemies = [];
+
+        // Audio
+        let audioCtx;
+        let droneOsc;
+        let droneGain;
+        let isAudioInit = false;
+
+        // Textures
+        const textureLoader = new THREE.TextureLoader();
+        const loadTex = (path, color) => {
+            return textureLoader.load(path, undefined, undefined, () => {
+                // Determine if we should fallback? Three.js handles caching.
+                // We'll trust the images exist or show black/white if missing.
+            });
+        };
+
+        const snowTexture = loadTex('./assets/textures/snow_texture.png');
+        const houseWallTexture = loadTex('./assets/textures/house_wall_texture.png');
+        const roofTexture = loadTex('./assets/textures/roof_texture.png');
+        const evergreenTexture = loadTex('./assets/textures/evergreen_texture.png');
+        const giftTexture = loadTex('./assets/textures/gift_wrap_texture.png');
+        const rockTexture = loadTex('./assets/textures/rock_texture.png');
+        const pathTexture = loadTex('./assets/textures/path_texture.png');
+        const snowmanTexture = loadTex('./assets/textures/snowman_texture.png');
+
+        snowTexture.wrapS = snowTexture.wrapT = THREE.RepeatWrapping;
+        snowTexture.repeat.set(50, 50);
+
+        // --- INITIALIZATION ---
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.FogExp2(0xffffff, 0.002); // White fog
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = 1.6;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            scoreElement = document.getElementById('ui');
+
+            // Controls
+            controls = new PointerLockControls(camera, document.body);
+            const instructions = document.getElementById('instructions');
+
+            document.addEventListener('click', () => {
+                if (!isGameOver) controls.lock();
+            });
+            controls.addEventListener('lock', () => {
+                instructions.style.display = 'none';
+                if (!isAudioInit) initAudio();
+            });
+            controls.addEventListener('unlock', () => {
+                if (!isGameOver) instructions.style.display = 'block';
+            });
+
+            // Inputs
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', onMouseDown);
+
+            // Restart Button handled inline in HTML
+
+
+            // World Gen
+            createWorld();
+            setupPlayer();
+            spawnPresents(15);
+            spawnHearts(5);
+
+            // Enemy Spawner
+            setInterval(() => {
+                if (enemies.length < 8) spawnEnemy();
+            }, 4000);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // --- WORLD GENERATION ---
+        function createWorld() {
+            // Lights - Brighter and more festive
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9); // Very bright ambient
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffcccc, 0.6); // Warm lower light
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(-30, 100, -30);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshStandardMaterial({
+                map: snowTexture,
+                color: 0xffffff,
+                emissive: 0x333333, // Glows slightly
+                roughness: 1.0
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            createMountains();
+            createRandomEnvironment();
+        }
+
+        function createMountains() {
+            for (let i = 0; i < 12; i++) {
+                const h = 60 + Math.random() * 80;
+                const w = 120 + Math.random() * 100;
+                const geo = new THREE.ConeGeometry(w, h, 8);
+                const mat = new THREE.MeshStandardMaterial({
+                    map: rockTexture,
+                    color: 0xdddddd,
+                    roughness: 1.0
+                });
+                const mountain = new THREE.Mesh(geo, mat);
+
+                const angle = (i / 12) * Math.PI * 2;
+                const dist = 220 + Math.random() * 40;
+                mountain.position.set(Math.cos(angle) * dist, h / 2 - 10, Math.sin(angle) * dist);
+                scene.add(mountain);
+            }
+        }
+
+        function createRandomEnvironment() {
+            // Houses
+            for (let i = 0; i < 15; i++) {
+                const x = (Math.random() - 0.5) * 250;
+                const z = (Math.random() - 0.5) * 250;
+                if (Math.abs(x) < 20 && Math.abs(z) < 20) continue;
+                createHouse(x, z);
+            }
+            // Trees
+            for (let i = 0; i < 80; i++) {
+                const x = (Math.random() - 0.5) * 350;
+                const z = (Math.random() - 0.5) * 350;
+                if (Math.abs(x) < 10 && Math.abs(z) < 10) continue;
+                const tree = createTree();
+                tree.position.set(x, 0, z);
+                scene.add(tree);
+            }
+            // Rocks
+            for (let i = 0; i < 40; i++) {
+                const x = (Math.random() - 0.5) * 350;
+                const z = (Math.random() - 0.5) * 350;
+                const s = 1 + Math.random() * 3;
+                const rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(s, 0),
+                    new THREE.MeshStandardMaterial({ map: rockTexture, roughness: 0.9, color: 0x888888 })
+                );
+                rock.position.set(x, s / 2, z);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                rock.castShadow = true;
+                scene.add(rock);
+            }
+        }
+
+        function createHouse(x, z) {
+            const houseGroup = new THREE.Group();
+            houseGroup.position.set(x, 0, z);
+
+            const walls = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 8, 10),
+                new THREE.MeshStandardMaterial({ map: houseWallTexture })
+            );
+            walls.position.y = 4;
+            walls.castShadow = true;
+            walls.receiveShadow = true;
+            houseGroup.add(walls);
+
+            const roof = new THREE.Mesh(
+                new THREE.ConeGeometry(8, 5, 4),
+                new THREE.MeshStandardMaterial({ map: roofTexture })
+            );
+            roof.position.y = 10.5;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            houseGroup.add(roof);
+
+            const lightColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
+            for (let i = 0; i < 12; i++) {
+                const color = lightColors[Math.floor(Math.random() * lightColors.length)];
+                const bulb = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.3, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 2 })
+                );
+                const angle = (i / 12) * Math.PI * 2;
+                bulb.position.set(Math.cos(angle) * 5.6, 8.0, Math.sin(angle) * 5.6);
+                houseGroup.add(bulb);
+            }
+
+            // Random snowbank near house
+            const bankGeo = new THREE.SphereGeometry(3, 8, 4);
+            const bankMat = new THREE.MeshStandardMaterial({ map: snowTexture, color: 0xffffff });
+            const bank = new THREE.Mesh(bankGeo, bankMat);
+            bank.scale.y = 0.4;
+            bank.position.set(6, 0.5, 6);
+            houseGroup.add(bank);
+
+            scene.add(houseGroup);
+        }
+
+        function createTree() {
+            const treeGroup = new THREE.Group();
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.8, 3, 8),
+                new THREE.MeshStandardMaterial({ color: 0x5a3e2b })
+            );
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const leaves = new THREE.Mesh(
+                new THREE.ConeGeometry(3, 8, 8),
+                new THREE.MeshStandardMaterial({ map: evergreenTexture, color: 0xffffff })
+            );
+            leaves.position.y = 5.5;
+            leaves.castShadow = true;
+            leaves.userData = { type: 'tree', interactable: true };
+            treeGroup.add(leaves);
+            return treeGroup;
+        }
+
+        // --- PLAYER CONTROLLER ---
+        function setupPlayer() {
+            snowballGun = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.1, 0.6),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            snowballGun.rotation.x = -Math.PI / 2;
+            snowballGun.position.set(0.25, -0.25, -0.6);
+
+            // Add some "tech" bits to gun
+            const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            scope.rotation.x = -Math.PI / 2;
+            scope.position.y = 0.12;
+            snowballGun.add(scope);
+
+            camera.add(snowballGun);
+            scene.add(camera);
+        }
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight': case 'KeyD': moveRight = true; break;
+                case 'Space': if (canJump) velocity.y += 200; canJump = false; break;
+                case 'KeyE': tryInteract(); break;
+            }
+        }
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight': case 'KeyD': moveRight = false; break;
+            }
+        }
+        function onMouseDown(event) {
+            if (controls.isLocked && !isGameOver) shootSnowball();
+        }
+
+        function shootSnowball() {
+            const sb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            const vec = new THREE.Vector3();
+            snowballGun.getWorldPosition(vec);
+            sb.position.copy(vec);
+
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            sb.velocity = dir.multiplyScalar(40);
+            scene.add(sb);
+            snowballs.push(sb);
+        }
+
+        // --- GAME MECHANICS ---
+        function spawnPresents(count) {
+            for (let i = 0; i < count; i++) {
+                const size = 1 + Math.random();
+                const p = new THREE.Mesh(
+                    new THREE.BoxGeometry(size, size, size),
+                    new THREE.MeshStandardMaterial({ map: giftTexture, color: 0xff0000 })
+                );
+                p.position.set((Math.random() - 0.5) * 200, size / 2, (Math.random() - 0.5) * 200);
+                p.castShadow = true;
+
+                const rib = new THREE.Mesh(new THREE.BoxGeometry(size * 1.05, size * 0.1, size * 1.05), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+                p.add(rib);
+                const rib2 = rib.clone();
+                rib2.rotation.y = Math.PI / 2;
+                p.add(rib2);
+
+                scene.add(p);
+                presents.push(p);
+            }
+        }
+
+        function tryInteract() {
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                // Check if hit object or its parent is a tree leaf
+                let target = hit.object;
+                if (target.userData.interactable && hit.distance < 8) {
+                    placeBulb(hit.point);
+                }
+            }
+        }
+
+        function placeBulb(pos) {
+            const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 8, 8),
+                new THREE.MeshStandardMaterial({ color: color, emissive: color })
+            );
+            bulb.position.copy(pos);
+            scene.add(bulb);
+        }
+
+        // --- ENEMIES ---
+        function spawnEnemy() {
+            const snowman = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ map: snowmanTexture, color: 0xeeeeee });
+
+            const bot = new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16), mat); bot.castShadow = true;
+            const mid = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 16), mat); mid.position.y = 1.8; mid.castShadow = true;
+            const top = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), mat); top.position.y = 3.0; top.castShadow = true;
+
+            const eyeGeo = new THREE.SphereGeometry(0.1, 4, 4);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const e1 = new THREE.Mesh(eyeGeo, eyeMat); e1.position.set(0.25, 3.1, 0.5);
+            const e2 = new THREE.Mesh(eyeGeo, eyeMat); e2.position.set(-0.25, 3.1, 0.5);
+            const nose = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 8), new THREE.MeshBasicMaterial({ color: 0xffa500 }));
+            nose.rotation.x = Math.PI / 2; nose.position.set(0, 3.0, 0.6);
+
+            snowman.add(bot, mid, top, e1, e2, nose);
+            const ang = Math.random() * 6.28;
+            const dist = 60 + Math.random() * 80;
+            snowman.position.set(Math.cos(ang) * dist, 1.5, Math.sin(ang) * dist);
+            snowman.userData = { health: 3 };
+
+            scene.add(snowman);
+            enemies.push(snowman);
+        }
+
+        // --- LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isGameOver) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            if (!controls.isLocked) {
+                prevTime = performance.now(); // Stop delta from building up
+                renderer.render(scene, camera);
+                return;
+            }
+
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            prevTime = time;
+
+            // Player Physics
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+            velocity.y -= 9.8 * 60.0 * delta; // Slightly floaty gravity
+
+            direction.z = Number(moveForward) - Number(moveBackward);
+            direction.x = Number(moveRight) - Number(moveLeft);
+            direction.normalize();
+
+            if (moveForward || moveBackward) velocity.z -= direction.z * 400.0 * delta;
+            if (moveLeft || moveRight) velocity.x -= direction.x * 400.0 * delta;
+
+            camera.translateX(-velocity.x * delta / 10);
+            camera.translateZ(velocity.z * delta / 10);
+            camera.position.y += velocity.y * delta / 10;
+
+            if (camera.position.y < 1.6) {
+                camera.position.y = 1.6;
+                velocity.y = 0;
+                canJump = true;
+            }
+
+            // Updates
+            // Snowballs
+            for (let i = snowballs.length - 1; i >= 0; i--) {
+                const sb = snowballs[i];
+                sb.position.addScaledVector(sb.velocity, delta);
+                if (sb.position.distanceTo(camera.position) > 150) {
+                    scene.remove(sb);
+                    snowballs.splice(i, 1);
+                }
+            }
+
+            // Enemies
+            const pPos = camera.position;
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const en = enemies[i];
+                const dir = new THREE.Vector3().subVectors(pPos, en.position).normalize();
+                dir.y = 0;
+                en.position.addScaledVector(dir, 6 * delta); // Move towards player
+                en.lookAt(pPos.x, en.position.y, pPos.z);
+
+                // Collision with snowballs
+                for (let j = snowballs.length - 1; j >= 0; j--) {
+                    if (snowballs[j].position.distanceTo(en.position) < 2.5) {
+                        en.userData.health--;
+                        scene.remove(snowballs[j]);
+                        snowballs.splice(j, 1);
+                        if (en.userData.health <= 0) {
+                            scene.remove(en);
+                            enemies.splice(i, 1);
+                            score += 5;
+                            scoreElement.innerText = "Score: " + score + " | Health: " + health;
+                            break;
+                        }
+                    }
+                }
+
+                // Attack Player
+                if (en.position.distanceTo(pPos) < 2.5) {
+                    health -= 1;
+                    scoreElement.innerText = "Score: " + score + " | Health: " + health;
+                    scoreElement.style.color = "red";
+                    setTimeout(() => scoreElement.style.color = "white", 100);
+
+                    if (health <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+
+            // Collection
+            for (let i = presents.length - 1; i >= 0; i--) {
+                presents[i].rotation.y += delta;
+                if (presents[i].position.distanceTo(pPos) < 2.5) {
+                    scene.remove(presents[i]);
+                    presents.splice(i, 1);
+                    score += 10;
+                    scoreElement.innerText = "Score: " + score + " | Health: " + health;
+                    spawnPresents(1); // Respawn
+                }
+            }
+
+            // Hearts
+            for (let i = hearts.length - 1; i >= 0; i--) {
+                hearts[i].rotation.y += delta;
+                if (hearts[i].position.distanceTo(pPos) < 2.5) {
+                    if (health < 100) {
+                        health = Math.min(health + 20, 100);
+                        scoreElement.innerText = "Score: " + score + " | Health: " + health;
+                        scene.remove(hearts[i]);
+                        hearts.splice(i, 1);
+                        spawnHearts(1);
+                    }
+                }
+            }
+
+            updateAudio(pPos);
+
+            renderer.render(scene, camera);
+        }
+
+        // --- AUDIO ---
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                droneOsc = audioCtx.createOscillator();
+                droneGain = audioCtx.createGain();
+
+                droneOsc.type = 'sawtooth';
+                droneOsc.frequency.value = 50; // Low ominous hum
+                droneGain.gain.value = 0;
+
+                // Add a lowpass filter for muffling
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 200;
+
+                droneOsc.connect(filter);
+                filter.connect(droneGain);
+                droneGain.connect(audioCtx.destination);
+
+                droneOsc.start();
+                isAudioInit = true;
+            } catch (e) {
+                console.warn("Audio init failed", e);
+            }
+        }
+
+        function updateAudio(playerPos) {
+            if (!isAudioInit || !isAudioInit) return;
+            if (isGameOver) {
+                if (droneGain.gain.value > 0) droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                return;
+            }
+
+            // Find closest enemy
+            let minDist = 9999;
+            for (let en of enemies) {
+                const d = en.position.distanceTo(playerPos);
+                if (d < minDist) minDist = d;
+            }
+
+            // Map distance to volume and pitch
+            // Max volume at 5m, 0 volume at 60m
+            let intensity = 0;
+            if (minDist < 60) {
+                intensity = 1 - (minDist / 60);
+                intensity = Math.pow(intensity, 2); // Non-linear falloff
+            }
+
+            // Smoother transitions
+            const time = audioCtx.currentTime;
+            droneGain.gain.setTargetAtTime(intensity * 0.3, time, 0.1); // Max vol 0.3
+            droneOsc.frequency.setTargetAtTime(50 + (intensity * 100), time, 0.1); // Pitch goes up as they get closer
+        }
+
+        // --- SPAWNERS ---
+        function spawnHearts(count) {
+            const shape = new THREE.Shape();
+            const x = 0, y = 0;
+            shape.moveTo(x + 0.25, y + 0.25);
+            shape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.20, y, x, y);
+            shape.bezierCurveTo(x - 0.30, y, x - 0.30, y + 0.35, x - 0.30, y + 0.35);
+            shape.bezierCurveTo(x - 0.30, y + 0.55, x - 0.10, y + 0.77, x + 0.25, y + 0.95);
+            shape.bezierCurveTo(x + 0.60, y + 0.77, x + 0.80, y + 0.55, x + 0.80, y + 0.35);
+            shape.bezierCurveTo(x + 0.80, y + 0.35, x + 0.80, y, x + 0.50, y);
+            shape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+
+            const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.2, bevelEnabled: false });
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xaa0000 });
+
+            for (let i = 0; i < count; i++) {
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.scale.set(2, 2, 2);
+                mesh.position.set((Math.random() - 0.5) * 200, 2, (Math.random() - 0.5) * 200);
+
+                // Flip heart correctly
+                mesh.rotation.z = Math.PI;
+
+                hearts.push(mesh);
+                scene.add(mesh);
+            }
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            controls.unlock();
+            controls.disconnect(); // Completely disable the controls
+            document.getElementById('instructions').style.display = 'none';
+            document.getElementById('ui').style.display = 'none'; // Hide UI
+            document.getElementById('gameover').style.display = 'block';
+            document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+            document.exitPointerLock();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+
+</html>
+    
+  </body>
+  
+</html>

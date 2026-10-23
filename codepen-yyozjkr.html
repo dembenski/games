@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>CELL EVO</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cell Evo: Primordial Soup</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --ui-bg: rgba(15, 23, 42, 0.95);
+            --accent: #00f0ff;
+            --accent-glow: 0 0 10px #00f0ff;
+            --danger: #ff2a2a;
+            --success: #00ff88;
+            --rare: #d000ff;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #game-container-3d {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: none;
+            z-index: 0;
+            background: linear-gradient(to bottom, #050510, #10102a); 
+            cursor: default; 
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 40px; height: 40px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 240, 255, 0.8);
+            box-shadow: 0 0 5px var(--accent);
+        }
+        #crosshair::before { top: 19px; left: 0; width: 40px; height: 2px; }
+        #crosshair::after { top: 0; left: 19px; width: 2px; height: 40px; }
+
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-panel { padding: 20px; pointer-events: auto; }
+
+        #stats-bar {
+            display: flex; gap: 20px; font-size: 14px;
+            text-shadow: 0 2px 4px black; align-items: center;
+        }
+
+        .stat-box {
+            background: rgba(0,0,0,0.5); padding: 5px 15px;
+            border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);
+            font-weight: bold;
+        }
+
+        .bar-container {
+            width: 150px; height: 10px;
+            background: #333; border-radius: 5px;
+            overflow: hidden; margin-top: 5px;
+        }
+
+        .bar-fill { height: 100%; transition: width 0.2s; }
+        #health-fill { background: var(--danger); }
+        #xp-fill { background: var(--accent); }
+        #dash-fill { background: #ffaa00; }
+
+        #boss-container {
+            position: absolute; top: 80px; left: 50%;
+            transform: translateX(-50%); width: 50%;
+            display: none; text-align: center;
+        }
+        #boss-label {
+            font-size: 18px; color: var(--danger); font-weight: bold;
+            text-transform: uppercase; text-shadow: 0 0 10px black; margin-bottom: 5px;
+        }
+        #boss-bar-bg {
+            width: 100%; height: 20px; background: #333;
+            border: 2px solid #000; border-radius: 10px; overflow: hidden;
+        }
+        #boss-fill {
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, #800000, #ff0000);
+            transition: width 0.2s;
+        }
+
+        #notifications {
+            position: absolute; top: 20%; left: 50%;
+            transform: translate(-50%, -50%); text-align: center; pointer-events: none;
+        }
+        .notify-msg {
+            background: rgba(0,0,0,0.7); color: var(--accent);
+            padding: 10px 20px; border-radius: 20px; margin-bottom: 10px;
+            animation: fadeUp 2s forwards; border: 1px solid var(--accent);
+        }
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        #editor-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; pointer-events: none; z-index: 100;
+        }
+        #editor-sidebar {
+            pointer-events: auto; width: 380px; height: 100%;
+            background: var(--ui-bg); border-right: 2px solid #333;
+            display: flex; flex-direction: column; box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+        }
+        .editor-header { padding: 20px; border-bottom: 1px solid #333; background: rgba(0,0,0,0.2); }
+        .editor-header h2 { margin: 0; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+        #editor-dna { font-size: 24px; color: var(--success); margin-top: 5px; text-align: right; }
+
+        .tab-container { display: flex; border-bottom: 1px solid #333; }
+        .tab-btn {
+            flex: 1; padding: 15px; background: transparent; border: none;
+            color: #888; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.2s;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+        .tab-btn.active { border-bottom: 3px solid var(--accent); color: var(--accent); background: rgba(0, 240, 255, 0.05); }
+
+        .panel-content { padding: 20px; overflow-y: auto; flex-grow: 1; display: none; }
+        .panel-content.active { display: flex; flex-direction: column; gap: 15px; }
+
+        .part-card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; gap: 15px; transition: all 0.2s;
+        }
+        .part-card:hover { background: rgba(255,255,255,0.08); border-color: #555; }
+        .part-card.selected { border-color: var(--accent); background: rgba(0, 240, 255, 0.1); box-shadow: var(--accent-glow); }
+        
+        .part-icon {
+            width: 40px; height: 40px; background: #222; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; font-size: 20px;
+        }
+        .part-info { flex-grow: 1; }
+        .part-name { font-weight: bold; display: block; color: white; }
+        .part-desc { font-size: 12px; color: #aaa; display: block; margin-top: 2px; }
+        .part-cost { font-weight: bold; color: var(--success); font-size: 14px; }
+
+        .slider-group { margin-bottom: 20px; }
+        .slider-label { display: block; margin-bottom: 5px; color: #ccc; font-size: 14px; }
+        input[type=range] { width: 100%; cursor: pointer; }
+
+        #evolve-btn {
+            margin: 20px; background: linear-gradient(45deg, var(--accent), #00a8ff);
+            border: none; padding: 15px; font-size: 18px; font-weight: bold; color: black;
+            cursor: pointer; border-radius: 8px; text-transform: uppercase;
+            transition: transform 0.1s; pointer-events: auto;
+        }
+        #evolve-btn:hover { transform: scale(1.02); box-shadow: var(--accent-glow); }
+
+        #editor-instruction {
+            position: absolute; bottom: 30px; left: 420px; background: rgba(0,0,0,0.8);
+            padding: 15px 30px; border-radius: 30px; border: 1px solid #555;
+            font-size: 18px; color: white; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+
+        #cheat-toggle {
+            position: absolute; top: 20px; right: 20px; font-size: 24px; cursor: pointer;
+            pointer-events: auto; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; transition: 0.2s;
+        }
+
+        #lab-btn {
+            position: absolute; top: 20px; left: 20px; font-size: 16px; font-weight: bold;
+            cursor: pointer; pointer-events: auto; background: rgba(0,0,0,0.5); color: var(--success);
+            padding: 10px 20px; border: 1px solid var(--success); border-radius: 20px;
+            transition: 0.2s; text-transform: uppercase; display: none; 
+        }
+
+        #cheat-panel {
+            position: absolute; top: 70px; right: 20px; width: 250px; background: rgba(0,0,0,0.9);
+            border: 1px solid var(--accent); padding: 20px; border-radius: 10px; display: none; pointer-events: auto;
+        }
+        .cheat-row { margin-bottom: 15px; }
+
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1e293b, #0f172a);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200;
+        }
+        .title { font-size: 60px; font-weight: 800; color: white; text-shadow: 0 0 20px var(--accent); margin-bottom: 10px; }
+        .subtitle { color: #94a3b8; font-size: 18px; max-width: 600px; text-align: center; margin-bottom: 40px; line-height: 1.6; }
+        
+        .primary-btn {
+            padding: 15px 40px; font-size: 20px; background: transparent; border: 2px solid var(--accent);
+            color: var(--accent); border-radius: 30px; cursor: pointer; transition: 0.3s;
+        }
+        .primary-btn:hover { background: var(--accent); color: black; box-shadow: var(--accent-glow); }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-container-3d"></div>
+    <div id="crosshair"></div>
+
+    <div id="start-screen">
+        <div class="title">CELL EVO</div>
+        <div class="subtitle">
+            Swim, crawl, and conquer. Evolve from a cell to a cybernetic warrior.<br>
+            <b>Controls:</b> Mouse/WASD to move. Space to Dash/Shoot. 'E' for Lab.
+        </div>
+        <button class="primary-btn" onclick="startGame()">Incubate Life</button>
+    </div>
+
+    <div id="ui-layer" style="display:none;">
+        <div id="lab-btn" onclick="openEditor()">🧬 Lab (E)</div>
+
+        <div class="hud-panel">
+            <div id="stats-bar">
+                <div>HEALTH <div class="bar-container"><div id="health-fill" class="bar-fill" style="width: 100%;"></div></div></div>
+                <div>DNA (XP) <div class="bar-container"><div id="xp-fill" class="bar-fill" style="width: 0%;"></div></div></div>
+                <div>DASH <div class="bar-container"><div id="dash-fill" class="bar-fill" style="width: 100%;"></div></div></div>
+                <div class="stat-box">LEVEL <span id="level-display">1</span></div>
+                <div class="stat-box" style="color:var(--success)">DNA: <span id="dna-count">0</span></div>
+            </div>
+        </div>
+        
+        <div id="boss-container">
+            <div id="boss-label">APEX PREDATOR DETECTED</div>
+            <div id="boss-bar-bg"><div id="boss-fill"></div></div>
+        </div>
+
+        <div id="cheat-toggle" onclick="toggleCheatMenu()">⚙️</div>
+        <div id="cheat-panel">
+            <h3 style="margin-top:0; color:var(--accent)">DEV TOOLS</h3>
+            <div class="cheat-row">
+                <label>Add DNA</label>
+                <input type="range" min="0" max="10000" step="100" onchange="cheatDna(this.value)">
+            </div>
+            <div class="cheat-row">
+                <button class="primary-btn" style="padding:5px 10px; font-size:12px" onclick="evolveStage(3)">Skip to Human</button>
+            </div>
+        </div>
+
+        <div id="notifications"></div>
+    </div>
+
+    <div id="editor-ui">
+        <div id="editor-sidebar">
+            <div class="editor-header">
+                <h2>Evolution Lab</h2>
+                <div id="editor-dna">DNA: 0</div>
+            </div>
+            <div class="tab-container">
+                <button class="tab-btn active" onclick="switchTab('parts')">Parts</button>
+                <button class="tab-btn" onclick="switchTab('body')">Body</button>
+            </div>
+            <div id="panel-parts" class="panel-content active"></div>
+            <div id="panel-body" class="panel-content">
+                <div class="slider-group">
+                    <span class="slider-label">Pigmentation (Color)</span>
+                    <input type="range" min="0" max="360" value="180" id="hue-slider" oninput="updateBodySettings()">
+                </div>
+            </div>
+            <button id="evolve-btn" onclick="closeEditor()">Finish Evolution</button>
+        </div>
+        <div id="editor-instruction">Click on your creature's body to attach the part.</div>
+    </div>
+
+<script>
+/**
+ * CELL EVO - ADVANCED ENGINE (FIXED EATING & RENDERING)
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+// Game State
+let gameState = 'MENU'; 
+let gameStage = 0; 
+let lastTime = 0;
+let camera = { x: 0, y: 0, zoom: 1 };
+let worldSize = 4000;
+
+// 3D State
+let scene, camera3D, renderer3D, playerMesh;
+let playerRig = { group: null, limbs: [], weapons: [] }; 
+let entities3D = [];
+let bullets = [];
+let particles3D = [];
+let traffic3D = [];
+let raycaster = new THREE.Raycaster();
+let mouse3D = new THREE.Vector2();
+let cameraShake = 0;
+let walkCycle = 0;
+let playerBackupPos = new THREE.Vector3(); 
+
+// Editor State
+let editorState = { selectedPart: null, placing: false };
+
+// Assets
+const PARTS_DB = {
+    flagella: { stage: 0, cost: 15, stats: { speed: 0.6, turn: 0.05 }, icon: '〰️', name: 'Flagella' },
+    spike: { stage: 0, cost: 20, stats: { damage: 5 }, icon: '⚔️', name: 'Spike' },
+    electric: { stage: 0, cost: 60, stats: { electric: 5 }, icon: '⚡', name: 'Electric Node' },
+    eye: { stage: 0, cost: 30, stats: { view: 120 }, icon: '👁️', name: 'Compound Eye' },
+    jaw: { stage: 0, cost: 40, stats: { damage: 10, eatRange: 10 }, icon: '🦷', name: 'Jaw' },
+    armor: { stage: 0, cost: 25, stats: { health: 25, defense: 0.1, speed: -0.3 }, icon: '🛡️', name: 'Armor' },
+    dorsal_fin: { stage: 1, cost: 50, stats: { speed: 1.0, turn: 0.1 }, icon: '🦈', name: 'Dorsal Fin' },
+    gills: { stage: 1, cost: 40, stats: { health: 50 }, icon: '🫁', name: 'Gills' },
+    scales: { stage: 1, cost: 45, stats: { defense: 0.15 }, icon: '🛡️', name: 'Scales' },
+    sharp_teeth: { stage: 1, cost: 60, stats: { damage: 15, eatRange: 15 }, icon: '🦷', name: 'Razor Teeth' },
+    claws: { stage: 2, cost: 120, stats: { damage: 25 }, icon: '💅', name: 'Raptor Claws' },
+    fur: { stage: 2, cost: 90, stats: { defense: 0.2 }, icon: '🐻', name: 'Thick Fur' },
+    antlers: { stage: 2, cost: 150, stats: { damage: 30, health: 20 }, icon: '🦌', name: 'Antlers' },
+    dino_leg: { stage: 2, cost: 200, stats: { speed: 1.8 }, icon: '🦖', name: 'Dino Leg' },
+    scorp_tail: { stage: 2, cost: 250, stats: { damage: 40 }, icon: '🦂', name: 'Stinger Tail' },
+    wings: { stage: 2, cost: 300, stats: { speed: 1.5, jump: 2 }, icon: '🦅', name: 'Wings' },
+    cyber_arm: { stage: 3, cost: 100, stats: { health: 20 }, icon: '🦾', name: 'Cyber Arm' },
+    mech_leg: { stage: 3, cost: 150, stats: { speed: 2.5 }, icon: '🕷️', name: 'Mech Leg' },
+    minigun: { stage: 3, cost: 350, stats: { damage: 10 }, icon: '🔫', name: 'Minigun' },
+    rocket_launcher: { stage: 3, cost: 500, stats: { damage: 50 }, icon: '🚀', name: 'Rocket Launcher' },
+    energy_sword: { stage: 3, cost: 250, stats: { damage: 100 }, icon: '⚔️', name: 'Energy Sword' },
+    titanium: { stage: 3, cost: 250, stats: { defense: 0.3, health: 200 }, icon: '🛡️', name: 'Heavy Plating' }
+};
+
+const Vec2 = {
+    add: (v1, v2) => ({ x: v1.x + v2.x, y: v1.y + v2.y }),
+    sub: (v1, v2) => ({ x: v1.x - v2.x, y: v1.y - v2.y }),
+    mult: (v, s) => ({ x: v.x * s, y: v.y * s }),
+    mag: (v) => Math.sqrt(v.x * v.x + v.y * v.y),
+    norm: (v) => { const m = Vec2.mag(v); return m === 0 ? { x: 0, y: 0 } : { x: v.x / m, y: v.y / m }; },
+    dist: (v1, v2) => Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2)
+};
+
+// Fixed Terrain Function
+function getTerrainHeight(x, z) {
+    if (gameStage === 3) return 0;
+    if (gameStage !== 2) return 0;
+    let y = Math.sin(x * 0.03) * 6 + Math.cos(z * 0.03) * 6;
+    if (Math.abs(x) > 100 || Math.abs(z) > 100) y += Math.abs(Math.sin(x * 0.02)) * 30;
+    return Math.max(-8, y);
+}
+
+class Entity {
+    constructor(x, y, radius) {
+        this.pos = { x, y }; this.vel = { x: 0, y: 0 }; this.acc = { x: 0, y: 0 };
+        this.radius = radius; this.angle = 0; this.dead = false;
+    }
+    applyForce(f) { this.acc.x += f.x; this.acc.y += f.y; }
+    updatePhysics() {
+        this.vel.x += this.acc.x; this.vel.y += this.acc.y;
+        this.pos.x += this.vel.x; this.pos.y += this.vel.y;
+        this.acc = { x: 0, y: 0 };
+        const limit = worldSize / 2;
+        if(Math.abs(this.pos.x) > limit) { this.pos.x = Math.sign(this.pos.x) * limit; this.vel.x *= -1; }
+        if(Math.abs(this.pos.y) > limit) { this.pos.y = Math.sign(this.pos.y) * limit; this.vel.y *= -1; }
+    }
+}
+
+class Cell extends Entity {
+    constructor(x, y, radius, isPlayer = false) {
+        super(x, y, radius);
+        this.isPlayer = isPlayer;
+        this.hue = isPlayer ? 180 : Math.random() * 360;
+        this.maxSpeed = isPlayer ? 4 : 2 + Math.random() * 2;
+        this.turnSpeed = 0.08; this.maxHealth = 100; this.health = 100;
+        this.damage = 5; this.defense = 0; this.eatRange = 0; this.dna = isPlayer ? 0 : 50;
+        this.level = 1; this.xp = 0; this.xpToNext = 100; this.parts = [];
+        this.cooldowns = { minigun: 0, rocket_launcher: 0, dash: 0, plasma: 0 };
+        this.wobblePhase = Math.random() * 10;
+        this.initMembrane();
+    }
+    initMembrane() { this.membranePoints = Array.from({length: 24}, () => Math.random()); }
+    getColor() { return `hsl(${this.hue}, 100%, 50%)`; }
+    addPart(type, angle, attachData = null) {
+        const data = PARTS_DB[type];
+        if(this.dna >= data.cost) {
+            this.dna -= data.cost;
+            this.parts.push({ type, angle, attachData });
+            Object.keys(data.stats).forEach(k => {
+                if(k === 'health') { this.maxHealth += data.stats[k]; this.health += data.stats[k]; }
+                else if(this[k] !== undefined) this[k] += data.stats[k];
+            });
+            if((gameStage >= 2) && this.isPlayer) updatePlayerRig();
+            updateHUD();
+            return true;
+        }
+        return false;
+    }
+    dash() {
+        if(this.cooldowns.dash <= 0) {
+            this.applyForce({ x: Math.cos(this.angle)*30, y: Math.sin(this.angle)*30 });
+            this.cooldowns.dash = 2.0; spawnParticles(this.pos.x, this.pos.y, '#fff', 10);
+        }
+    }
+    update(dt, targetPos) {
+        Object.keys(this.cooldowns).forEach(k => { if(this.cooldowns[k] > 0) this.cooldowns[k] -= dt; });
+        let desired = { x: 0, y: 0 };
+        if(this.isPlayer && targetPos) {
+            desired = Vec2.sub(targetPos, this.pos);
+        } else if(!this.isPlayer) {
+            desired = targetPos ? Vec2.sub(targetPos.pos, this.pos) : { x: Math.cos(this.wobblePhase), y: Math.sin(this.wobblePhase) };
+        }
+        if(Vec2.mag(desired) > 0) {
+            desired = Vec2.mult(Vec2.norm(desired), this.maxSpeed);
+            let steer = Vec2.sub(desired, this.vel);
+            const maxF = gameStage === 1 ? 0.1 : 0.3;
+            if(Vec2.mag(steer) > maxF) steer = Vec2.mult(Vec2.norm(steer), maxF);
+            this.applyForce(steer);
+        }
+        this.vel = Vec2.mult(this.vel, 0.96);
+        this.updatePhysics();
+        if(Vec2.mag(this.vel) > 0.1) {
+            let diff = Math.atan2(this.vel.y, this.vel.x) - this.angle;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+            while(diff > Math.PI) diff -= Math.PI * 2;
+            this.angle += diff * this.turnSpeed;
+        }
+        this.wobblePhase += dt * 3;
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.pos.x, this.pos.y); ctx.rotate(this.angle);
+        this.parts.forEach(p => { ctx.save(); ctx.rotate(p.angle); drawPart(ctx, p.type, this.radius, this.getColor()); ctx.restore(); });
+        ctx.fillStyle = this.getColor(); ctx.strokeStyle = 'white'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for(let i=0; i<=24; i++) {
+            const ang = (Math.PI * 2 * i) / 24;
+            const r = this.radius + Math.sin(this.wobblePhase + i) * (this.radius * 0.05);
+            ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
+        }
+        ctx.globalAlpha = 0.6; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+        ctx.restore();
+    }
+    gainXP(amt) {
+        this.xp += amt; this.dna += amt;
+        if(this.xp >= this.xpToNext) this.levelUp();
+        updateHUD();
+    }
+    levelUp() {
+        this.level++; this.xp = 0; this.xpToNext = Math.floor(this.xpToNext * 1.4);
+        this.health = this.maxHealth;
+        showNotification("LEVEL UP! Evolution Ready.");
+        if(gameStage >= 2) document.getElementById('lab-btn').style.display = 'block';
+        else openEditor();
+    }
+}
+
+class Food extends Entity {
+    constructor() {
+        super((Math.random()-0.5)*worldSize, (Math.random()-0.5)*worldSize, 5);
+        this.color = Math.random() > 0.9 ? '#d000ff' : '#ffff00';
+    }
+    draw(ctx) {
+        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.pos = { x, y }; this.vel = { x: (Math.random()-0.5)*5, y: (Math.random()-0.5)*5 };
+        this.life = 1.0; this.color = color;
+    }
+    update() { this.pos.x += this.vel.x; this.pos.y += this.vel.y; this.life -= 0.04; }
+    draw(ctx) { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.pos.x, this.pos.y, 2, 0, Math.PI*2); ctx.fill(); }
+}
+
+let player, enemies = [], foods = [], particles = [], mousePos = { x: 0, y: 0 }, keys = {};
+
+function initGame() {
+    resize();
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        mousePos.x = e.clientX - rect.left - width/2; mousePos.y = e.clientY - rect.top - height/2;
+        mouse3D.x = (e.clientX / window.innerWidth) * 2 - 1; mouse3D.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+    window.addEventListener('mousedown', () => {
+        if(gameState === 'EDITOR' && editorState.selectedPart) tryAttachPart();
+        else if(gameStage === 3 && gameState === 'PLAY') shootWeapons();
+    });
+    window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if(e.code === 'KeyE' && gameState === 'PLAY' && gameStage >= 2) openEditor();
+        if(e.code === 'Space' && gameState === 'PLAY') {
+            if(gameStage === 3) shootWeapons(); else if(gameStage < 2) player.dash();
+        }
+    });
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    resetGame();
+    animate(0);
+}
+
+function resetGame() {
+    player = new Cell(0, 0, 25, true);
+    enemies = []; foods = Array.from({length: 200}, () => new Food());
+    gameStage = 0; updateHUD();
+}
+
+function evolveStage(stage) {
+    gameStage = stage;
+    if(stage >= 2) init3D();
+    showNotification("STAGE " + (stage + 1));
+}
+
+function spawnEnemy() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 800 + Math.random() * 400;
+    const e = new Cell(player.pos.x + Math.cos(angle)*dist, player.pos.y + Math.sin(angle)*dist, 15 + Math.random()*30);
+    enemies.push(e);
+}
+
+function checkCollisions() {
+    // 2D Eating Food
+    for(let i=foods.length-1; i>=0; i--) {
+        const f = foods[i];
+        const d = Vec2.dist(player.pos, f.pos);
+        if(d < player.radius + f.radius + player.eatRange) {
+            player.gainXP(20);
+            player.health = Math.min(player.maxHealth, player.health + 10);
+            foods.splice(i, 1);
+        }
+    }
+    // 2D Eating/Biting Cells
+    for(let i=enemies.length-1; i>=0; i--) {
+        const e = enemies[i];
+        const d = Vec2.dist(player.pos, e.pos);
+        if(d < player.radius + e.radius) {
+            if(player.radius > e.radius * 1.1) {
+                player.gainXP(e.radius * 5);
+                enemies.splice(i, 1);
+            } else {
+                player.health -= 0.5; // Damage on contact if not bigger
+                e.health -= player.damage * 0.1;
+                if(e.health <= 0) { player.gainXP(e.radius * 5); enemies.splice(i, 1); }
+            }
+        }
+    }
+}
+
+function set3DObjectColor(obj, hex) {
+    if (!obj) return;
+    if (obj.isMesh && obj.material && obj.material.color) {
+        obj.material.color.setHex(hex);
+    }
+    if (obj.children) {
+        obj.children.forEach(child => set3DObjectColor(child, hex));
+    }
+}
+
+function damageEnemy(ent, index, amount) {
+    if (!ent || !ent.userData) return;
+    ent.userData.hp -= amount;
+    
+    set3DObjectColor(ent, 0xffffff);
+    setTimeout(() => {
+        const originalHex = ent.userData.isBoss ? 0xff0000 : (gameStage === 3 ? 0xff00ff : 0xff0000);
+        set3DObjectColor(ent, originalHex);
+    }, 50);
+
+    if(ent.userData.hp <= 0) {
+        player.gainXP(ent.userData.isBoss ? 500 : 100);
+        scene.remove(ent);
+        entities3D.splice(index, 1);
+    }
+}
+
+function init3D() {
+    gameState = 'PLAY';
+    document.getElementById('gameCanvas').style.display = 'none';
+    document.getElementById('game-container-3d').style.display = 'block';
+    
+    if(!scene) {
+        scene = new THREE.Scene();
+        camera3D = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer3D = new THREE.WebGLRenderer({ antialias: true });
+        renderer3D.setSize(width, height);
+        document.getElementById('game-container-3d').appendChild(renderer3D.domElement);
+    }
+    while(scene.children.length > 0) scene.remove(scene.children[0]);
+    scene.add(new THREE.HemisphereLight(0xaaaaaa, 0x444444));
+    const dl = new THREE.DirectionalLight(0xffffff, 1); dl.position.set(5, 10, 5); scene.add(dl);
+
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x111122}));
+    ground.rotation.x = -Math.PI/2; scene.add(ground);
+    
+    updatePlayerRig();
+    spawn3DEntities();
+}
+
+function updatePlayerRig() {
+    if(playerRig.group) scene.remove(playerRig.group);
+    playerRig.weapons = []; playerRig.limbs = [];
+    const group = new THREE.Group();
+    const mat = new THREE.MeshPhongMaterial({color: player.getColor()});
+    const body = new THREE.Mesh(gameStage === 3 ? new THREE.BoxGeometry(2, 3, 1) : new THREE.SphereGeometry(2), mat);
+    body.name = "body";
+    group.add(body);
+    playerRig.group = group; scene.add(group); playerMesh = group;
+}
+
+function spawn3DEntities() {
+    entities3D = [];
+    for(let i=0; i<30; i++) {
+        const isBoss = Math.random() > 0.9;
+        const geo = isBoss ? new THREE.SphereGeometry(4) : new THREE.BoxGeometry(2, 2, 2);
+        const mat = new THREE.MeshPhongMaterial({color: 0xff00ff});
+        const ent = new THREE.Mesh(geo, mat);
+        ent.position.set((Math.random()-0.5)*300, 1, (Math.random()-0.5)*300);
+        ent.userData = { type: 'enemy', hp: isBoss ? 500 : 50, maxHp: isBoss ? 500 : 50, isBoss, damage: 10 };
+        scene.add(ent); entities3D.push(ent);
+    }
+    for(let i=0; i<50; i++) {
+        const ent = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({color: 0xffff00}));
+        ent.position.set((Math.random()-0.5)*400, 0.5, (Math.random()-0.5)*400);
+        ent.userData = { type: 'food', xp: 20 };
+        scene.add(ent); entities3D.push(ent);
+    }
+}
+
+function shootWeapons() {
+    if(!playerMesh || player.cooldowns.plasma > 0) return;
+    const dir = new THREE.Vector3(0,0,1).applyQuaternion(playerMesh.quaternion);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({color: 0x00ffff}));
+    b.position.copy(playerMesh.position).add(dir.clone().multiplyScalar(2));
+    b.userData = { vel: dir.multiplyScalar(50), life: 2, damage: 15 };
+    scene.add(b); bullets.push(b);
+    player.cooldowns.plasma = 0.2;
+}
+
+function update3D(dt) {
+    if(!playerMesh) return;
+    let move = new THREE.Vector3();
+    if(keys['w']) move.z -= 1; if(keys['s']) move.z += 1;
+    if(keys['a']) move.x -= 1; if(keys['d']) move.x += 1;
+    if(move.lengthSq() > 0) playerMesh.position.add(move.normalize().multiplyScalar(player.maxSpeed * 5 * dt));
+    
+    playerMesh.rotation.y = Math.atan2(mouse3D.x, mouse3D.y) + Math.PI;
+    camera3D.position.set(playerMesh.position.x, 30, playerMesh.position.z + 40);
+    camera3D.lookAt(playerMesh.position);
+
+    // 3D Interaction Logic (Eating/Biting)
+    entities3D.forEach((ent, j) => {
+        const dist = ent.position.distanceTo(playerMesh.position);
+        const contactDist = ent.userData.isBoss ? 8 : 4;
+        if(dist < contactDist) {
+            if(ent.userData.type === 'food') {
+                player.gainXP(ent.userData.xp);
+                scene.remove(ent); entities3D.splice(j, 1);
+            } else if(ent.userData.type === 'enemy' && gameStage === 2) {
+                // Beast Stage Bites on contact
+                damageEnemy(ent, j, player.damage * dt * 10);
+                player.health -= 0.1;
+            }
+        }
+    });
+
+    bullets.forEach((b, i) => {
+        b.position.add(b.userData.vel.clone().multiplyScalar(dt));
+        b.userData.life -= dt;
+        entities3D.forEach((ent, j) => {
+            if(ent.position.distanceTo(b.position) < 5) { damageEnemy(ent, j, b.userData.damage); b.userData.life = 0; }
+        });
+        if(b.userData.life <= 0) { scene.remove(b); bullets.splice(i, 1); }
+    });
+}
+
+function drawPart(ctx, type, radius, color) {
+    ctx.fillStyle = color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.translate(radius * 0.9, 0);
+    if(type === 'spike') { ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(20, 0); ctx.lineTo(0, 5); ctx.fill(); ctx.stroke(); }
+    else if(type === 'eye') { ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle='black'; ctx.beginPath(); ctx.arc(2,0,2,0,Math.PI*2); ctx.fill(); }
+    else if(type === 'flagella') { ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-10, 10, -20, 0); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill(); }
+}
+
+function drawEditor() {
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,width,height);
+    ctx.save(); ctx.translate(width/2 + 100, height/2); ctx.scale(4, 4);
+    player.angle += 0.01; player.draw(ctx);
+    ctx.restore();
+}
+
+function tryAttachPart() {
+    // Basic attachment in 2D editor
+    const ang = Math.atan2(mousePos.y, mousePos.x) - player.angle;
+    if(player.addPart(editorState.selectedPart, ang)) {
+        editorState.selectedPart = null;
+        document.getElementById('editor-instruction').style.opacity = 0;
+    }
+}
+
+function animate(t) {
+    const dt = Math.min(0.1, (t - lastTime) / 1000); lastTime = t;
+    requestAnimationFrame(animate);
+    if(gameState === 'PLAY') {
+        if(gameStage < 2) {
+            player.update(dt, { x: player.pos.x + mousePos.x, y: player.pos.y + mousePos.y });
+            if(enemies.length < 10) spawnEnemy();
+            enemies.forEach(e => e.update(dt, player));
+            checkCollisions();
+            draw();
+        } else {
+            update3D(dt);
+            player.update(dt, null);
+            renderer3D.render(scene, camera3D);
+        }
+    } else if(gameState === 'EDITOR') drawEditor();
+    updateHUD();
+}
+
+function draw() {
+    ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,width,height);
+    ctx.save(); ctx.translate(width/2, height/2); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-player.pos.x, -player.pos.y);
+    foods.forEach(f => f.draw(ctx)); 
+    enemies.forEach(e => e.draw(ctx));
+    player.draw(ctx);
+    ctx.restore();
+}
+
+function openEditor() {
+    gameState = 'EDITOR';
+    document.getElementById('editor-ui').style.display = 'block';
+    document.getElementById('editor-dna').innerText = "DNA: " + Math.floor(player.dna);
+    const p = document.getElementById('panel-parts'); p.innerHTML = '';
+    Object.keys(PARTS_DB).forEach(k => {
+        if(PARTS_DB[k].stage <= gameStage) {
+            const d = document.createElement('div'); d.className = 'part-card'; d.innerHTML = `<span>${PARTS_DB[k].icon} ${PARTS_DB[k].name}</span>`;
+            d.onclick = () => { editorState.selectedPart = k; document.getElementById('editor-instruction').style.opacity=1; };
+            p.appendChild(d);
+        }
+    });
+}
+
+function closeEditor() {
+    gameState = 'PLAY'; document.getElementById('editor-ui').style.display = 'none';
+    if(gameStage === 0 && player.level >= 3) evolveStage(1);
+    else if(gameStage === 1 && player.level >= 6) evolveStage(2);
+}
+
+function updateHUD() {
+    if(!player) return;
+    document.getElementById('health-fill').style.width = (player.health / player.maxHealth * 100) + '%';
+    document.getElementById('xp-fill').style.width = (player.xp / player.xpToNext * 100) + '%';
+    document.getElementById('dna-count').innerText = Math.floor(player.dna);
+    document.getElementById('level-display').innerText = player.level;
+}
+
+function showNotification(m) {
+    const n = document.createElement('div'); n.className = 'notify-msg'; n.innerText = m;
+    document.getElementById('notifications').appendChild(n); setTimeout(() => n.remove(), 2000);
+}
+
+function updateBodySettings() { player.hue = document.getElementById('hue-slider').value; }
+function switchTab(t) { /* Toggle logic */ }
+function resize() { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; if(renderer3D) renderer3D.setSize(width, height); }
+function startGame() { document.getElementById('start-screen').style.display = 'none'; document.getElementById('ui-layer').style.display = 'flex'; gameState = 'PLAY'; }
+function toggleCheatMenu() { const p = document.getElementById('cheat-panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+function cheatDna(v) { player.dna = parseInt(v); updateHUD(); }
+
+initGame();
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>

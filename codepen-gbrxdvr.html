@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Toronto Voxel Nights</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toronto Voxel Skyline</title>
+    <!-- Added Stylish Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050510; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        #ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 2rem; letter-spacing: 2px; text-shadow: 0 0 10px #ad00ff; }
+        p { margin: 5px 0; color: #ccc; }
+        .key { background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #555; color: #fff; font-weight: bold; }
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: flex; justify-content: center; align-items: center;
+            color: #0ff; font-size: 24px; z-index: 999;
+        }
+        #overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            pointer-events: none;
+            text-shadow: 0 0 2px #000;
+        }
+        /* New Fact Display Style */
+        #fact-display {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0; /* Start hidden for fade-in */
+            transition: opacity 1s ease-in-out;
+        }
+        #fact-content {
+            display: inline-block;
+            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.8) 80%, rgba(0,0,0,0) 100%);
+            padding: 15px 40px;
+            color: #00ffff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px #0088ff, 0 0 20px #0000ff;
+            text-transform: uppercase;
+        }
+        .fact-label {
+            display: block;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: #ff0055;
+            margin-bottom: 5px;
+            letter-spacing: 3px;
+        }
+        /* Crosshair for Gamer Mode */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1001;
+            display: none; /* Hidden by default */
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #00ff00;
+        }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+        
+        /* Score Animation */
+        .score-pop {
+            animation: pop 0.2s ease-out;
+        }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.5); color: #fff; }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Initializing AI Simulation...</div>
+    <div id="crosshair"></div>
+    <div id="overlay">
+        FPS: 0<br>
+        SIMULATION STATUS: ACTIVE<br>
+        ENTITIES: <span id="entity-count">0</span><br>
+        GRAPHICS: <span id="hd-status" style="color: #888;">PERFORMANCE</span><br>
+        MODE: <span id="mode-status">STANDARD</span><br>
+        DETAIL: <span id="res-status">HIGH RES</span><br>
+        CAMERA: <span id="cam-status" style="color: #00ffff;">MANUAL</span>
+        <div id="gamer-hud" style="display: none; margin-top: 10px; border-top: 1px solid #444; padding-top: 5px;">
+            SCORE: <span id="score-val" style="color: gold; font-size: 18px;">0</span><br>
+            KILLS: <span id="kills-val" style="color: red; font-size: 18px;">0</span>
+        </div>
+    </div>
+
+    <div id="ui">
+        <h1>TORONTO VOXEL NIGHTS</h1>
+        <p>Click to Start</p>
+        <p>Move: <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></p>
+        <p>Gamer Mode: <span class="key">G</span> (Shoot & Collect)</p>
+        <p>Fly-Through: <span class="key">F</span></p>
+        <p>Low Res: <span class="key">L</span> | Wireframe: <span class="key">V</span> | HD: <span class="key">H</span></p>
+        <p>Look: <span class="key">MOUSE</span></p>
+    </div>
+
+    <!-- New Fact Container -->
+    <div id="fact-display">
+        <div id="fact-content">
+            <span class="fact-label">CITY_DATA // FACT_STREAM</span>
+            <span id="fact-text">LOADING...</span>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Import Three.js and Addons -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+        
+        // Post-processing for HD Mode
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { Reflector } from 'three/addons/objects/Reflector.js';
+
+        // --- Configuration ---
+        const VOXEL_SIZE = 2; 
+        const CITY_SCALE = 1.5;
+        const RENDER_DISTANCE = 3000; 
+        
+        // Palette
+        const COLORS = {
+            SKY_TOP: 0x000514,
+            SKY_BOTTOM: 0x1a0b40,
+            WATER_DEEP: 0x001e36,    
+            WATER_SURFACE: 0x006994, 
+            WALL_DARK: 0x111111,
+            WALL_CONCRETE: 0x2a2a2a,
+            WIN_WARM: 0xffaa44, 
+            WIN_COOL: 0x88ccff, 
+            WIN_OFF: 0x050505,
+            CN_CONCRETE: 0x444444,
+            CN_GLOW: 0xaa00ff,  
+            CN_RED: 0xff0000,
+            DOME_WHITE: 0xdddddd,
+            DOME_BLUE: 0x0044ff,
+            // Low Res
+            LOW_RES_BLDG: 0x1a1a2e,
+            // AI Agents
+            AGENT_CAR_A: 0x00ffff, 
+            AGENT_CAR_B: 0xff5500, 
+            AGENT_PERSON: 0x00ff00,
+            AGENT_BOAT: 0xffffff,
+            // Gamer Mode
+            COIN: 0xffd700,
+            GUN: 0x333333
+        };
+
+        // --- Toronto Facts Database ---
+        const torontoFacts = [
+            "Toronto is the most populous city in Canada.",
+            "The CN Tower held the record for the world's tallest freestanding structure for 32 years.",
+            "Toronto is home to North America's largest continuous underground pedestrian system, the PATH.",
+            "Over 180 languages and dialects are spoken in Toronto.",
+            "Toronto's Yonge Street was once incorrectly listed in the Guinness Book of Records as the longest street in the world.",
+            "The Toronto Zoo is the largest zoo in Canada.",
+            "Toronto is often called 'Hollywood North' due to its thriving film industry.",
+            "The Golden Horseshoe region, centered on Toronto, is home to over 9 million people.",
+            "Toronto has over 1,600 named parks.",
+            "The Toronto Stock Exchange (TSX) is one of the largest stock exchanges in the world.",
+            "Casa Loma is North America's only full-sized castle.",
+            "The Rogers Centre (formerly SkyDome) was the first stadium with a fully retractable motorized roof.",
+            "Toronto's name is likely derived from the Mohawk word 'tkaronto', meaning 'where there are trees standing in the water'.",
+            "The Toronto Islands are the largest urban car-free community in North America.",
+            "Toronto is the 4th largest city in North America by population.",
+            "The Distillery District contains the largest collection of Victorian-era industrial architecture in North America.",
+            "Toronto has a raccoon population estimated at over 100,000.",
+            "The Toronto Raptors won their first NBA Championship in 2019.",
+            "High Park is famous for its cherry blossoms (Sakura) in the spring.",
+            "Toronto Pearson International Airport is the busiest airport in Canada.",
+            "The Hockey Hall of Fame is located in downtown Toronto.",
+            "Toronto hosts the Caribbean Carnival (formerly Caribana), one of the largest street festivals in North America.",
+            "The Toronto International Film Festival (TIFF) is one of the most prestigious film festivals in the world.",
+            "Almost 50% of Toronto's population was born outside of Canada.",
+            "The Great Toronto Fire of 1904 destroyed over 100 buildings downtown.",
+            "Toronto's transit system, the TTC, is the third most heavily used mass transit system in North America.",
+            "The CN Tower has a glass floor 1,122 feet above the ground.",
+            "Toronto has over 10 million trees, covering 28% of the city.",
+            "There are over 8,000 restaurants in Toronto.",
+            "The 'Toronto sign' at Nathan Phillips Square was originally installed for the 2015 Pan Am Games.",
+            "Kensington Market is a National Historic Site of Canada.",
+            "Toronto is home to the University of Toronto, consistently ranked as Canada's top university.",
+            "The lowest recorded temperature in Toronto was -31.3°C in 1943.",
+            "Toronto has a shoreline stretching 43 kilometers along Lake Ontario.",
+            "The CN Tower has 1,776 steps to the main deck.",
+            "Drake, one of the world's best-selling music artists, is from Toronto.",
+            "The Weeknd, another global superstar, is also from Toronto.",
+            "Toronto's 'Graffiti Alley' is a kilometer of street art located in the Fashion District.",
+            "The city has more than 50 ballet and dance companies.",
+            "Toronto is considered one of the safest major cities in North America.",
+            "The iconic 'Sam the Record Man' sign is preserved at Yonge-Dundas Square.",
+            "Toronto's 911 emergency system was debuted in 1959.",
+            "The city has five distinct Chinatowns.",
+            "Little Italy, Little Portugal, and Greektown exemplify the city's neighborhood diversity.",
+            "The Toronto Maple Leafs are one of the 'Original Six' NHL teams.",
+            "The Bathtub Races used to be a popular event at the CNE.",
+            "Toronto's Exhibition Place is home to the CNE, held annually since 1879.",
+            "The Prince Edward Viaduct (Bloor Viaduct) connects Bloor Street East to Danforth Avenue.",
+            "Toronto has the third-largest screen-based media hub in North America.",
+            "The city is home to the headquarters of Canada's 'Big Five' banks.",
+            "Toronto's waterfront revitalization is one of the largest urban redevelopment projects in the world.",
+            "The Scarborough Bluffs stretch for about 15 km along the Lake Ontario shore.",
+            "Toronto has over 200 public art installations.",
+            "The city's ferry system transports over 1.4 million passengers annually to the islands.",
+            "Toronto was founded as the Town of York in 1793.",
+            "It was renamed Toronto in 1834.",
+            "The city hosted the first Invictus Games in 2017.",
+            "Toronto's public library system is the busiest in the world by circulation.",
+            "The Art Gallery of Ontario (AGO) holds more than 95,000 works.",
+            "The Royal Ontario Museum (ROM) is Canada's largest museum of world culture and natural history.",
+            "Toronto has a grid street plan for the most part.",
+            "Old City Hall features gargoyles that are said to resemble the city councillors of the time.",
+            "The Flatiron Building (Gooderham Building) predates New York's famous Flatiron Building.",
+            "Toronto has an extensive ravine system.",
+            "The Don River and Humber River are the two major rivers flowing through the city.",
+            "Toronto is a major hub for artificial intelligence research.",
+            "The city's motto is 'Diversity Our Strength'.",
+            "Toronto has over 500 music venues.",
+            "The Horseshoe Tavern opened in 1947 and is a legendary music venue.",
+            "Massey Hall is known for its outstanding acoustics.",
+            "Toronto has six professional sports teams.",
+            "The Toronto Blue Jays were the first non-US team to win the World Series (1992, 1993).",
+            "Toronto FC won the MLS Cup in 2017.",
+            "The Toronto Argonauts are the oldest existing professional sports team in North America.",
+            "Toronto has over 3 million residents in the city proper.",
+            "The Greater Toronto Area (GTA) has over 6 million residents.",
+            "Toronto is the financial capital of Canada.",
+            "The city has a thriving tech sector, often referred to as the 'Silicon Valley of the North'.",
+            "There are over 7,000 kilometers of roads in Toronto.",
+            "Toronto's sewer system is over 5,000 kilometers long.",
+            "The city processes over 1 billion liters of water daily.",
+            "Toronto has 140 neighborhoods officially recognized by the city.",
+            "The Annex is one of Toronto's oldest neighborhoods.",
+            "Yorkville was once the center of Canada's bohemian culture in the 1960s.",
+            "Now, Yorkville is known for high-end shopping.",
+            "Queen Street West was named one of the coolest neighborhoods in the world by Vogue.",
+            "The Danforth offers some of the best Greek food outside of Greece.",
+            "Corso Italia is another vibrant Italian district in the city.",
+            "Gerrard India Bazaar is the largest South Asian marketplace in North America.",
+            "Koreatown is located along Bloor Street West.",
+            "The Village (Church and Wellesley) is the historic home of Toronto's LGBTQ+ community.",
+            "Pride Toronto is one of the largest Pride festivals in the world.",
+            "Toronto has over 600 km of bike trails.",
+            "The Martin Goodman Trail spans 56 km across Toronto's waterfront.",
+            "The Beltline Trail follows an old railway line.",
+            "Toronto's ravines are protected by law from development.",
+            "The Oak Ridges Moraine provides drinking water for the region.",
+            "Toronto has a humid continental climate.",
+            "The city experiences four distinct seasons.",
+            "Fall colors in Toronto are spectacular due to the many maple trees.",
+            "Toronto is a sister city to Chicago, Frankfurt, and Milan, among others.",
+            "The city has hosted the G20 Summit (2010).",
+            "Toronto was a candidate city for the 1996 and 2008 Summer Olympics.",
+            "The Pan Am Sports Centre is a legacy of the 2015 games.",
+            "Toronto has over 500 schools.",
+            "The city has a literacy rate of over 99%."
+        ];
+
+        let scene, camera, renderer, composer, controls;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, moveUp = false, moveDown = false;
+        let prevTime = performance.now();
+        
+        // Water Objects
+        let waterShaderMesh, waterReflector;
+        
+        // FPS & Stats
+        let lastFpsTime = performance.now();
+        let frames = 0;
+        let isWireframe = false;
+        let isHDMode = false;
+        let isLowResMode = false;
+        let isFlyThrough = false; 
+        
+        // Gamer Mode Stats
+        let isGamerMode = false;
+        let score = 0;
+        let npcsKilled = 0; // New Kill Tracker
+        let gunGroup;
+        let raycaster;
+        let coins = [];
+        const COIN_COUNT = 50;
+        
+        // Audio Context
+        let audioCtx;
+
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+
+        // Voxel Managers (InstancedMesh)
+        const MAX_VOXELS = 500000;
+        const materials = {};
+        const meshes = {};
+        const voxelCounts = {};
+        const dummy = new THREE.Object3D();
+
+        // Arrays to track which keys belong to which group
+        const cityKeys = [];
+        const landmarkKeys = [];
+
+        // Simulation Data
+        const agents = []; 
+        const AGENT_COUNTS = { cars: 300, people: 400, boats: 50 };
+
+        init();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Scene & Fog
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(COLORS.SKY_TOP);
+            scene.fog = new THREE.FogExp2(COLORS.SKY_BOTTOM, 0.0012);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, RENDER_DISTANCE);
+            camera.position.set(0, 4, 500); 
+
+            // 3. Lights
+            const ambientLight = new THREE.AmbientLight(0x404060, 1.5);
+            scene.add(ambientLight);
+
+            const moonLight = new THREE.DirectionalLight(0xaaccff, 0.5);
+            moonLight.position.set(-100, 200, 100);
+            moonLight.castShadow = true; 
+            moonLight.shadow.mapSize.width = 2048;
+            moonLight.shadow.mapSize.height = 2048;
+            moonLight.shadow.camera.near = 0.5;
+            moonLight.shadow.camera.far = 1000;
+            moonLight.shadow.camera.left = -500;
+            moonLight.shadow.camera.right = 500;
+            moonLight.shadow.camera.top = 500;
+            moonLight.shadow.camera.bottom = -500;
+            scene.add(moonLight);
+
+            // 4. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true }); 
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.shadowMap.enabled = false; 
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 5. Post-Processing
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0;
+            bloomPass.strength = 1.2;
+            bloomPass.radius = 0.5;
+            
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            // 6. Voxel System Initialization
+            initVoxelMaterials();
+            
+            // 7. Generate The City & Environment
+            generateEnvironment(); 
+            generateStars();     
+            generateMoon();        
+            generateCNTower(0, -50); 
+            generateRogersCentre(-70, -20); 
+            generateCityscape();
+
+            // 7b. Initialize Agents & Game Elements
+            initAgents();
+            initGamerMode();
+
+            updateInstancedMeshes(); 
+
+            // 8. Controls
+            controls = new PointerLockControls(camera, document.body);
+            
+            const ui = document.getElementById('ui');
+            document.addEventListener('click', () => {
+                // Initialize Audio on first user interaction
+                if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+
+                // Click to shoot in Gamer Mode, or just lock pointer otherwise
+                if (isGamerMode && controls.isLocked) {
+                    fireWeapon();
+                }
+                if (!isFlyThrough) controls.lock();
+            });
+            controls.addEventListener('lock', () => { 
+                isFlyThrough = false; 
+                const camStatus = document.getElementById('cam-status');
+                if(camStatus) {
+                    camStatus.innerText = 'MANUAL';
+                    camStatus.style.color = '#00ffff';
+                }
+                ui.style.opacity = '0'; 
+            });
+            controls.addEventListener('unlock', () => { ui.style.opacity = '1'; });
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            // Resize Handler
+            window.addEventListener('resize', onWindowResize);
+
+            // Remove Loading Screen
+            document.getElementById('loading').style.display = 'none';
+
+            // Start Fact Loop
+            startFactLoop();
+
+            // Start Loop
+            animate();
+        }
+
+        // --- Sound System (Synth) ---
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'shoot') {
+                // Laser Pew: High to Low Freq Sweep
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'coin') {
+                // Coin Ding: High Sine
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.setValueAtTime(1600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'hit') {
+                // Explosion: Low Sawtooth
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- Fact System ---
+        function startFactLoop() {
+            const factDisplay = document.getElementById('fact-display');
+            const factText = document.getElementById('fact-text');
+
+            const updateFact = () => {
+                factDisplay.style.opacity = '0';
+                setTimeout(() => {
+                    const randomFact = torontoFacts[Math.floor(Math.random() * torontoFacts.length)];
+                    factText.innerText = randomFact;
+                    factDisplay.style.opacity = '1';
+                }, 1000);
+            };
+            updateFact();
+            setInterval(updateFact, 10000);
+        }
+
+
+        // --- Voxel Model Helpers ---
+        function createVoxelGeo(x, y, z, color) {
+            const geo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
+            geo.translate(x * VOXEL_SIZE, y * VOXEL_SIZE, z * VOXEL_SIZE);
+            const colors = [];
+            const c = new THREE.Color(color);
+            for (let i = 0; i < geo.attributes.position.count; i++) colors.push(c.r, c.g, c.b);
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            return geo;
+        }
+
+        function createCarGeometry(bodyColor) {
+            const geos = [];
+            const WINDOW = COLORS.WIN_COOL;
+            const WHEEL = COLORS.WALL_DARK;
+            for(let x=-1; x<=1; x++) geos.push(createVoxelGeo(x, 0, 0, bodyColor));
+            geos.push(createVoxelGeo(0, 0, 1, bodyColor)); geos.push(createVoxelGeo(0, 0, -1, bodyColor));
+            geos.push(createVoxelGeo(0, 1, 0, WINDOW)); geos.push(createVoxelGeo(-0.5, 1, 0, bodyColor));
+            geos.push(createVoxelGeo(0.8, -0.5, 1, WHEEL)); geos.push(createVoxelGeo(0.8, -0.5, -1, WHEEL));
+            geos.push(createVoxelGeo(-0.8, -0.5, 1, WHEEL)); geos.push(createVoxelGeo(-0.8, -0.5, -1, WHEEL));
+            const merged = BufferGeometryUtils.mergeGeometries(geos);
+            merged.computeVertexNormals();
+            return merged;
+        }
+
+        function createPersonGeometry() {
+            const geos = [];
+            geos.push(createVoxelGeo(0, 1.8, 0, 0xffccaa)); 
+            geos.push(createVoxelGeo(0, 1, 0, COLORS.AGENT_PERSON)); 
+            geos.push(createVoxelGeo(0, 0.2, 0, COLORS.WALL_DARK)); 
+            const merged = BufferGeometryUtils.mergeGeometries(geos);
+            merged.computeVertexNormals();
+            return merged;
+        }
+
+        function createBoatGeometry() {
+            const geos = [];
+            const HULL = COLORS.AGENT_BOAT;
+            for(let x=-2; x<=2; x++) geos.push(createVoxelGeo(x, 0, 0, HULL));
+            geos.push(createVoxelGeo(2.5, 0.3, 0, HULL));
+            for(let x=-1.5; x<=1.5; x++) geos.push(createVoxelGeo(x, 0.6, 0, COLORS.WALL_CONCRETE));
+            geos.push(createVoxelGeo(-0.5, 1.6, 0, COLORS.WIN_WARM));
+            geos.push(createVoxelGeo(-1.5, 1.6, 0, HULL));
+            const merged = BufferGeometryUtils.mergeGeometries(geos);
+            merged.computeVertexNormals();
+            return merged;
+        }
+
+        // --- Voxel System ---
+
+        function initVoxelMaterials() {
+            const createMat = (name, color, emissive = 0x000000, intensity = 0, isLandmark = false) => {
+                const mat = new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: emissive,
+                    emissiveIntensity: intensity,
+                    roughness: 0.8,
+                    metalness: 0.2,
+                    wireframe: false
+                });
+                materials[name] = mat;
+                meshes[name] = new THREE.InstancedMesh(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE), mat, MAX_VOXELS);
+                meshes[name].castShadow = false;
+                meshes[name].receiveShadow = false; 
+                scene.add(meshes[name]);
+                voxelCounts[name] = 0;
+                if (isLandmark) landmarkKeys.push(name);
+            };
+
+            createMat('cityDarkWall', COLORS.WALL_DARK);
+            createMat('cityWinWarm', COLORS.WIN_WARM, COLORS.WIN_WARM, 2.0);
+            createMat('cityWinCool', COLORS.WIN_COOL, COLORS.WIN_COOL, 2.0);
+            createMat('cityRed', COLORS.CN_RED, COLORS.CN_RED, 5.0);
+            cityKeys.push('cityDarkWall', 'cityWinWarm', 'cityWinCool', 'cityRed');
+
+            createMat('cnConcrete', COLORS.CN_CONCRETE, 0x000000, 0, true);
+            createMat('cnGlow', COLORS.CN_GLOW, COLORS.CN_GLOW, 4.0, true); 
+            createMat('cnRed', COLORS.CN_RED, COLORS.CN_RED, 5.0, true);
+            createMat('domeWhite', COLORS.DOME_WHITE, 0x000000, 0, true);
+            createMat('domeBlue', COLORS.DOME_BLUE, COLORS.DOME_BLUE, 3.0, true);
+            createMat('wallDark', COLORS.WALL_DARK, 0x000000, 0, true); 
+
+            // Low Res Materials
+            const lowResMat = new THREE.MeshStandardMaterial({
+                color: 0x222244, emissive: 0x111133, roughness: 0.2, metalness: 0.8
+            });
+            materials['lowRes'] = lowResMat;
+            meshes['lowRes'] = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), lowResMat, 5000); 
+            meshes['lowRes'].visible = false;
+            scene.add(meshes['lowRes']);
+            voxelCounts['lowRes'] = 0;
+
+            const lowResEdgeMat = new THREE.MeshBasicMaterial({
+                color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.3
+            });
+            meshes['lowResEdges'] = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), lowResEdgeMat, 5000);
+            meshes['lowResEdges'].visible = false;
+            scene.add(meshes['lowResEdges']);
+            voxelCounts['lowResEdges'] = 0;
+
+            // Coin Material
+            const coinMat = new THREE.MeshStandardMaterial({
+                color: COLORS.COIN, emissive: 0x886600, metalness: 1.0, roughness: 0.2
+            });
+            materials['coin'] = coinMat;
+            // Simple Box Coins for style
+            meshes['coin'] = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 1.5, 0.4), coinMat, COIN_COUNT);
+            meshes['coin'].visible = false; // Hidden until Gamer Mode
+            scene.add(meshes['coin']);
+            voxelCounts['coin'] = 0;
+
+            // Agents
+            const modelMat = new THREE.MeshStandardMaterial({
+                vertexColors: true, roughness: 0.5, metalness: 0.5, wireframe: false
+            });
+            materials['modelMat'] = modelMat;
+
+            const addAgentMesh = (name, geo) => {
+                meshes[name] = new THREE.InstancedMesh(geo, modelMat, AGENT_COUNTS[name.includes('Car')?'cars': name.includes('Person')?'people':'boats']);
+                meshes[name].castShadow = false;
+                meshes[name].receiveShadow = false;
+                scene.add(meshes[name]);
+                voxelCounts[name] = 0;
+            };
+
+            addAgentMesh('agentCarA', createCarGeometry(COLORS.AGENT_CAR_A));
+            addAgentMesh('agentCarB', createCarGeometry(COLORS.AGENT_CAR_B));
+            addAgentMesh('agentPerson', createPersonGeometry());
+            addAgentMesh('agentBoat', createBoatGeometry());
+        }
+
+        function addVoxel(type, x, y, z) {
+            if (!meshes[type] || voxelCounts[type] >= MAX_VOXELS) return;
+            dummy.position.set(x * VOXEL_SIZE, y * VOXEL_SIZE, z * VOXEL_SIZE);
+            dummy.rotation.set(0,0,0);
+            dummy.scale.set(1,1,1);
+            dummy.updateMatrix();
+            meshes[type].setMatrixAt(voxelCounts[type], dummy.matrix);
+            voxelCounts[type]++;
+            return voxelCounts[type] - 1;
+        }
+
+        // Special function for Low Res instances (simple boxes)
+        function addLowResBuilding(x, z, width, depth, height) {
+            if(voxelCounts['lowRes'] >= 5000) return;
+            const w = width * VOXEL_SIZE; const d = depth * VOXEL_SIZE; const h = height * VOXEL_SIZE;
+            const centerX = x * VOXEL_SIZE; const centerZ = z * VOXEL_SIZE; const centerY = (h / 2) - (VOXEL_SIZE / 2); 
+            dummy.position.set(centerX, centerY, centerZ); dummy.rotation.set(0,0,0); dummy.scale.set(w, h, d); dummy.updateMatrix();
+            meshes['lowRes'].setMatrixAt(voxelCounts['lowRes'], dummy.matrix); voxelCounts['lowRes']++;
+            dummy.scale.set(w * 1.02, h * 1.02, d * 1.02); dummy.updateMatrix();
+            meshes['lowResEdges'].setMatrixAt(voxelCounts['lowResEdges'], dummy.matrix); voxelCounts['lowResEdges']++;
+        }
+
+        function updateInstancedMeshes() {
+            for (const key in meshes) {
+                meshes[key].instanceMatrix.needsUpdate = true;
+                meshes[key].count = voxelCounts[key];
+            }
+        }
+
+        // --- Gamer Mode System ---
+
+        function initGamerMode() {
+            // 1. Setup Gun
+            gunGroup = new THREE.Group();
+            
+            // Gun Model (Simple Voxel Style)
+            const gunMat = new THREE.MeshStandardMaterial({ color: COLORS.GUN, roughness: 0.5 });
+            const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 2), gunMat);
+            barrel.position.set(0, 0, -1);
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), gunMat);
+            handle.position.set(0, -0.5, 0);
+            handle.rotation.x = 0.5;
+            
+            gunGroup.add(barrel);
+            gunGroup.add(handle);
+            
+            // Position gun relative to camera
+            gunGroup.position.set(0.8, -0.8, -1.5);
+            gunGroup.visible = false;
+            camera.add(gunGroup);
+
+            // 2. Setup Coins
+            for(let i=0; i<COIN_COUNT; i++) {
+                const x = (Math.random() * 400) - 200;
+                const z = (Math.random() * 400) - 200;
+                
+                dummy.position.set(x, 2, z);
+                dummy.rotation.set(0, Math.random() * Math.PI, 0);
+                dummy.scale.set(1,1,1);
+                dummy.updateMatrix();
+                
+                meshes['coin'].setMatrixAt(i, dummy.matrix);
+                
+                coins.push({
+                    index: i,
+                    pos: new THREE.Vector3(x, 2, z),
+                    rotationSpeed: Math.random() * 2 + 1
+                });
+            }
+            voxelCounts['coin'] = COIN_COUNT;
+
+            // 3. Raycaster
+            raycaster = new THREE.Raycaster();
+        }
+
+        function toggleGamerMode() {
+            isGamerMode = !isGamerMode;
+            gunGroup.visible = isGamerMode;
+            meshes['coin'].visible = isGamerMode;
+            document.getElementById('crosshair').style.display = isGamerMode ? 'block' : 'none';
+            document.getElementById('gamer-hud').style.display = isGamerMode ? 'block' : 'none'; // Toggle HUD visibility
+            
+            // Update UI
+            const modeStatus = document.getElementById('mode-status');
+            modeStatus.innerText = isGamerMode ? 'GAMER MODE (SHOOTING)' : 'STANDARD';
+            modeStatus.style.color = isGamerMode ? '#ff0000' : '#ffffff';
+        }
+
+        function fireWeapon() {
+            // 1. Play Sound
+            playSound('shoot');
+
+            // 2. Visual FX
+            gunGroup.position.z = -1.0; // Recoil back
+            setTimeout(() => { gunGroup.position.z = -1.5; }, 100); // Return
+
+            // 3. Raycast
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check agents
+            const hitList = [meshes['agentPerson'], meshes['agentCarA'], meshes['agentCarB'], meshes['agentBoat']];
+            const intersects = raycaster.intersectObjects(hitList);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                // Identify which agent type was hit
+                let agentType = null;
+                if(hit.object === meshes['agentPerson']) agentType = 'agentPerson';
+                else if(hit.object === meshes['agentCarA']) agentType = 'agentCarA';
+                else if(hit.object === meshes['agentCarB']) agentType = 'agentCarB';
+                else if(hit.object === meshes['agentBoat']) agentType = 'agentBoat';
+
+                if (agentType) {
+                    // Find the agent in data array
+                    const agentData = agents.find(a => a.meshName === agentType && a.index === hit.instanceId);
+                    
+                    if(agentData) {
+                        playSound('hit'); // Play hit sound
+                        respawnAgent(agentData);
+                        score += 10;
+                        npcsKilled++;
+                        updateScoreUI();
+                    }
+                }
+            }
+        }
+
+        function respawnAgent(agent) {
+            // Respawn Logic: Randomize position far away
+            const bounds = 800;
+            if (agent.type === 'boat') {
+                agent.pos.set((Math.random() * 1000) - 500, -1.2, (Math.random() * 600) + 50);
+            } else if (agent.type === 'car') {
+                agent.pos.x = (Math.random() * 600) - 300;
+            } else {
+                agent.pos.x = (Math.random() * 400) - 200;
+                agent.pos.z = (Math.random() * 200) - 150;
+            }
+            
+            // Visual "Death" Effect: Scale to 0 temporarily then pop back
+            dummy.position.copy(agent.pos);
+            dummy.scale.set(0.1, 0.1, 0.1); // Shrink
+            dummy.updateMatrix();
+            meshes[agent.meshName].setMatrixAt(agent.index, dummy.matrix);
+            meshes[agent.meshName].instanceMatrix.needsUpdate = true;
+        }
+
+        function checkCoinCollection() {
+            const playerPos = camera.position;
+            let collected = false;
+            
+            coins.forEach(coin => {
+                const dist = playerPos.distanceTo(coin.pos);
+                if (dist < 5) { // Collection radius
+                    playSound('coin'); // Play coin sound
+                    score += 50;
+                    collected = true;
+                    // Respawn Coin
+                    coin.pos.set((Math.random() * 400) - 200, 2, (Math.random() * 400) - 200);
+                }
+            });
+            
+            if(collected) updateScoreUI();
+        }
+
+        function updateCoins(delta) {
+            if(!meshes['coin'].visible) return;
+            
+            coins.forEach(coin => {
+                // Spin
+                dummy.position.copy(coin.pos);
+                dummy.rotation.set(0, performance.now() * 0.002 * coin.rotationSpeed, Math.PI/2); // Rotate on Y and Z
+                dummy.scale.set(1,1,1);
+                dummy.updateMatrix();
+                meshes['coin'].setMatrixAt(coin.index, dummy.matrix);
+            });
+            meshes['coin'].instanceMatrix.needsUpdate = true;
+        }
+
+        function updateScoreUI() {
+            const s = document.getElementById('score-val');
+            const k = document.getElementById('kills-val');
+            if(s) s.innerText = score;
+            if(k) k.innerText = npcsKilled;
+            
+            // Simple pop animation
+            if(s) {
+                s.classList.remove('score-pop');
+                void s.offsetWidth; // trigger reflow
+                s.classList.add('score-pop');
+            }
+        }
+
+        // --- Agents ---
+        function initAgents() {
+            const streetY = 0.5; const waterY = -1.2;
+            for(let i=0; i<AGENT_COUNTS.cars; i++) {
+                const isTypeA = Math.random() > 0.5;
+                const type = isTypeA ? 'agentCarA' : 'agentCarB';
+                const laneZ = Math.floor(Math.random() * 20) * 15 - 150; 
+                const x = (Math.random() * 600) - 300;
+                const idx = addVoxel(type, x, streetY, laneZ);
+                agents.push({ type: 'car', meshName: type, index: idx, pos: new THREE.Vector3(x * VOXEL_SIZE, streetY * VOXEL_SIZE, laneZ * VOXEL_SIZE), vel: new THREE.Vector3(isTypeA ? 40 : -40, 0, 0) });
+            }
+            for(let i=0; i<AGENT_COUNTS.people; i++) {
+                const x = (Math.random() * 400) - 200; const z = (Math.random() * 200) - 150;
+                const idx = addVoxel('agentPerson', x, streetY, z);
+                agents.push({ type: 'person', meshName: 'agentPerson', index: idx, pos: new THREE.Vector3(x * VOXEL_SIZE, streetY * VOXEL_SIZE, z * VOXEL_SIZE), vel: new THREE.Vector3(Math.random()*2-1, 0, Math.random()*2-1).normalize().multiplyScalar(5) });
+            }
+            for(let i=0; i<AGENT_COUNTS.boats; i++) {
+                const x = (Math.random() * 1000) - 500; const z = (Math.random() * 600) + 50; 
+                const idx = addVoxel('agentBoat', x, waterY, z);
+                agents.push({ type: 'boat', meshName: 'agentBoat', index: idx, pos: new THREE.Vector3(x * VOXEL_SIZE, waterY * VOXEL_SIZE, z * VOXEL_SIZE), vel: new THREE.Vector3(Math.random()*2-1, 0, Math.random()*2-1).normalize().multiplyScalar(10) });
+            }
+            document.getElementById('entity-count').innerText = agents.length;
+        }
+
+        function updateAgents(delta) {
+            const bounds = 1000;
+            agents.forEach(agent => {
+                agent.pos.x += agent.vel.x * delta; agent.pos.z += agent.vel.z * delta;
+                if (agent.pos.x > bounds) agent.pos.x = -bounds; if (agent.pos.x < -bounds) agent.pos.x = bounds;
+                if (agent.pos.z > bounds) agent.pos.z = -bounds; if (agent.pos.z < -bounds) agent.pos.z = bounds;
+                if (agent.type === 'person' && Math.random() < 0.01) { const angle = Math.random() * Math.PI * 2; agent.vel.set(Math.cos(angle) * 5, 0, Math.sin(angle) * 5); }
+                dummy.position.copy(agent.pos);
+                if (agent.type !== 'person') dummy.lookAt(agent.pos.x + agent.vel.x, agent.pos.y, agent.pos.z + agent.vel.z);
+                dummy.scale.set(1, 1, 1);
+                dummy.updateMatrix();
+                meshes[agent.meshName].setMatrixAt(agent.index, dummy.matrix);
+            });
+            ['agentCarA', 'agentCarB', 'agentPerson', 'agentBoat'].forEach(name => { if(meshes[name]) meshes[name].instanceMatrix.needsUpdate = true; });
+        }
+
+        // --- Generators ---
+        function generateEnvironment() {
+            const geometry = new THREE.PlaneGeometry(3000, 3000, 64, 64);
+            const shaderMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uColorDeep: { value: new THREE.Color(COLORS.WATER_DEEP) },
+                    uColorSurface: { value: new THREE.Color(COLORS.WATER_SURFACE) }
+                },
+                vertexShader: `
+                    uniform float uTime;
+                    varying float vElevation;
+                    void main() {
+                        vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+                        float elevation = sin(modelPosition.x * 0.02 + uTime) * sin(modelPosition.y * 0.02 + uTime) * 2.5;
+                        modelPosition.z += elevation;
+                        vElevation = elevation;
+                        gl_Position = projectionMatrix * viewMatrix * modelPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 uColorDeep;
+                    uniform vec3 uColorSurface;
+                    varying float vElevation;
+                    void main() {
+                        float mixStrength = (vElevation + 2.5) * 0.2;
+                        vec3 color = mix(uColorDeep, uColorSurface, mixStrength);
+                        gl_FragColor = vec4(color, 0.9);
+                    }
+                `,
+                transparent: true,
+                wireframe: false
+            });
+            materials['water'] = shaderMat;
+
+            waterShaderMesh = new THREE.Mesh(geometry, shaderMat);
+            waterShaderMesh.rotation.x = -Math.PI / 2;
+            waterShaderMesh.position.y = -4; 
+            waterShaderMesh.receiveShadow = true;
+            scene.add(waterShaderMesh);
+
+            waterReflector = new Reflector(geometry, {
+                clipBias: 0.003,
+                textureWidth: window.innerWidth * window.devicePixelRatio,
+                textureHeight: window.innerHeight * window.devicePixelRatio,
+                color: 0x777777
+            });
+            waterReflector.rotation.x = -Math.PI / 2;
+            waterReflector.position.y = -3.5;
+            waterReflector.visible = false; 
+            scene.add(waterReflector);
+
+            const floorGeo = new THREE.PlaneGeometry(800, 600);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            materials['floor'] = floorMat;
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -1.5; floor.position.z = -100; 
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const grid = new THREE.GridHelper(800, 40, 0x555555, 0x222222);
+            grid.position.y = -1.4; grid.position.z = -100; grid.scale.z = 0.75; 
+            scene.add(grid);
+        }
+
+        function generateStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 2000;
+            const posArray = new Float32Array(starCount * 3);
+            for(let i = 0; i < starCount * 3; i+=3) {
+                const r = 1000 + Math.random() * 1000; 
+                const theta = 2 * Math.PI * Math.random();
+                const phi = Math.acos(2 * Math.random() - 1);
+                posArray[i] = r * Math.sin(phi) * Math.cos(theta);
+                posArray[i+1] = Math.abs(r * Math.cos(phi)) + 50; 
+                posArray[i+2] = r * Math.sin(phi) * Math.sin(theta);
+            }
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const starMesh = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: true, transparent: true, opacity: 0.8 }));
+            scene.add(starMesh);
+        }
+
+        function generateMoon() {
+            const moonGeo = new THREE.SphereGeometry(20, 32, 32);
+            const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffcc }); 
+            materials['moon'] = moonMat;
+            const moon = new THREE.Mesh(moonGeo, moonMat);
+            moon.position.set(-150, 300, 150); 
+            scene.add(moon);
+        }
+
+        function generateCNTower(cx, cz) {
+            const towerHeight = 280; const podHeight = 190;   
+            for (let y = 0; y < towerHeight; y++) {
+                let width = Math.max(2, 8 - Math.floor(y / 35)); 
+                for (let x = -width; x <= width; x++) {
+                    for (let z = -width; z <= width; z++) {
+                        if (Math.abs(x) + Math.abs(z) <= width) {
+                            if (x === 0 && (z === width || z === -width) && y > 10 && y < podHeight - 5) addVoxel('cnGlow', cx + x, y, cz + z);
+                            else addVoxel('cnConcrete', cx + x, y, cz + z);
+                        }
+                    }
+                }
+            }
+            const podY = podHeight; const podRadius = 14; 
+            for (let y = podY; y < podY + 10; y++) {
+                let r = podRadius; if (y === podY || y >= podY + 8) r -= 5; 
+                for (let x = -r; x <= r; x++) {
+                    for (let z = -r; z <= r; z++) {
+                        if (x*x + z*z < r*r) {
+                            if (x*x + z*z > (r-2)*(r-2) && y === podY + 5) addVoxel('cnRed', cx + x, y, cz + z);
+                            else addVoxel('cnConcrete', cx + x, y, cz + z);
+                        }
+                    }
+                }
+            }
+            const skyPodY = podY + 35; 
+            for (let y = skyPodY; y < skyPodY + 6; y++) {
+                let r = 5;
+                for (let x = -r; x <= r; x++) {
+                    for (let z = -r; z <= r; z++) { if (x*x + z*z < r*r) addVoxel('cnConcrete', cx + x, y, cz + z); }
+                }
+            }
+            for (let y = towerHeight; y < towerHeight + 60; y++) {
+                addVoxel(y % 8 === 0 ? 'cnRed' : 'cnConcrete', cx, y, cz);
+                addVoxel('cnConcrete', cx + 1, y, cz); addVoxel('cnConcrete', cx - 1, y, cz);
+                addVoxel('cnConcrete', cx, y, cz + 1); addVoxel('cnConcrete', cx, y, cz - 1);
+            }
+        }
+
+        function generateRogersCentre(cx, cz) {
+            const radius = 45; 
+            for (let x = -radius; x <= radius; x++) {
+                for (let z = -radius; z <= radius; z++) {
+                    for (let y = 0; y <= radius; y++) {
+                        const dist = Math.sqrt(x*x + z*z + y*y);
+                        if (dist >= radius - 1 && dist <= radius) {
+                            if (y < 8) addVoxel('domeBlue', cx + x, y, cz + z);
+                            else if (x < 6 && x > -6) addVoxel('wallDark', cx + x, y, cz + z);
+                            else addVoxel('domeWhite', cx + x, y, cz + z);
+                        }
+                    }
+                }
+            }
+        }
+
+        function generateCityscape() {
+            const rows = 20; const cols = 30; const spacing = 18; 
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = (c - cols/2) * spacing + (Math.random() * 5);
+                    const z = (r - 4) * spacing * -1 - 40; 
+                    if (Math.abs(x) < 40 && z > -80) continue;
+                    if (x < -40 && x > -100 && z > -80) continue;
+                    const distToCenter = Math.sqrt(x*x + z*z);
+                    let height = Math.random() * 100 + 20;
+                    if (distToCenter < 150) height += 80; if (distToCenter < 80) height += 50;
+                    const width = Math.floor(Math.random() * 6) + 4;
+                    const depth = Math.floor(Math.random() * 6) + 4;
+                    generateBuilding(x, z, width, depth, Math.floor(height));
+                }
+            }
+        }
+
+        function generateBuilding(bx, bz, w, d, h) {
+            const style = Math.random() > 0.5 ? 'modern' : 'classic';
+            const lightColor = Math.random() > 0.4 ? 'cityWinWarm' : 'cityWinCool';
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    for (let z = 0; z < d; z++) {
+                        if (x === 0 || x === w-1 || z === 0 || z === d-1 || y === h-1) {
+                            const voxelX = bx + x - w/2; const voxelZ = bz + z - d/2;
+                            let isWindow = false;
+                            if (style === 'modern') isWindow = (y % 4 !== 0);
+                            else isWindow = (x % 2 !== 0 && z % 2 !== 0 && y % 3 !== 0);
+                            if (isWindow && Math.random() > 0.3) addVoxel(lightColor, voxelX, y, voxelZ);
+                            else addVoxel('cityDarkWall', voxelX, y, voxelZ);
+                        }
+                    }
+                }
+            }
+            addVoxel('cityRed', bx, h, bz);
+            addLowResBuilding(bx, bz, w, d, h);
+        }
+
+        // --- Toggles ---
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            for(const key in materials) {
+                materials[key].wireframe = isWireframe;
+                materials[key].needsUpdate = true;
+            }
+            document.getElementById('mode-status').innerText = isWireframe ? 'WIREFRAME' : 'STANDARD';
+            document.getElementById('mode-status').style.color = isWireframe ? '#00ff00' : '#ffffff';
+        }
+
+        function toggleHD() {
+            isHDMode = !isHDMode;
+            renderer.shadowMap.enabled = isHDMode;
+            for(const key in meshes) {
+                meshes[key].castShadow = isHDMode;
+                meshes[key].receiveShadow = isHDMode;
+            }
+            waterShaderMesh.visible = !isHDMode;
+            waterReflector.visible = isHDMode;
+            const hdStatus = document.getElementById('hd-status');
+            hdStatus.innerText = isHDMode ? 'HD (BLOOM+REFLECT)' : 'PERFORMANCE';
+            hdStatus.style.color = isHDMode ? '#00ffff' : '#888';
+        }
+
+        function toggleLowRes() {
+            isLowResMode = !isLowResMode;
+            
+            cityKeys.forEach(key => { if(meshes[key]) meshes[key].visible = !isLowResMode; });
+            if(meshes['lowRes']) meshes['lowRes'].visible = isLowResMode;
+            if(meshes['lowResEdges']) meshes['lowResEdges'].visible = isLowResMode;
+
+            const resStatus = document.getElementById('res-status');
+            resStatus.innerText = isLowResMode ? 'LOW RES (POLY)' : 'HIGH RES (VOXEL)';
+            resStatus.style.color = isLowResMode ? '#ffaa00' : '#ffffff';
+        }
+
+        function toggleFlyThrough() {
+            isFlyThrough = !isFlyThrough;
+            if (isFlyThrough) {
+                controls.unlock(); 
+            }
+            const camStatus = document.getElementById('cam-status');
+            camStatus.innerText = isFlyThrough ? 'AUTO (FLY)' : 'MANUAL';
+            camStatus.style.color = isFlyThrough ? '#00ff00' : '#00ffff';
+        }
+
+        // --- Input Handling ---
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight': case 'KeyD': moveRight = true; break;
+                case 'Space': moveUp = true; break;
+                case 'ShiftLeft': moveDown = true; break;
+                case 'KeyV': toggleWireframe(); break;
+                case 'KeyH': toggleHD(); break;
+                case 'KeyL': toggleLowRes(); break;
+                case 'KeyF': toggleFlyThrough(); break; 
+                case 'KeyG': toggleGamerMode(); break; // Added G key
+            }
+        }
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight': case 'KeyD': moveRight = false; break;
+                case 'Space': moveUp = false; break;
+                case 'ShiftLeft': moveDown = false; break;
+            }
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+            
+            if (!isHDMode && waterShaderMesh.material) {
+                waterShaderMesh.material.uniforms.uTime.value = time * 0.001;
+            }
+
+            updateAgents(delta);
+            
+            // Gamer Mode Updates
+            if(isGamerMode) {
+                updateCoins(delta);
+                checkCoinCollection();
+            }
+
+            frames++;
+            if (time - lastFpsTime >= 1000) {
+                document.getElementById('overlay').innerHTML = `
+                    FPS: ${frames}<br>
+                    SIMULATION STATUS: ACTIVE<br>
+                    ENTITIES: <span id="entity-count">${agents.length}</span><br>
+                    GRAPHICS: <span style="color:${isHDMode?'#00ffff':'#888'}">${isHDMode?'HD (BLOOM+REFLECT)':'PERFORMANCE'}</span><br>
+                    MODE: <span style="color:${isWireframe?'#00ff00':'#ffffff'}">${isWireframe?'WIREFRAME':'STANDARD'}</span><br>
+                    DETAIL: <span style="color:${isLowResMode?'#ffaa00':'#ffffff'}">${isLowResMode?'LOW RES (POLY)':'HIGH RES (VOXEL)'}</span><br>
+                    CAMERA: <span style="color:${isFlyThrough?'#00ff00':'#00ffff'}">${isFlyThrough?'AUTO (FLY)':'MANUAL'}</span>
+                    <div id="gamer-hud" style="display: ${isGamerMode ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid #444; padding-top: 5px;">
+                        SCORE: <span id="score-val" style="color: gold; font-size: 18px;">${score}</span><br>
+                        KILLS: <span id="kills-val" style="color: red; font-size: 18px;">${npcsKilled}</span>
+                    </div>
+                `;
+                frames = 0; lastFpsTime = time;
+            }
+
+            if (controls.isLocked) {
+                velocity.x -= velocity.x * 5.0 * delta;
+                velocity.z -= velocity.z * 5.0 * delta;
+                velocity.y -= velocity.y * 5.0 * delta;
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.y = Number(moveUp) - Number(moveDown);
+                direction.normalize();
+                const speed = 250.0; 
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+                if (moveUp || moveDown) velocity.y -= direction.y * speed * delta;
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+                camera.position.y += velocity.y * delta;
+                if (camera.position.y < 2) camera.position.y = 2;
+            } else if (isFlyThrough) {
+                const t = time * 0.0002;
+                camera.position.x = Math.sin(t) * 400;
+                camera.position.z = Math.cos(t) * 400 - 50;
+                camera.position.y = 150 + Math.sin(t * 1.5) * 50;
+                camera.lookAt(0, 50, -50);
+            }
+            prevTime = time;
+
+            // Render Switcher
+            if (isHDMode) {
+                composer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
+        }
+
+    </script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
