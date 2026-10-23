@@ -905,10 +905,14 @@
         });
 
     </script>
+
+
 <script>window.BIT_MOBILE={"bridge": true};</script>
 <script>
-/* Bit Mobile Kit — touch controls layered over the PC controls.
+/* Bit Mobile Kit v2 — touch controls layered over the PC controls.
    Activates ONLY on touch devices; desktop play is completely untouched.
+   v2: smaller + ghost-translucent, auto-fades when idle, and a hide/show
+   toggle so the overlay never blocks the game's own UI for long.
    Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
      lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
 (function () {
@@ -920,23 +924,28 @@
   style.textContent = [
     'html,body{touch-action:none;overscroll-behavior:none}',
     '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
-    '#bit-stick{position:absolute;left:18px;bottom:24px;width:118px;height:118px;border-radius:50%;',
-    'background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);pointer-events:auto}',
-    '#bit-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;',
-    'background:rgba(255,255,255,.45);transform:translate(-50%,-50%)}',
-    '#bit-btns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}',
-    '.bit-btn{min-width:64px;height:56px;padding:0 12px;border-radius:16px;border:2px solid rgba(255,255,255,.35);',
-    'background:rgba(20,20,40,.55);color:#fff;font-size:15px;font-weight:700;text-align:center}',
-    '.bit-btn:active{background:rgba(255,159,243,.55)}'
+    '#bit-ui{transition:opacity .45s ease}',
+    '#bit-kit.bit-idle #bit-ui{opacity:.25}',
+    '#bit-kit.bit-hidden #bit-ui{display:none}',
+    '#bit-stick{position:absolute;left:12px;bottom:16px;width:92px;height:92px;border-radius:50%;',
+    'background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.22);pointer-events:auto}',
+    '#bit-nub{position:absolute;left:50%;top:50%;width:40px;height:40px;border-radius:50%;',
+    'background:rgba(255,255,255,.30);transform:translate(-50%,-50%)}',
+    '#bit-btns{position:absolute;right:10px;bottom:16px;display:flex;flex-direction:column;gap:8px;pointer-events:auto;align-items:flex-end}',
+    '.bit-btn{min-width:52px;height:44px;padding:0 10px;border-radius:13px;border:1.5px solid rgba(255,255,255,.22);',
+    'background:rgba(20,20,40,.38);color:rgba(255,255,255,.85);font-size:13px;font-weight:700;text-align:center}',
+    '.bit-btn:active{background:rgba(255,159,243,.45)}',
+    '#bit-toggle{position:absolute;right:10px;top:42%;width:36px;height:36px;border-radius:50%;pointer-events:auto;',
+    'border:1.5px solid rgba(255,255,255,.25);background:rgba(20,20,40,.40);color:#fff;font-size:16px;line-height:1;',
+    'display:flex;align-items:center;justify-content:center;opacity:.55}'
   ].join('');
   document.head.appendChild(style);
 
   var KEYMAP = {
-    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 100 - 32], KeyE: ['e', 69],
-    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32],
+    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 68], KeyE: ['e', 69],
+    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32], KeyM: ['m', 77], KeyT: ['t', 84],
     ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
   };
-  KEYMAP.KeyD = ['d', 68];
 
   function fireKey(type, code) {
     var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
@@ -953,7 +962,28 @@
   }
 
   var kit = document.createElement('div'); kit.id = 'bit-kit';
+  var ui = document.createElement('div'); ui.id = 'bit-ui';
+  kit.appendChild(ui);
   document.body.appendChild(kit);
+
+  /* ---- idle auto-fade + hide/show toggle ---- */
+  var idleTimer = null;
+  function wake() {
+    kit.classList.remove('bit-idle');
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () { kit.classList.add('bit-idle'); }, 2200);
+  }
+  document.addEventListener('touchstart', wake, { passive: true });
+  wake();
+  var toggle = document.createElement('button');
+  toggle.id = 'bit-toggle'; toggle.textContent = '🎮';
+  toggle.addEventListener('touchstart', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    kit.classList.toggle('bit-hidden');
+    toggle.textContent = kit.classList.contains('bit-hidden') ? '🎮' : '✕';
+    wake();
+  }, { passive: false });
+  kit.appendChild(toggle);
 
   /* ---- virtual joystick -> movement keys ---- */
   var pressed = {};
@@ -964,7 +994,7 @@
   if (cfg.move) {
     var stick = document.createElement('div'); stick.id = 'bit-stick';
     var nub = document.createElement('div'); nub.id = 'bit-nub';
-    stick.appendChild(nub); kit.appendChild(stick);
+    stick.appendChild(nub); ui.appendChild(stick);
     var stickId = null;
     function groups() {
       return cfg.move === 'both'
@@ -985,8 +1015,8 @@
         var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
         var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
         var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
-        var len = Math.max(1, Math.hypot(dx, dy)); if (Math.hypot(dx, dy) > 1) { dx /= len; dy /= len; }
-        nub.style.transform = 'translate(calc(-50% + ' + dx * 32 + 'px), calc(-50% + ' + dy * 32 + 'px))';
+        var len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx * 25 + 'px), calc(-50% + ' + dy * 25 + 'px))';
         applyStick(dx, dy);
       }
     }, { passive: false });
@@ -1015,7 +1045,7 @@
       }, { passive: false });
       wrap.appendChild(btn);
     });
-    kit.appendChild(wrap);
+    ui.appendChild(wrap);
   }
 
   /* ---- drag-look / drawing bridge on the canvas ---- */
