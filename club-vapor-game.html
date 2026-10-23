@@ -38,8 +38,8 @@
 </style>
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three": "./three.module.js",
+  "three/addons/": "./"
 } }
 </script>
 </head>
@@ -58,8 +58,7 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { OrbitControls } from 'three/addons/OrbitControls.js';
 
 const PALETTE = [0xff2d95, 0x22d3ee, 0x8b5cf6, 0xa3e635, 0xfb923c, 0x60a5fa, 0xfacc15];
 const PALETTE_CSS = ['#ff2d95','#22d3ee','#8b5cf6','#a3e635','#fb923c','#60a5fa','#facc15'];
@@ -1321,18 +1320,6 @@ window.__drivePose = (i, x, z, headingDeg) => {
   camera.position.set(x - Math.cos(c.heading) * 8.4, 4.1, z + Math.sin(c.heading) * 8.4);
 };
 
-// ---------- GLB export: rigged dancer (skeleton + baked Dance clip) & full scene ----------
-function glbToBase64(buf) {
-  const bytes = new Uint8Array(buf); let bin = '';
-  for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
-  return btoa(bin);
-}
-window.__exportSceneGLB = () => new Promise((resolve, reject) => {
-  new GLTFExporter().parse(scene,
-    res => resolve(glbToBase64(res)),
-    err => reject(String(err)),
-    { binary: true });
-});
 </script>
 </body>
 </html>
