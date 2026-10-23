@@ -283,6 +283,157 @@ const IMGSRC={roach:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKwAAADACAMAA
 let loaded=0;for(const k in IMGSRC){IMG[k]=new Image();IMG[k].onload=()=>{loaded++;};IMG[k].src=IMGSRC[k];}
 reset();state='title';requestAnimationFrame(loop);
 </script>
+<script>window.BIT_MOBILE={"move": "both", "buttons": [{"code": "Space", "label": "\u26a1 ACT"}]};</script>
+<script>
+/* Bit Mobile Kit — touch controls layered over the PC controls.
+   Activates ONLY on touch devices; desktop play is completely untouched.
+   Config: window.BIT_MOBILE = { move:'wasd'|'both', look:'mouse'|'bitlook'|'none',
+     lockTry:true, bridge:true, buttons:[{code:'Space',label:'⬆'} or {mouse:true,label:'🔥'}] } */
+(function () {
+  var cfg = window.BIT_MOBILE || {};
+  var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!isTouch) return;
+
+  var style = document.createElement('style');
+  style.textContent = [
+    'html,body{touch-action:none;overscroll-behavior:none}',
+    '#bit-kit{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif}',
+    '#bit-stick{position:absolute;left:18px;bottom:24px;width:118px;height:118px;border-radius:50%;',
+    'background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.35);pointer-events:auto}',
+    '#bit-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;',
+    'background:rgba(255,255,255,.45);transform:translate(-50%,-50%)}',
+    '#bit-btns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}',
+    '.bit-btn{min-width:64px;height:56px;padding:0 12px;border-radius:16px;border:2px solid rgba(255,255,255,.35);',
+    'background:rgba(20,20,40,.55);color:#fff;font-size:15px;font-weight:700;text-align:center}',
+    '.bit-btn:active{background:rgba(255,159,243,.55)}'
+  ].join('');
+  document.head.appendChild(style);
+
+  var KEYMAP = {
+    KeyW: ['w', 87], KeyA: ['a', 65], KeyS: ['s', 83], KeyD: ['d', 100 - 32], KeyE: ['e', 69],
+    KeyF: ['f', 70], KeyG: ['g', 71], KeyR: ['r', 82], Space: [' ', 32],
+    ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39]
+  };
+  KEYMAP.KeyD = ['d', 68];
+
+  function fireKey(type, code) {
+    var m = KEYMAP[code] || [code.replace('Key', '').toLowerCase(), 0];
+    var e = new KeyboardEvent(type, { code: code, key: m[0], bubbles: true, cancelable: true });
+    try { Object.defineProperty(e, 'keyCode', { value: m[1] }); Object.defineProperty(e, 'which', { value: m[1] }); } catch (err) {}
+    window.dispatchEvent(e); document.dispatchEvent(e);
+    if (document.body) document.body.dispatchEvent(e);
+  }
+  function fireMouse(type, x, y, dx, dy) {
+    var t = document.querySelector('canvas') || document.body;
+    var e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+    if (dx !== undefined) { try { Object.defineProperty(e, 'movementX', { value: dx }); Object.defineProperty(e, 'movementY', { value: dy }); } catch (err) {} }
+    t.dispatchEvent(e); document.dispatchEvent(e); window.dispatchEvent(e);
+  }
+
+  var kit = document.createElement('div'); kit.id = 'bit-kit';
+  document.body.appendChild(kit);
+
+  /* ---- virtual joystick -> movement keys ---- */
+  var pressed = {};
+  function setKey(code, down) {
+    if (pressed[code] === down) return; pressed[code] = down;
+    fireKey(down ? 'keydown' : 'keyup', code);
+  }
+  if (cfg.move) {
+    var stick = document.createElement('div'); stick.id = 'bit-stick';
+    var nub = document.createElement('div'); nub.id = 'bit-nub';
+    stick.appendChild(nub); kit.appendChild(stick);
+    var stickId = null;
+    function groups() {
+      return cfg.move === 'both'
+        ? [['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']]
+        : [['KeyW'], ['KeyS'], ['KeyA'], ['KeyD']];
+    }
+    function applyStick(dx, dy) {
+      var g = groups(), on = [dy < -0.35, dy > 0.35, dx < -0.35, dx > 0.35];
+      for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], on[i]);
+    }
+    function clearStick() { var g = groups(); for (var i = 0; i < 4; i++) for (var j = 0; j < g[i].length; j++) setKey(g[i][j], false); }
+    stick.addEventListener('touchstart', function (e) {
+      e.preventDefault(); var t = e.changedTouches[0]; stickId = t.identifier;
+    }, { passive: false });
+    stick.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== stickId) continue;
+        var r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = (t.clientX - cx) / (r.width / 2), dy = (t.clientY - cy) / (r.height / 2);
+        var len = Math.max(1, Math.hypot(dx, dy)); if (Math.hypot(dx, dy) > 1) { dx /= len; dy /= len; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx * 32 + 'px), calc(-50% + ' + dy * 32 + 'px))';
+        applyStick(dx, dy);
+      }
+    }, { passive: false });
+    function endStick(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === stickId) {
+        stickId = null; nub.style.transform = 'translate(-50%,-50%)'; clearStick();
+      }
+    }
+    stick.addEventListener('touchend', endStick); stick.addEventListener('touchcancel', endStick);
+  }
+
+  /* ---- action buttons ---- */
+  if (cfg.buttons && cfg.buttons.length) {
+    var wrap = document.createElement('div'); wrap.id = 'bit-btns';
+    cfg.buttons.forEach(function (b) {
+      var btn = document.createElement('button'); btn.className = 'bit-btn'; btn.textContent = b.label || b.code;
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mousedown', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keydown', b.code);
+      }, { passive: false });
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        if (b.mouse) fireMouse('mouseup', window.innerWidth / 2, window.innerHeight / 2);
+        if (b.code) fireKey('keyup', b.code);
+      }, { passive: false });
+      wrap.appendChild(btn);
+    });
+    kit.appendChild(wrap);
+  }
+
+  /* ---- drag-look / drawing bridge on the canvas ---- */
+  if (cfg.look && cfg.look !== 'none' || cfg.bridge) {
+    var lookId = null, lx = 0, ly = 0, locked = false;
+    document.addEventListener('touchstart', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (t.target.closest && t.target.closest('#bit-kit')) continue;
+        if (lookId !== null) continue;
+        lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousedown', t.clientX, t.clientY);
+        if (cfg.lockTry && !locked) {
+          locked = true;
+          var c = document.querySelector('canvas');
+          if (c && c.requestPointerLock) { try { var p = c.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (err) {} }
+        }
+      }
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lx, dy = t.clientY - ly; lx = t.clientX; ly = t.clientY;
+        if (cfg.bridge) fireMouse('mousemove', t.clientX, t.clientY);
+        else if (cfg.look === 'bitlook') window.dispatchEvent(new CustomEvent('bitlook', { detail: { dx: dx * 1.6, dy: dy * 1.6 } }));
+        else if (cfg.look === 'mouse') fireMouse('mousemove', t.clientX, t.clientY, dx, dy);
+      }
+      if (lookId !== null && !cfg.bridge) e.preventDefault();
+    }, { passive: false });
+    function endLook(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) {
+        if (cfg.bridge) fireMouse('mouseup', e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        lookId = null;
+      }
+    }
+    document.addEventListener('touchend', endLook); document.addEventListener('touchcancel', endLook);
+  }
+})();
+
+</script>
 </body>
 </html>
     
