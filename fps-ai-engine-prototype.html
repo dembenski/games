@@ -207,6 +207,51 @@ function validateSpec(spec) {
   return { ok: true, errors: [] };
 }
 
+/* ============ Repair: auto-fix common spec mistakes before rejecting ============ */
+function firstOpenTile(map) {
+  for (var y = 1; y < map.length - 1; y++) for (var x = 1; x < map[0].length - 1; x++) if (map[y][x] === 0) return { x: x, y: y };
+  return { x: 1, y: 1 };
+}
+function repairSpec(spec) {
+  if (!spec || typeof spec !== "object" || !Array.isArray(spec.map) || spec.map.length === 0) {
+    spec = { title: "Repaired", theme: "", map: JSON.parse(JSON.stringify(FALLBACK_SPEC.map)), wallTexture: "brick", floorColor: "#1a1a1a", ceilingColor: "#050510", playerStart: { x: 1, y: 1, angle: 0 }, weapons: [{ type: "pistol", damage: 20, ammo: 12 }], enemies: [], pickups: [], goal: { type: "eliminate-all", keys: 0, exitX: 10, exitY: 10 } };
+    return spec;
+  }
+  var w = 0;
+  spec.map.forEach(function (row) { if (Array.isArray(row) && row.length > w) w = row.length; });
+  w = Math.max(3, Math.min(w, CAPS.mapMax));
+  spec.map = spec.map.slice(0, CAPS.mapMax).map(function (row) {
+    if (!Array.isArray(row)) row = [];
+    var r = row.slice(0, w);
+    while (r.length < w) r.push(1);
+    return r.map(function (t) { return (t === 0 || t === 1 || t === 2) ? t : 1; });
+  });
+  var h = spec.map.length;
+  for (var x = 0; x < w; x++) { spec.map[0][x] = 1; spec.map[h - 1][x] = 1; }
+  for (var y = 0; y < h; y++) { spec.map[y][0] = 1; spec.map[y][w - 1] = 1; }
+  var ps = spec.playerStart;
+  if (!ps || !spec.map[ps.y] || spec.map[ps.y][ps.x] !== 0) { var s = firstOpenTile(spec.map); spec.playerStart = { x: s.x, y: s.y, angle: 0 }; }
+  var seen = [], stack = [[spec.playerStart.x, spec.playerStart.y]];
+  for (var yy = 0; yy < h; yy++) { seen[yy] = []; for (var xx = 0; xx < w; xx++) seen[yy][xx] = 0; }
+  seen[spec.playerStart.y][spec.playerStart.x] = 1;
+  while (stack.length) { var cur = stack.pop();
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { var nx = cur[0] + d[0], ny = cur[1] + d[1];
+      if (nx >= 0 && ny >= 0 && nx < w && ny < h && spec.map[ny][nx] === 0 && !seen[ny][nx]) { seen[ny][nx] = 1; stack.push([nx, ny]); } }); }
+  for (var y2 = 0; y2 < h; y2++) for (var x2 = 0; x2 < w; x2++) if (spec.map[y2][x2] === 0 && !seen[y2][x2]) spec.map[y2][x2] = 1;
+  if (!Array.isArray(spec.enemies)) spec.enemies = [];
+  spec.enemies = spec.enemies.filter(function (e) { return e && ENEMY_TYPES[e.type] && spec.map[e.y] && spec.map[e.y][e.x] === 0; }).slice(0, CAPS.enemiesMax);
+  spec.enemies.forEach(function (e) { e.health = clamp(e.health || 30, CAPS.hpMin, CAPS.hpMax); e.speed = clamp(e.speed || 1, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(e.damage || 10, CAPS.dmgMin, CAPS.dmgMax); });
+  if (!Array.isArray(spec.pickups)) spec.pickups = [];
+  spec.pickups = spec.pickups.filter(function (p) { return p && PICKUP_TYPES.indexOf(p.type) >= 0 && spec.map[p.y] && spec.map[p.y][p.x] === 0; }).slice(0, CAPS.pickupsMax);
+  if (!Array.isArray(spec.weapons)) spec.weapons = [];
+  spec.weapons = spec.weapons.filter(function (wp) { return wp && WEAPON_TYPES[wp.type]; }).slice(0, CAPS.weaponsMax);
+  if (spec.weapons.length === 0) spec.weapons = [{ type: "pistol", damage: 20, ammo: 12 }];
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0) spec.wallTexture = "brick";
+  if (!spec.goal || GOAL_TYPES.indexOf(spec.goal.type) < 0) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
+  if (spec.goal.type !== "eliminate-all" && (!spec.map[spec.goal.exitY] || spec.map[spec.goal.exitY][spec.goal.exitX] !== 0)) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
+  return spec;
+}
+
 /* ============ Game state ============ */
 var canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 var W = 960, H = 540;
@@ -466,22 +511,22 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   document.getElementById("status").textContent = "Thinking with " + provider + "...";
   try {
     var raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
-    var spec = JSON.parse(stripFences(raw));
+    var spec = repairSpec(JSON.parse(stripFences(raw)));
     var check = validateSpec(spec);
     if (!check.ok) {
       document.getElementById("status").textContent = "First try failed checks, asking the AI to fix it...";
       raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That JSON failed these checks: " + check.errors.join("; ") + ". Return corrected valid JSON only." }]);
-      spec = JSON.parse(stripFences(raw));
+      spec = repairSpec(JSON.parse(stripFences(raw)));
       check = validateSpec(spec);
     }
-    if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks, so here is a fallback level. Try another prompt."; }
+    if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else { buildLevel(spec, "Generated (" + provider + ")"); document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + ". Click the game to play."; }
   } catch (err) {
     if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
       document.getElementById("status").textContent = "Meta is busy, retrying with Groq...";
       try {
         var raw2 = await callAI("groq", [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
-        var spec2 = JSON.parse(stripFences(raw2));
+        var spec2 = repairSpec(JSON.parse(stripFences(raw2)));
         if (validateSpec(spec2).ok) { buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
         else { buildLevel(FALLBACK_SPEC, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
