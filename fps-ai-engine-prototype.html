@@ -89,6 +89,7 @@
     <div class="bar">
       <label>Tool:
         <select id="edTool">
+          <option value="select">Select (click anything)</option>
           <option value="wall">Wall</option>
           <option value="floor">Floor</option>
           <option value="door">Locked door</option>
@@ -97,8 +98,11 @@
           <option value="enemy">Enemy</option>
           <option value="pickup">Pickup</option>
           <option value="eraser">Eraser</option>
+          <option value="sketch">Sketch (draw freehand)</option>
         </select>
       </label>
+      <label>Brush: <select id="edBrush"><option value="1">1</option><option value="3">3</option><option value="5">5</option></select></label>
+      <label>Sketch color: <input type="color" id="edSketchColor" value="#ffcc00"></label>
       <label>Enemy type: <select id="edEnemyType"></select></label>
       <label>Pickup: <select id="edPickupType"><option value="health">health</option><option value="ammo">ammo</option><option value="armor">armor</option><option value="key">key</option></select></label>
       <button id="edRotateBtn">Rotate 90°</button>
@@ -109,9 +113,19 @@
       <button id="edPlayBtn">Play edited level</button>
       <button id="edCancelBtn">Cancel</button>
     </div>
+    <div class="bar">
+      <span id="edSelInfo" class="small">Pick the Select tool, then click anything in the map to inspect it.</span>
+      <button id="edRegenBtn" style="display:none">Regenerate</button>
+      <button id="edDeleteBtn" style="display:none">Delete</button>
+      <button id="edWeaponsBtn">Regenerate weapons</button>
+      <button id="edWallStyleBtn">New wall style</button>
+      <label>Upload image: <input type="file" id="edImgFile" accept="image/*"></label>
+      <button id="edWallImgBtn" style="display:none">Use as wall texture</button>
+      <button id="edEnemyImgBtn" style="display:none">Use as monster sprite</button>
+    </div>
     <div id="edInfo" class="small"></div>
     <canvas id="editorCanvas"></canvas>
-    <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors.</div>
+    <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors. Select + click anything to regenerate it. Sketch draws freehand (shows in top-view and side-scroll). Uploaded images ride inside shared links, so keep them small.</div>
   </div>
   <div id="feedBox" style="display:none">
     <div class="bar"><button id="backBtn">Back to game</button><span class="small">Your saved levels, newest first. Play one, copy its link, share it, or export it as a playable file you can host anywhere, including GitHub Pages. Below them, community levels from the shared list.</span></div>
@@ -119,7 +133,7 @@
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -269,7 +283,7 @@ function validateSpec(spec) {
   if ((spec.enemies || []).length > CAPS.enemiesMax) errors.push("too many enemies");
   if ((spec.weapons || []).length > CAPS.weaponsMax) errors.push("too many weapons");
   if ((spec.pickups || []).length > CAPS.pickupsMax) errors.push("too many pickups");
-  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0) errors.push("unknown wall texture");
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom") errors.push("unknown wall texture");
   if (GOAL_TYPES.indexOf((spec.goal || {}).type) < 0) errors.push("unknown goal");
   if (errors.length === 0 && spec.map[ps.y] && spec.gameType !== "sidescroll") {
     var seen = [], stack = [[ps.x, ps.y]], count = 0, open = 0;
@@ -331,7 +345,7 @@ function repairSpec(spec) {
   if (!Array.isArray(spec.weapons)) spec.weapons = [];
   spec.weapons = spec.weapons.filter(function (wp) { return wp && WEAPON_TYPES[wp.type]; }).slice(0, CAPS.weaponsMax);
   if (spec.weapons.length === 0) spec.weapons = [{ type: "pistol", damage: 20, ammo: 12 }];
-  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0) spec.wallTexture = "brick";
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom") spec.wallTexture = "brick";
   if (!spec.goal || GOAL_TYPES.indexOf(spec.goal.type) < 0) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
   if (spec.goal.type !== "eliminate-all" && (!spec.map[spec.goal.exitY] || spec.map[spec.goal.exitY][spec.goal.exitX] !== 0)) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
   return spec;
@@ -367,6 +381,8 @@ function buildLevel(spec, sourceLabel, art) {
   var btable = typeTable(S);
   S.enemies = (S.enemies || []).map(function (e) { var t = btable[e.type] || ENEMY_TYPES.skeleton; var beh = t.behavior || "chase"; var spd = beh === "turret" ? 0 : (e.speed || t.speed); return { type: e.type, name: t.name || e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: spd, damage: e.damage || t.damage, color: t.color || "#ff00ff", shape: t.shape || "blob", behavior: beh, img: (S.art && S.art.sprites[e.type]) || null, cool: 0, moving: beh === "turret" ? true : spd > 0, wander: beh === "wander", wanderT: 0, wanderX: 0, wanderY: 0 }; });
   S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
+  if (S.customWallImg) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["custom"] = c; }; wi.src = S.customWallImg; }
+  S.enemies.forEach(function (e, i) { var raw = (spec.enemies || [])[i]; if (raw && raw.imgSrc) { var im = new Image(); im.src = raw.imgSrc; e.img = im; } });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
   document.getElementById("overlay").style.display = "flex";
   document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>";
@@ -722,7 +738,7 @@ document.getElementById("generateBtn").addEventListener("click", async function 
 });
 
 /* ============ Hand editor: fix a weird AI level by hand ============ */
-var E = null, ePainting = false;
+var E = null, ePainting = false, edSel = null, edSketchStroke = null, edUploadData = null;
 function editorTypes() { return typeTable(E.spec); }
 function openEditor() {
   if (!lastSpec) { document.getElementById("status").textContent = "No level to edit yet."; return; }
@@ -733,6 +749,10 @@ function openEditor() {
   (sp.pickups || []).forEach(function (p) { p.x = Math.floor(p.x); p.y = Math.floor(p.y); });
   if (sp.goal) { sp.goal.exitX = Math.floor(sp.goal.exitX || 0); sp.goal.exitY = Math.floor(sp.goal.exitY || 0); }
   E = { spec: sp };
+  edSel = null; edSketchStroke = null; edUploadData = null;
+  document.getElementById("edImgFile").value = "";
+  document.getElementById("edWallImgBtn").style.display = "none";
+  renderSelPanel();
   var sel = document.getElementById("edEnemyType"); sel.innerHTML = "";
   Object.keys(editorTypes()).forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
   document.getElementById("gameBox").style.display = "none";
@@ -741,7 +761,7 @@ function openEditor() {
   document.getElementById("status").textContent = "Editing: click tiles to fix the level, then Play edited level.";
 }
 function closeEditor() {
-  E = null;
+  E = null; edSel = null; edSketchStroke = null;
   document.getElementById("editorBox").style.display = "none";
   document.getElementById("gameBox").style.display = "block";
 }
@@ -761,6 +781,14 @@ function drawEditor() {
   g.fillStyle = "#3ddc54"; g.fillRect(ps.x * cs + 3, ps.y * cs + 3, cs - 6, cs - 6);
   g.fillStyle = "#000"; g.font = "bold " + Math.floor(cs * 0.5) + "px Verdana"; g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("P", ps.x * cs + cs / 2, ps.y * cs + cs / 2 + 1);
+  (E.spec.sketch || []).concat(edSketchStroke ? [edSketchStroke] : []).forEach(function (st) {
+    if (!st.pts || st.pts.length < 2) return;
+    g.strokeStyle = st.color || "#ffcc00"; g.lineWidth = Math.max(2, cs * 0.18); g.lineJoin = "round"; g.lineCap = "round";
+    g.beginPath(); g.moveTo(st.pts[0][0] * cs, st.pts[0][1] * cs);
+    for (var si = 1; si < st.pts.length; si++) g.lineTo(st.pts[si][0] * cs, st.pts[si][1] * cs);
+    g.stroke();
+  });
+  if (edSel) { g.strokeStyle = "#ffe600"; g.lineWidth = 3; g.strokeRect(edSel.x * cs + 1, edSel.y * cs + 1, cs - 2, cs - 2); }
   if (E.spec.goal && E.spec.goal.type !== "eliminate-all") {
     g.fillStyle = "#ffd76a"; g.beginPath(); g.arc(E.spec.goal.exitX * cs + cs / 2, E.spec.goal.exitY * cs + cs / 2, cs * 0.32, 0, Math.PI * 2); g.fill();
     g.fillStyle = "#000"; g.fillText("X", E.spec.goal.exitX * cs + cs / 2, E.spec.goal.exitY * cs + cs / 2 + 1);
@@ -786,13 +814,29 @@ function clearTile(x, y) {
   E.spec.enemies = (E.spec.enemies || []).filter(function (e) { return !(e.x === x && e.y === y); });
   E.spec.pickups = (E.spec.pickups || []).filter(function (p) { return !(p.x === x && p.y === y); });
 }
-function applyTool(cell) {
-  if (!E || !cell) return;
-  var tool = document.getElementById("edTool").value, map = E.spec.map, x = cell.x, y = cell.y;
+function edPoint(ev) {
+  var cv = document.getElementById("editorCanvas"), r = cv.getBoundingClientRect();
+  var cols = E.spec.map[0].length, rows = E.spec.map.length;
+  return { x: (ev.clientX - r.left) / r.width * cols, y: (ev.clientY - r.top) / r.height * rows };
+}
+function applyToolCell(tool, x, y) {
+  var map = E.spec.map;
+  if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return;
   if (tool === "wall") { map[y][x] = 1; clearTile(x, y); }
   else if (tool === "floor") { map[y][x] = 0; }
   else if (tool === "door") { map[y][x] = 2; clearTile(x, y); }
-  else if (tool === "player") { if (map[y][x] === 0) E.spec.playerStart = { x: x, y: y, angle: 0 }; }
+  else if (tool === "eraser") { clearTile(x, y); }
+}
+function applyTool(cell) {
+  if (!E || !cell) return;
+  var tool = document.getElementById("edTool").value, map = E.spec.map, x = cell.x, y = cell.y;
+  if (tool === "select") { selectAt(cell); drawEditor(); return; }
+  if (tool === "wall" || tool === "floor" || tool === "door" || tool === "eraser") {
+    var brush = +document.getElementById("edBrush").value || 1, r = Math.floor((brush - 1) / 2);
+    for (var dy = -r; dy <= r; dy++) for (var dx = -r; dx <= r; dx++) applyToolCell(tool, x + dx, y + dy);
+    drawEditor(); return;
+  }
+  if (tool === "player") { if (map[y][x] === 0) E.spec.playerStart = { x: x, y: y, angle: 0 }; }
   else if (tool === "exit") { if (map[y][x] === 0) { if (!E.spec.goal) E.spec.goal = { type: "reach-exit", keys: 0, exitX: x, exitY: y }; E.spec.goal.exitX = x; E.spec.goal.exitY = y; } }
   else if (tool === "enemy") {
     if (map[y][x] !== 0) return;
@@ -809,16 +853,210 @@ function applyTool(cell) {
     if (pl.some(function (p) { return p.x === x && p.y === y; })) return;
     pl.push({ type: document.getElementById("edPickupType").value, x: x, y: y, amount: 25 });
   }
-  else if (tool === "eraser") { clearTile(x, y); }
   drawEditor();
 }
-document.getElementById("editorCanvas").addEventListener("mousedown", function (ev) { ePainting = true; applyTool(edCell(ev)); });
+document.getElementById("editorCanvas").addEventListener("mousedown", function (ev) {
+  var tool = document.getElementById("edTool").value;
+  if (tool === "sketch") { ePainting = true; var pt = edPoint(ev); edSketchStroke = { color: document.getElementById("edSketchColor").value, pts: [[pt.x, pt.y]] }; return; }
+  ePainting = true; applyTool(edCell(ev));
+});
 document.getElementById("editorCanvas").addEventListener("mousemove", function (ev) {
   if (!ePainting) return;
   var tool = document.getElementById("edTool").value;
+  if (tool === "sketch") { var pt = edPoint(ev); if (edSketchStroke) { edSketchStroke.pts.push([pt.x, pt.y]); drawEditor(); } return; }
   if (tool === "wall" || tool === "floor" || tool === "door" || tool === "eraser") applyTool(edCell(ev));
 });
-document.addEventListener("mouseup", function () { ePainting = false; });
+document.addEventListener("mouseup", function () {
+  if (ePainting && edSketchStroke && edSketchStroke.pts.length > 1) {
+    if (!E.spec.sketch) E.spec.sketch = [];
+    E.spec.sketch.push(edSketchStroke);
+  }
+  edSketchStroke = null; ePainting = false;
+});
+/* ============ Editor v2: select + regenerate + images ============ */
+function selectAt(cell) {
+  var sp = E.spec, x = cell.x, y = cell.y;
+  var ei = (sp.enemies || []).findIndex(function (e) { return e.x === x && e.y === y; });
+  if (ei >= 0) { edSel = { kind: "enemy", index: ei, x: x, y: y }; renderSelPanel(); return; }
+  var pi = (sp.pickups || []).findIndex(function (p) { return p.x === x && p.y === y; });
+  if (pi >= 0) { edSel = { kind: "pickup", index: pi, x: x, y: y }; renderSelPanel(); return; }
+  if (sp.playerStart && sp.playerStart.x === x && sp.playerStart.y === y) { edSel = { kind: "start", x: x, y: y }; renderSelPanel(); return; }
+  if (sp.goal && sp.goal.type !== "eliminate-all" && sp.goal.exitX === x && sp.goal.exitY === y) { edSel = { kind: "goal", x: x, y: y }; renderSelPanel(); return; }
+  edSel = { kind: "tile", value: sp.map[y][x], x: x, y: y };
+  renderSelPanel();
+}
+function renderSelPanel() {
+  var info = document.getElementById("edSelInfo"), rb = document.getElementById("edRegenBtn"), db = document.getElementById("edDeleteBtn"), eb = document.getElementById("edEnemyImgBtn");
+  if (!E || !edSel) {
+    info.textContent = "Pick the Select tool, then click anything in the map to inspect it.";
+    rb.style.display = "none"; db.style.display = "none"; eb.style.display = "none"; return;
+  }
+  var sp = E.spec;
+  if (edSel.kind === "enemy") {
+    var e = sp.enemies[edSel.index], t = editorTypes()[e.type] || {};
+    info.textContent = "Monster: " + (t.name || e.type) + " (HP " + e.health + ", speed " + e.speed + ", damage " + e.damage + ", " + (t.behavior || "chase") + ").";
+    rb.textContent = "Regenerate monster"; rb.style.display = "";
+    db.textContent = "Delete"; db.style.display = "";
+  } else if (edSel.kind === "pickup") {
+    var p = sp.pickups[edSel.index];
+    info.textContent = "Pickup: " + p.type + " (+" + p.amount + ").";
+    rb.textContent = "Regenerate pickup"; rb.style.display = "";
+    db.textContent = "Delete"; db.style.display = "";
+  } else if (edSel.kind === "start") {
+    info.textContent = "Player start. Use the Player tool to move it.";
+    rb.style.display = "none"; db.style.display = "none";
+  } else if (edSel.kind === "goal") {
+    info.textContent = "Goal exit (" + (sp.goal && sp.goal.type) + ").";
+    rb.textContent = "Regenerate goal"; rb.style.display = "";
+    db.style.display = "none";
+  } else {
+    info.textContent = edSel.value === 1 ? "Wall tile." : edSel.value === 2 ? "Locked door tile." : "Floor tile.";
+    if (edSel.value === 0) { rb.style.display = "none"; db.textContent = "Make wall"; db.style.display = ""; }
+    else { rb.textContent = "New wall style"; rb.style.display = ""; db.textContent = "Make floor"; db.style.display = ""; }
+  }
+  eb.style.display = (edUploadData && edSel.kind === "enemy") ? "" : "none";
+}
+function refreshEnemyTypeSelect() {
+  var sel = document.getElementById("edEnemyType"); sel.innerHTML = "";
+  Object.keys(editorTypes()).forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
+}
+function randomOpenTile(sp) {
+  var open = [];
+  sp.map.forEach(function (row, y) { row.forEach(function (t, x) { if (t === 0) open.push({ x: x, y: y }); }); });
+  return open.length ? open[Math.floor(Math.random() * open.length)] : { x: 1, y: 1 };
+}
+async function regenEnemy(i) {
+  var sp = E.spec, e = sp.enemies[i], status = document.getElementById("status");
+  var prov = document.getElementById("providerSelect").value, key = keyFor(prov);
+  if (key) {
+    status.textContent = "Regenerating monster with " + prov + "...";
+    try {
+      var raw = await callAI(prov, [{ role: "system", content: "You are a game enemy designer. Answer JSON only, no prose." }, { role: "user", content: "Redesign ONE enemy for a " + (sp.theme || "game") + " level. Current enemy: " + JSON.stringify(e) + ". Return {enemyType: {id, name, color, hp, speed, damage, behavior, shape, look}, enemy: {type, x, y, health, speed, damage}} with a NEW unique id, stats inside hp 10-200, speed 0-3, damage 1-50, behavior chase/wander/turret, shape brute/flyer/blob/spiky. Keep x and y exactly." }]);
+      var data = JSON.parse(stripFences(raw)), nt = normalizeType(data.enemyType);
+      if (nt && data.enemy) {
+        nt.id = "regen-" + Date.now().toString(36);
+        if (!sp.enemyTypes) sp.enemyTypes = [];
+        sp.enemyTypes.push(nt);
+        e.type = nt.id; e.health = clamp(data.enemy.health || nt.hp, 10, 200); e.speed = clamp(data.enemy.speed || nt.speed, 0.5, 3); e.damage = clamp(data.enemy.damage || nt.damage, 1, 50);
+        status.textContent = "Monster regenerated: " + nt.name + ".";
+        refreshEnemyTypeSelect(); renderSelPanel(); drawEditor(); return;
+      }
+    } catch (err) { status.textContent = "AI regenerate failed, randomizing instead."; }
+  }
+  var colors = ["#ff5252", "#ffd60a", "#3ddc54", "#4aa8ff", "#b26ae5", "#ff8c2e", "#ff5fa2"];
+  var nt2 = { id: "regen-" + Date.now().toString(36), name: "Regen " + ENEMY_SHAPES[Math.floor(Math.random() * 4)], color: colors[Math.floor(Math.random() * colors.length)], hp: 15 + Math.floor(Math.random() * 100), speed: 0.5 + Math.random() * 2, damage: 5 + Math.floor(Math.random() * 30), behavior: ENEMY_BEHAVIORS[Math.floor(Math.random() * 3)], shape: ENEMY_SHAPES[Math.floor(Math.random() * 4)], look: "Regenerated monster" };
+  if (!sp.enemyTypes) sp.enemyTypes = [];
+  sp.enemyTypes.push(nt2);
+  e.type = nt2.id; e.health = nt2.hp; e.speed = nt2.speed; e.damage = nt2.damage;
+  status.textContent = "Monster regenerated (random): " + nt2.name + ".";
+  refreshEnemyTypeSelect(); renderSelPanel(); drawEditor();
+}
+async function regenWallStyle() {
+  var sp = E.spec, status = document.getElementById("status");
+  var prov = document.getElementById("providerSelect").value, key = keyFor(prov);
+  if (key) {
+    status.textContent = "Picking a new wall style with " + prov + "...";
+    try {
+      var raw = await callAI(prov, [{ role: "system", content: "You are a game art director. Answer JSON only, no prose." }, { role: "user", content: "Pick a wall style for a " + (sp.theme || "game") + " level. Return {wallTexture, floorColor, ceilingColor} with wallTexture one of: " + WALL_TEXTURES.join(", ") + " and floorColor/ceilingColor as hex colors." }]);
+      var data = JSON.parse(stripFences(raw));
+      if (WALL_TEXTURES.indexOf(data.wallTexture) >= 0) {
+        sp.wallTexture = data.wallTexture;
+        if (typeof data.floorColor === "string") sp.floorColor = data.floorColor;
+        if (typeof data.ceilingColor === "string") sp.ceilingColor = data.ceilingColor;
+        status.textContent = "New wall style: " + sp.wallTexture + ".";
+        drawEditor(); return;
+      }
+    } catch (err) { status.textContent = "AI wall style failed, picking at random."; }
+  }
+  sp.wallTexture = WALL_TEXTURES[Math.floor(Math.random() * WALL_TEXTURES.length)];
+  var floors = ["#1a1a1a", "#2a1a12", "#0a0a18", "#14201a", "#241a2e"];
+  sp.floorColor = floors[Math.floor(Math.random() * floors.length)];
+  sp.ceilingColor = floors[Math.floor(Math.random() * floors.length)];
+  status.textContent = "New wall style (random): " + sp.wallTexture + ".";
+  drawEditor();
+}
+function cycleGoal() {
+  var sp = E.spec;
+  if (!sp.goal) sp.goal = { type: "eliminate-all", keys: 0, exitX: sp.playerStart.x, exitY: sp.playerStart.y };
+  if (sp.goal.type === "eliminate-all") {
+    var t = randomOpenTile(sp);
+    sp.goal = { type: "reach-exit", keys: 0, exitX: t.x, exitY: t.y };
+  } else if (sp.goal.type === "reach-exit") {
+    var keys = (sp.pickups || []).filter(function (p) { return p.type === "key"; });
+    while (keys.length < 3) { var kt = randomOpenTile(sp); if ((sp.pickups || []).some(function (p) { return p.x === kt.x && p.y === kt.y; })) continue; (sp.pickups || (sp.pickups = [])).push({ type: "key", x: kt.x, y: kt.y, amount: 1 }); keys.push(1); }
+    sp.goal = { type: "key-hunt", keys: keys.length, exitX: sp.goal.exitX, exitY: sp.goal.exitY };
+  } else {
+    sp.goal = { type: "eliminate-all", keys: 0, exitX: sp.playerStart.x, exitY: sp.playerStart.y };
+  }
+  document.getElementById("status").textContent = "Goal is now " + sp.goal.type + ".";
+  renderSelPanel(); drawEditor();
+}
+async function regenWeapons() {
+  var sp = E.spec, status = document.getElementById("status");
+  var prov = document.getElementById("providerSelect").value, key = keyFor(prov);
+  var names = Object.keys(WEAPON_TYPES);
+  if (key) {
+    status.textContent = "Regenerating weapons with " + prov + "...";
+    try {
+      var raw = await callAI(prov, [{ role: "system", content: "You are a game weapon designer. Answer JSON only, no prose." }, { role: "user", content: "Pick 1-2 weapons for a " + (sp.theme || "game") + " level. Return {weapons: [{type, damage, ammo}]} with type one of: " + names.join(", ") + "." }]);
+      var data = JSON.parse(stripFences(raw));
+      var ws = (data.weapons || []).filter(function (w) { return w && WEAPON_TYPES[w.type]; }).slice(0, 2);
+      if (ws.length) { sp.weapons = ws.map(function (w) { return { type: w.type, damage: w.damage || WEAPON_TYPES[w.type].damage, ammo: w.ammo || WEAPON_TYPES[w.type].ammo }; }); status.textContent = "Weapons regenerated: " + sp.weapons.map(function (w) { return w.type; }).join(", ") + "."; return; }
+    } catch (err) { status.textContent = "AI weapons failed, picking at random."; }
+  }
+  var n = 1 + Math.floor(Math.random() * 2), picked = [];
+  while (picked.length < n) { var w = names[Math.floor(Math.random() * names.length)]; if (picked.indexOf(w) < 0) picked.push(w); }
+  sp.weapons = picked.map(function (t) { return { type: t, damage: WEAPON_TYPES[t].damage, ammo: WEAPON_TYPES[t].ammo }; });
+  status.textContent = "Weapons regenerated (random): " + picked.join(", ") + ".";
+}
+document.getElementById("edRegenBtn").addEventListener("click", function () {
+  if (!E || !edSel) return;
+  if (edSel.kind === "enemy") regenEnemy(edSel.index);
+  else if (edSel.kind === "pickup") {
+    var p = E.spec.pickups[edSel.index], order = ["health", "ammo", "armor", "key"];
+    p.type = order[(order.indexOf(p.type) + 1) % order.length];
+    p.amount = p.type === "ammo" ? 8 : p.type === "key" ? 1 : 25;
+    document.getElementById("status").textContent = "Pickup regenerated: " + p.type + ".";
+    renderSelPanel(); drawEditor();
+  }
+  else if (edSel.kind === "goal") cycleGoal();
+  else if (edSel.kind === "tile") regenWallStyle();
+});
+document.getElementById("edDeleteBtn").addEventListener("click", function () {
+  if (!E || !edSel) return;
+  if (edSel.kind === "enemy") E.spec.enemies.splice(edSel.index, 1);
+  else if (edSel.kind === "pickup") E.spec.pickups.splice(edSel.index, 1);
+  else if (edSel.kind === "tile") E.spec.map[edSel.y][edSel.x] = edSel.value === 0 ? 1 : 0;
+  edSel = null; renderSelPanel(); drawEditor();
+});
+document.getElementById("edWeaponsBtn").addEventListener("click", regenWeapons);
+document.getElementById("edWallStyleBtn").addEventListener("click", regenWallStyle);
+document.getElementById("edImgFile").addEventListener("change", function (ev) {
+  var f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function () {
+    edUploadData = rd.result;
+    document.getElementById("edWallImgBtn").style.display = "";
+    renderSelPanel();
+    var kb = Math.round(edUploadData.length / 1024);
+    document.getElementById("status").textContent = kb > 500 ? "Image loaded (" + kb + " KB — large; shared links may break, exported files carry it fine)." : "Image loaded. Use it as a wall texture or a monster sprite.";
+  };
+  rd.readAsDataURL(f);
+});
+document.getElementById("edWallImgBtn").addEventListener("click", function () {
+  if (!E || !edUploadData) return;
+  E.spec.customWallImg = edUploadData;
+  E.spec.wallTexture = "custom";
+  document.getElementById("status").textContent = "Wall texture set from your image.";
+  drawEditor();
+});
+document.getElementById("edEnemyImgBtn").addEventListener("click", function () {
+  if (!E || !edSel || edSel.kind !== "enemy" || !edUploadData) { document.getElementById("status").textContent = "Select a monster first, then use an uploaded image as its sprite."; return; }
+  E.spec.enemies[edSel.index].imgSrc = edUploadData;
+  document.getElementById("status").textContent = "Monster sprite set from your image.";
+  drawEditor();
+});
 function edTransform(fn) {
   if (!E) return;
   E.spec = fn(E.spec);
@@ -833,6 +1071,7 @@ function rotateSpec(sp) {
   (sp.enemies || []).forEach(function (e) { var c = f(e.x, e.y); e.x = c.x; e.y = c.y; });
   (sp.pickups || []).forEach(function (p) { var c = f(p.x, p.y); p.x = c.x; p.y = c.y; });
   if (sp.goal) { var g = f(sp.goal.exitX, sp.goal.exitY); sp.goal.exitX = g.x; sp.goal.exitY = g.y; }
+  (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { var c = f(pt[0], pt[1]); return [c.x, c.y]; }); });
   return sp;
 }
 function flipSpec(sp) {
@@ -843,6 +1082,7 @@ function flipSpec(sp) {
   (sp.enemies || []).forEach(function (e) { e.x = f(e.x); });
   (sp.pickups || []).forEach(function (p) { p.x = f(p.x); });
   if (sp.goal) sp.goal.exitX = f(sp.goal.exitX);
+  (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { return [W - 1 - pt[0], pt[1]]; }); });
   return sp;
 }
 function scaleSpec(sp, factor) {
@@ -857,6 +1097,7 @@ function scaleSpec(sp, factor) {
     (sp.enemies || []).forEach(function (e) { e.x = d(e.x); e.y = d(e.y); });
     (sp.pickups || []).forEach(function (p) { p.x = d(p.x); p.y = d(p.y); });
     if (sp.goal) { sp.goal.exitX = d(sp.goal.exitX); sp.goal.exitY = d(sp.goal.exitY); }
+    (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { return [pt[0] * 2, pt[1] * 2]; }); });
   } else {
     if (W % 2 || H % 2) { document.getElementById("status").textContent = "Halving needs even sides (this map is " + W + "x" + H + ")."; return sp; }
     var nm2 = [];
@@ -869,6 +1110,7 @@ function scaleSpec(sp, factor) {
     var seen2 = {};
     sp.pickups = (sp.pickups || []).filter(function (p) { p.x = h(p.x); p.y = h(p.y); var k = p.x + "," + p.y; if (seen2[k]) return false; seen2[k] = 1; return true; });
     if (sp.goal) { sp.goal.exitX = h(sp.goal.exitX); sp.goal.exitY = h(sp.goal.exitY); }
+    (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { return [pt[0] / 2, pt[1] / 2]; }); });
   }
   return sp;
 }
@@ -1139,6 +1381,13 @@ function renderTop() {
   if (S.goal && S.goal.type !== "eliminate-all") { ctx.fillStyle = "#ffcc00"; ctx.fillRect(ox + S.goal.exitX * scale + scale * 0.2, oy + S.goal.exitY * scale + scale * 0.2, scale * 0.6, scale * 0.6); }
   var pcol = { health: "#ff3b30", ammo: "#ffd60a", armor: "#3b82ff", key: "#ffcc00" };
   S.pickups.forEach(function (pk) { ctx.fillStyle = pcol[pk.type] || "#fff"; ctx.fillRect(ox + pk.x * scale + scale * 0.3, oy + pk.y * scale + scale * 0.3, scale * 0.4, scale * 0.4); });
+  (S.sketch || []).forEach(function (st) {
+    if (!st.pts || st.pts.length < 2) return;
+    ctx.strokeStyle = st.color || "#ffcc00"; ctx.lineWidth = Math.max(2, scale * 0.18); ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(ox + st.pts[0][0] * scale, oy + st.pts[0][1] * scale);
+    for (var si = 1; si < st.pts.length; si++) ctx.lineTo(ox + st.pts[si][0] * scale, oy + st.pts[si][1] * scale);
+    ctx.stroke();
+  });
   S.enemies.forEach(function (e) {
     var ex = ox + e.x * scale, ey = oy + e.y * scale, r = Math.max(4, scale * 0.3);
     if (e.img) ctx.drawImage(e.img, ex - r, ey - r, r * 2, r * 2);
@@ -1229,6 +1478,13 @@ function renderSide() {
   if (S.goal && S.goal.type !== "eliminate-all") { ctx.fillStyle = "#ffcc00"; ctx.fillRect(S.goal.exitX * T - S.camX + 8, S.goal.exitY * T + oy + 8, T - 16, T - 16); }
   var pcol = { health: "#ff3b30", ammo: "#ffd60a", armor: "#3b82ff", key: "#ffcc00" };
   S.pickups.forEach(function (pk) { var sx = pk.x * T - S.camX, sy = pk.y * T + oy; if (sx < -T || sx > W) return; ctx.fillStyle = pcol[pk.type] || "#fff"; ctx.fillRect(sx + 12, sy + 12, T - 24, T - 24); });
+  (S.sketch || []).forEach(function (st) {
+    if (!st.pts || st.pts.length < 2) return;
+    ctx.strokeStyle = st.color || "#ffcc00"; ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(st.pts[0][0] * T - S.camX, st.pts[0][1] * T + oy);
+    for (var si = 1; si < st.pts.length; si++) ctx.lineTo(st.pts[si][0] * T - S.camX, st.pts[si][1] * T + oy);
+    ctx.stroke();
+  });
   S.enemies.forEach(function (e) {
     var ex = e.x * T - S.camX, ey = e.y * T + oy;
     if (ex < -T || ex > W + T) return;
