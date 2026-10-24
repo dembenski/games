@@ -73,7 +73,7 @@
 /* ============ CONFIG: provider endpoints and models (user-correctable) ============ */
 var CONFIG = {
   meta: { baseUrl: "https://api.meta.ai/v1/chat/completions", model: "muse-spark-1.3" },
-  groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.1-8b-instant" }
+  groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-20b" }
 };
 var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences, matching exactly the spec shape given. Map tiles: 0 open, 1 wall, 2 locked door. Map max 24x24 with all border tiles walls. Player start on an open tile. Enemies max 20, only from this roster: skeleton, zombie, ghost, goblin, bat, turret. Weapons only from: pistol, shotgun, blaster, rifle. Pickups only from: health, ammo, armor, key. Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. Keep every number inside the stated caps.";
 var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
@@ -485,6 +485,8 @@ document.getElementById("generateBtn").addEventListener("click", async function 
         if (validateSpec(spec2).ok) { buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
         else { buildLevel(FALLBACK_SPEC, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
+    } else if (err.status === 404) {
+      document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
     } else {
       document.getElementById("status").textContent = "AI call failed (" + (err.status || "network") + "). The demo castle still plays. Check your key and try again.";
     }
