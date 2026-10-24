@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FPS AI Game Engine Prototype</title>
+<title>AI Game Engine Prototype</title>
 <style>
   body { margin: 0; background: #0b0b12; color: #eee; font-family: Verdana, Geneva, sans-serif; }
   .wrap { max-width: 1000px; margin: 0 auto; padding: 12px; }
@@ -34,7 +34,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>FPS AI Game Engine Prototype</h1>
+  <h1>AI Game Engine Prototype</h1>
   <div class="proto">Practice build, NOT the hackathon submission. The real entry gets built fresh Oct 26 to Nov 4, 2026. Type a game wish, the AI designs the level, you play it.</div>
   <div class="bar">
     <label>Game type:
@@ -119,7 +119,7 @@
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -1005,7 +1005,7 @@ document.getElementById("feedBox").addEventListener("click", function (ev) {
   var list = src === "community" ? communityList : loadFeed();
   var item = list[idx];
   if (!item) return;
-  var link = specLink(item.spec), text = "I made '" + (item.spec.title || "a level") + "' with the FPS AI Game Engine! Play it here: " + link;
+  var link = specLink(item.spec), text = "I made '" + (item.spec.title || "a level") + "' with the AI Game Engine! Play it here: " + link;
   var act = b.getAttribute("data-act");
   if (act === "play") { hideFeed(); buildLevel(repairSpec(JSON.parse(JSON.stringify(item.spec))), src === "community" ? "Community" : "Feed", lastArt); document.getElementById("status").textContent = "Playing from " + (src === "community" ? "community" : "your feed") + ": " + (item.spec.title || "Untitled") + ". Click the game to play."; }
   else if (act === "copy") { var st = document.getElementById("status"); st.textContent = "Link copied. Anyone opening it plays this level."; copyText(link).then(function (ok) { if (!ok) st.textContent = "Copy was blocked. Copy this link by hand: " + link; }); }
