@@ -65,7 +65,7 @@
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: clickfix-25be768 + lockmsg.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -479,7 +479,8 @@ canvas.addEventListener("click", function () {
 });
 document.getElementById("overlay").addEventListener("click", function () {
   if (gameOver) return;
-  canvas.requestPointerLock && canvas.requestPointerLock();
+  var p = canvas.requestPointerLock && canvas.requestPointerLock();
+  if (p && p.catch) p.catch(function (err) { document.getElementById("status").textContent = "Pointer lock blocked: " + (err && err.message ? err.message : err) + ". Try clicking again in a second."; });
 });
 document.addEventListener("pointerlockchange", function () {
   locked = document.pointerLockElement === canvas;
