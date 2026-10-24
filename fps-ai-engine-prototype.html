@@ -638,6 +638,8 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
     } else if (err.status === 404) {
       document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
+    } else if (err.message === "Failed to fetch") {
+      document.getElementById("status").textContent = "AI call failed (network — the request never reached the API). Check your connection and try again. The demo castle still plays.";
     } else {
       document.getElementById("status").textContent = "AI call failed (" + (err.status || "network") + "). The demo castle still plays. Check your key and try again.";
     }
