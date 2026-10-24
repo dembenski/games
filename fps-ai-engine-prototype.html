@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FPS AI Game Engine Prototype</title>
+<style>
+  body { margin: 0; background: #0b0b12; color: #eee; font-family: Verdana, Geneva, sans-serif; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 12px; }
+  h1 { margin: 6px 0 2px; font-size: 24px; }
+  .proto { background: #3a2a00; border: 1px solid #c9a227; padding: 8px 10px; border-radius: 6px; font-size: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+  .bar input[type="text"], .bar input[type="password"], .bar select { padding: 8px; font-size: 15px; border-radius: 5px; border: 1px solid #444; background: #1a1a26; color: #eee; }
+  #promptInput { flex: 1; min-width: 260px; }
+  #keyInput { width: 220px; }
+  button { padding: 9px 16px; font-size: 15px; border-radius: 5px; border: none; background: #7b2ff7; color: #fff; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { font-size: 14px; color: #ffd76a; min-height: 20px; }
+  #hud { display: flex; flex-wrap: wrap; gap: 16px; font-size: 16px; margin: 8px 0; }
+  #hud b { color: #ffd76a; }
+  #hpBarWrap { width: 180px; height: 16px; background: #333; border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
+  #hpBar { display: block; height: 100%; width: 100%; background: #3ddc54; }
+  #gameBox { position: relative; width: 960px; max-width: 100%; margin: 0 auto; }
+  canvas { display: block; width: 100%; background: #000; border: 2px solid #444; }
+  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 26px; cursor: pointer; text-align: center; padding: 20px; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px 30px rgba(255,0,0,0); transition: box-shadow 0.15s; }
+  #feed { background: #12121e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 14px; max-height: 220px; overflow-y: auto; }
+  #feed div { border-bottom: 1px solid #26263a; padding: 5px 0; }
+  #touchNote { display: none; background: #40200a; border: 1px solid #e08a2e; padding: 8px 10px; border-radius: 6px; margin: 10px 0; }
+  .small { font-size: 13px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FPS AI Game Engine Prototype</h1>
+  <div class="proto">Practice build, NOT the hackathon submission. The real entry gets built fresh Oct 26 to Nov 4, 2026. Type a game wish, the AI designs the level, you play it.</div>
+  <div class="bar">
+    <label>AI provider:
+      <select id="providerSelect">
+        <option value="meta">Meta AI (Recommended)</option>
+        <option value="groq">Groq (Free backup)</option>
+      </select>
+    </label>
+    <input type="password" id="keyInput" placeholder="Paste your API key here">
+    <button id="saveKeyBtn">Save key</button>
+    <span class="small">Key stays in this browser only. Never in the code.</span>
+  </div>
+  <div class="bar">
+    <input type="text" id="promptInput" placeholder='Try: make a haunted castle FPS with skeletons, a shotgun, and a key hunt'>
+    <button id="generateBtn">Generate game</button>
+  </div>
+  <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
+  <div id="hud">
+    <span>Health: <span id="hpBarWrap"><span id="hpBar"></span></span> <b id="hpText">100</b></span>
+    <span>Ammo: <b id="ammoText">8</b></span>
+    <span>Weapon: <b id="weaponText">shotgun</b></span>
+    <span>Enemies left: <b id="enemyText">6</b></span>
+    <span>Keys: <b id="keyText">0</b></span>
+    <span>Score: <b id="scoreText">0</b></span>
+    <span>Time: <b id="timeText">0s</b></span>
+  </div>
+  <div id="touchNote">Built for PC: keyboard and mouse recommended. Touch controls are not part of this prototype.</div>
+  <div id="gameBox">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="vignette"></div>
+    <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; R reload &nbsp; Shift run</span></div>
+  </div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes.</div>
+  <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
+</div>
+<script>
+"use strict";
+/* ============ CONFIG: provider endpoints and models (user-correctable) ============ */
+var CONFIG = {
+  meta: { baseUrl: "https://api.meta.ai/v1/chat/completions", model: "muse-spark-1.3" },
+  groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.1-8b-instant" }
+};
+var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences, matching exactly the spec shape given. Map tiles: 0 open, 1 wall, 2 locked door. Map max 24x24 with all border tiles walls. Player start on an open tile. Enemies max 20, only from this roster: skeleton, zombie, ghost, goblin, bat, turret. Weapons only from: pistol, shotgun, blaster, rifle. Pickups only from: health, ammo, armor, key. Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. Keep every number inside the stated caps.";
+var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
+var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
+var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
+var PICKUP_TYPES = ["health", "ammo", "armor", "key"];
+var WALL_TEXTURES = ["brick", "castle-brick", "neon-grid", "cave-rock", "tech-panel", "wood"];
+var GOAL_TYPES = ["eliminate-all", "key-hunt", "reach-exit"];
+
+/* ============ Procedural wall textures ============ */
+function makeTexture(name) {
+  var c = document.createElement("canvas"); c.width = 64; c.height = 64;
+  var g = c.getContext("2d");
+  var base = { "brick": "#7a3b2e", "castle-brick": "#5a5a6e", "neon-grid": "#0a0a18", "cave-rock": "#4a3b2c", "tech-panel": "#1c2b39", "wood": "#6b4423" }[name] || "#555";
+  g.fillStyle = base; g.fillRect(0, 0, 64, 64);
+  g.strokeStyle = "rgba(0,0,0,0.45)"; g.lineWidth = 2;
+  if (name === "neon-grid") {
+    g.strokeStyle = "#00e5ff";
+    for (var i = 0; i <= 64; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 64); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(64, i); g.stroke(); }
+  } else if (name === "wood") {
+    for (var y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); }
+    g.fillStyle = "rgba(0,0,0,0.2)"; g.fillRect(8, 4, 3, 56); g.fillRect(40, 20, 3, 40);
+  } else {
+    for (var y = 0; y < 64; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); }
+    for (var x = 0; x < 64; x += 32) { var off = ((x / 32) % 2) * 16; g.beginPath(); g.moveTo(x, off); g.lineTo(x, off + 16); g.stroke(); g.beginPath(); g.moveTo(x, off + 32); g.lineTo(x, off + 48); g.stroke(); }
+  }
+  return c;
+}
+var TEXTURES = {};
+WALL_TEXTURES.forEach(function (t) { TEXTURES[t] = makeTexture(t); });
+
+/* ============ Demo map (16x16, pillars only, all open tiles connected) ============ */
+var DEMO_SPEC = {
+  title: "Demo Castle", theme: "spooky castle",
+  map: [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1],
+    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+  ],
+  wallTexture: "castle-brick", floorColor: "#2a1a12", ceilingColor: "#0a0a18",
+  playerStart: { x: 1, y: 1, angle: 0 },
+  weapons: [{ type: "shotgun", damage: 34, ammo: 8 }],
+  enemies: [
+    { type: "skeleton", x: 5, y: 2, health: 30, speed: 1.1, damage: 10 },
+    { type: "skeleton", x: 13, y: 3, health: 30, speed: 1.1, damage: 10 },
+    { type: "skeleton", x: 8, y: 6, health: 30, speed: 1.1, damage: 10 },
+    { type: "skeleton", x: 2, y: 10, health: 30, speed: 1.1, damage: 10 },
+    { type: "skeleton", x: 13, y: 12, health: 30, speed: 1.1, damage: 10 },
+    { type: "skeleton", x: 6, y: 14, health: 30, speed: 1.1, damage: 10 }
+  ],
+  pickups: [
+    { type: "health", x: 2, y: 5, amount: 25 },
+    { type: "ammo", x: 10, y: 7, amount: 8 },
+    { type: "health", x: 14, y: 9, amount: 25 },
+    { type: "key", x: 14, y: 14, amount: 1 },
+    { type: "key", x: 8, y: 10, amount: 1 },
+    { type: "key", x: 3, y: 13, amount: 1 }
+  ],
+  goal: { type: "key-hunt", keys: 3, exitX: 14, exitY: 1 }
+};
+var FALLBACK_SPEC = {
+  title: "Fallback Room", theme: "practice",
+  map: (function () { var m = []; for (var y = 0; y < 12; y++) { var row = []; for (var x = 0; x < 12; x++) row.push((y === 0 || y === 11 || x === 0 || x === 11) ? 1 : 0); m.push(row); } return m; })(),
+  wallTexture: "brick", floorColor: "#1a1a1a", ceilingColor: "#050510",
+  playerStart: { x: 1, y: 1, angle: 0 },
+  weapons: [{ type: "pistol", damage: 20, ammo: 12 }],
+  enemies: [
+    { type: "zombie", x: 9, y: 9, health: 50, speed: 0.7, damage: 14 },
+    { type: "zombie", x: 5, y: 8, health: 50, speed: 0.7, damage: 14 },
+    { type: "zombie", x: 9, y: 3, health: 50, speed: 0.7, damage: 14 }
+  ],
+  pickups: [{ type: "health", x: 5, y: 5, amount: 25 }],
+  goal: { type: "eliminate-all", keys: 0, exitX: 10, exitY: 10 }
+};
+
+/* ============ Validator ============ */
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function validateSpec(spec) {
+  var errors = [];
+  if (!spec || !Array.isArray(spec.map) || spec.map.length === 0) return { ok: false, errors: ["missing map"] };
+  var h = spec.map.length, w = spec.map[0].length;
+  if (w > CAPS.mapMax || h > CAPS.mapMax) errors.push("map over max size");
+  for (var y = 0; y < h; y++) {
+    if (spec.map[y].length !== w) errors.push("map not rectangular");
+    for (var x = 0; x < w; x++) {
+      var t = spec.map[y][x];
+      if (t !== 0 && t !== 1 && t !== 2) errors.push("bad tile value");
+      if ((y === 0 || y === h - 1 || x === 0 || x === w - 1) && t !== 1) errors.push("border not wall");
+    }
+  }
+  var ps = spec.playerStart || {};
+  if (!spec.map[ps.y] || spec.map[ps.y][ps.x] !== 0) errors.push("player start not on open tile");
+  (spec.enemies || []).forEach(function (e) {
+    if (!ENEMY_TYPES[e.type]) errors.push("unknown enemy " + e.type);
+    if (!spec.map[e.y] || spec.map[e.y][e.x] !== 0) errors.push("enemy not on open tile");
+  });
+  (spec.pickups || []).forEach(function (p) {
+    if (PICKUP_TYPES.indexOf(p.type) < 0) errors.push("unknown pickup " + p.type);
+    if (!spec.map[p.y] || spec.map[p.y][p.x] !== 0) errors.push("pickup not on open tile");
+  });
+  (spec.weapons || []).forEach(function (wp) { if (!WEAPON_TYPES[wp.type]) errors.push("unknown weapon " + wp.type); });
+  if ((spec.enemies || []).length > CAPS.enemiesMax) errors.push("too many enemies");
+  if ((spec.weapons || []).length > CAPS.weaponsMax) errors.push("too many weapons");
+  if ((spec.pickups || []).length > CAPS.pickupsMax) errors.push("too many pickups");
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0) errors.push("unknown wall texture");
+  if (GOAL_TYPES.indexOf((spec.goal || {}).type) < 0) errors.push("unknown goal");
+  if (errors.length === 0 && spec.map[ps.y]) {
+    var seen = [], stack = [[ps.x, ps.y]], count = 0, open = 0;
+    for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { seen.push(0); if (spec.map[yy][xx] === 0) open++; }
+    seen[ps.y * w + ps.x] = 1;
+    while (stack.length) { var cur = stack.pop(); count++; var cx = cur[0], cy = cur[1];
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { var nx = cx + d[0], ny = cy + d[1];
+        if (nx >= 0 && ny >= 0 && nx < w && ny < h && spec.map[ny][nx] === 0 && !seen[ny * w + nx]) { seen[ny * w + nx] = 1; stack.push([nx, ny]); } }); }
+    if (count !== open) errors.push("unreachable open tiles");
+  }
+  if (errors.length) return { ok: false, errors: errors };
+  (spec.enemies || []).forEach(function (e) { e.health = clamp(e.health || 30, CAPS.hpMin, CAPS.hpMax); e.speed = clamp(e.speed || 1, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(e.damage || 10, CAPS.dmgMin, CAPS.dmgMax); });
+  return { ok: true, errors: [] };
+}
+
+/* ============ Game state ============ */
+var canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+var W = 960, H = 540;
+var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtUntil = 0, popups = [], startTime = 0, sessionTotal = 0, gameOver = false, winShown = false;
+var zbuffer = new Array(W);
+
+function isWall(x, y) { if (!S) return true; if (y < 0 || y >= S.map.length || x < 0 || x >= S.map[0].length) return true; return S.map[y][x] !== 0; }
+function buildLevel(spec, sourceLabel) {
+  S = JSON.parse(JSON.stringify(spec));
+  S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0 };
+  var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
+  var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
+  S.weapon = { type: w0.type, damage: w0.damage || wt.damage, mag: w0.ammo || wt.ammo, ammo: w0.ammo || wt.ammo, range: wt.range, rate: wt.rate };
+  S.enemies = (S.enemies || []).map(function (e) { var t = ENEMY_TYPES[e.type]; return { type: e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: e.speed || t.speed, damage: e.damage || t.damage, color: t.color, cool: 0, moving: t.speed > 0 }; });
+  S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
+  S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; R reload &nbsp; Shift run</span>";
+  updateHUD();
+  logFeed(sourceLabel + ": " + (S.title || "Untitled") + " | map " + S.map[0].length + "x" + S.map.length + " | " + S.enemies.length + " enemies | goal " + (S.goal && S.goal.type));
+}
+function logFeed(text) {
+  var feed = document.getElementById("feed"), d = document.createElement("div");
+  d.textContent = text; feed.appendChild(d);
+  while (feed.children.length > 52) feed.removeChild(feed.children[1]);
+  feed.scrollTop = feed.scrollHeight;
+}
+function updateHUD() {
+  if (!S) return;
+  document.getElementById("hpText").textContent = Math.max(0, Math.ceil(S.player.hp));
+  document.getElementById("hpBar").style.width = Math.max(0, S.player.hp) + "%";
+  document.getElementById("ammoText").textContent = S.weapon.ammo;
+  document.getElementById("weaponText").textContent = S.weapon.type;
+  document.getElementById("enemyText").textContent = S.enemies.length;
+  document.getElementById("keyText").textContent = S.keys;
+  document.getElementById("scoreText").textContent = S.score + sessionTotal;
+  document.getElementById("timeText").textContent = Math.floor((Date.now() - startTime) / 1000) + "s";
+}
+function addPopup(text, color) { popups.push({ text: text, color: color || "#fff", t: Date.now() }); }
+
+/* ============ Raycaster ============ */
+function castRay(px, py, rdx, rdy) {
+  var mapX = Math.floor(px), mapY = Math.floor(py);
+  var ddx = Math.abs(1 / (rdx || 0.00001)), ddy = Math.abs(1 / (rdy || 0.00001));
+  var stepX, stepY, sdx, sdy;
+  if (rdx < 0) { stepX = -1; sdx = (px - mapX) * ddx; } else { stepX = 1; sdx = (mapX + 1 - px) * ddx; }
+  if (rdy < 0) { stepY = -1; sdy = (py - mapY) * ddy; } else { stepY = 1; sdy = (mapY + 1 - py) * ddy; }
+  var side = 0, dist = 0, guard = 0;
+  while (guard++ < 64) {
+    if (sdx < sdy) { sdx += ddx; mapX += stepX; side = 0; } else { sdy += ddy; mapY += stepY; side = 1; }
+    if (isWall(mapX, mapY)) { dist = side === 0 ? (sdx - ddx) : (sdy - ddy); break; }
+  }
+  var wallX = side === 0 ? py + dist * rdy : px + dist * rdx;
+  wallX -= Math.floor(wallX);
+  return { dist: dist, side: side, wallX: wallX };
+}
+function losClear(x0, y0, x1, y1) {
+  var dx = x1 - x0, dy = y1 - y0, dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) return true;
+  var steps = Math.ceil(dist * 4);
+  for (var i = 1; i < steps; i++) { var t = i / steps; if (isWall(Math.floor(x0 + dx * t), Math.floor(y0 + dy * t))) return false; }
+  return true;
+}
+function render() {
+  if (!S) return;
+  var p = S.player;
+  ctx.fillStyle = S.ceilingColor || "#0a0a18"; ctx.fillRect(0, 0, W, H / 2);
+  ctx.fillStyle = S.floorColor || "#2a1a12"; ctx.fillRect(0, H / 2, W, H / 2);
+  var dirX = Math.cos(p.angle), dirY = Math.sin(p.angle);
+  var planeX = -dirY * 0.66, planeY = dirX * 0.66;
+  var tex = TEXTURES[S.wallTexture] || TEXTURES.brick;
+  for (var col = 0; col < W; col++) {
+    var camX = 2 * col / W - 1;
+    var rdx = dirX + planeX * camX, rdy = dirY + planeY * camX;
+    var hit = castRay(p.x, p.y, rdx, rdy);
+    var dist = Math.max(0.05, hit.dist);
+    zbuffer[col] = dist;
+    var lineH = H / dist;
+    var top = Math.max(0, (H - lineH) / 2), bot = Math.min(H, (H + lineH) / 2);
+    var texX = Math.floor(hit.wallX * 64);
+    if ((hit.side === 0 && rdx > 0) || (hit.side === 1 && rdy < 0)) texX = 63 - texX;
+    ctx.drawImage(tex, texX, 0, 1, 64, col, top, 1, bot - top);
+    if (hit.side === 1) { ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(col, top, 1, bot - top); }
+    var shade = Math.min(0.75, dist / 12);
+    ctx.fillStyle = "rgba(0,0,0," + shade.toFixed(2) + ")"; ctx.fillRect(col, top, 1, bot - top);
+  }
+  var sprites = [];
+  S.enemies.forEach(function (e) { sprites.push({ x: e.x, y: e.y, kind: "enemy", ref: e }); });
+  S.pickups.forEach(function (pk) { sprites.push({ x: pk.x, y: pk.y, kind: "pickup", ref: pk }); });
+  if (S.goal && S.goal.type !== "eliminate-all") sprites.push({ x: S.goal.exitX + 0.5, y: S.goal.exitY + 0.5, kind: "exit", ref: null });
+  sprites.sort(function (a, b) { var da = (a.x - p.x) * (a.x - p.x) + (a.y - p.y) * (a.y - p.y); var db = (b.x - p.x) * (b.x - p.x) + (b.y - p.y) * (b.y - p.y); return db - da; });
+  sprites.forEach(function (sp) {
+    var relX = sp.x - p.x, relY = sp.y - p.y;
+    var inv = 1 / (planeX * dirY - dirX * planeY);
+    var tx = inv * (dirY * relX - dirX * relY), ty = inv * (-planeY * relX + planeX * relY);
+    if (ty <= 0.1) return;
+    var sx = Math.floor((W / 2) * (1 + tx / ty));
+    var size = Math.min(H * 1.4, H / ty * 0.55);
+    if (sx < -size || sx > W + size) return;
+    var midCol = Math.max(0, Math.min(W - 1, sx));
+    if (zbuffer[midCol] < ty) return;
+    var top = (H - size) / 2;
+    if (sp.kind === "enemy") {
+      ctx.fillStyle = sp.ref.color; ctx.beginPath(); ctx.arc(sx, top + size / 2, size * 0.32, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#000"; ctx.font = Math.max(12, size * 0.18) + "px Verdana"; ctx.textAlign = "center";
+      ctx.fillText("HP " + Math.ceil(sp.ref.hp), sx, top - 4);
+    } else if (sp.kind === "pickup") {
+      var col = sp.ref.type === "health" ? "#ff3b30" : sp.ref.type === "ammo" ? "#ffd60a" : sp.ref.type === "armor" ? "#3b82ff" : "#ffcc00";
+      ctx.fillStyle = col; ctx.fillRect(sx - size * 0.16, top + size * 0.3, size * 0.32, size * 0.32);
+      ctx.fillStyle = "#000"; ctx.font = Math.max(11, size * 0.16) + "px Verdana"; ctx.textAlign = "center";
+      ctx.fillText(sp.ref.type.toUpperCase(), sx, top + size * 0.72);
+    } else {
+      ctx.fillStyle = "#ffcc00"; ctx.fillRect(sx - size * 0.2, top + size * 0.2, size * 0.4, size * 0.5);
+      ctx.fillStyle = "#000"; ctx.font = Math.max(12, size * 0.18) + "px Verdana"; ctx.textAlign = "center";
+      ctx.fillText("EXIT", sx, top + size * 0.48);
+    }
+  });
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(W / 2 - 26, H - 86, 52, 74);
+  ctx.fillStyle = "#333"; ctx.fillRect(W / 2 - 6, H - 110, 12, 34);
+  if (Date.now() < flashUntil) { ctx.fillStyle = "rgba(255,220,80,0.9)"; ctx.beginPath(); ctx.arc(W / 2, H - 110, 26, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = "13px Verdana"; ctx.textAlign = "center";
+  ctx.fillText(S.weapon.type.toUpperCase(), W / 2, H - 14);
+  ctx.fillStyle = "#fff"; ctx.font = "20px Verdana";
+  ctx.fillText("+", W / 2, H / 2 + 7);
+  var now = Date.now();
+  popups = popups.filter(function (pp) { return now - pp.t < 1400; });
+  popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
+  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Press R to retry this level, or generate a new one.", W / 2, H / 2 + 30); }
+  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
+  document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
+}
+
+/* ============ Update ============ */
+function tryMove(nx, ny) { if (!isWall(Math.floor(nx), Math.floor(ny))) { S.player.x = nx; S.player.y = ny; return true; } return false; }
+function update(dt) {
+  if (!S || gameOver) return;
+  var p = S.player, speed = (keysDown["shift"] ? 4.4 : 3.0) * dt;
+  var fx = 0, fy = 0;
+  if (keysDown["w"] || keysDown["arrowup"]) { fx += Math.cos(p.angle); fy += Math.sin(p.angle); }
+  if (keysDown["s"] || keysDown["arrowdown"]) { fx -= Math.cos(p.angle); fy -= Math.sin(p.angle); }
+  if (keysDown["a"] || keysDown["arrowleft"]) { fx += Math.sin(p.angle); fy -= Math.cos(p.angle); }
+  if (keysDown["d"] || keysDown["arrowright"]) { fx -= Math.sin(p.angle); fy += Math.cos(p.angle); }
+  if (fx || fy) { var len = Math.sqrt(fx * fx + fy * fy); fx /= len; fy /= len;
+    var nx = p.x + fx * speed; if (!isWall(Math.floor(nx), Math.floor(p.y))) p.x = nx;
+    var ny = p.y + fy * speed; if (!isWall(Math.floor(p.x), Math.floor(ny))) p.y = ny; }
+  S.enemies.forEach(function (e) {
+    if (!e.moving) return;
+    e.cool -= dt;
+    var dx = p.x - e.x, dy = p.y - e.y, dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 8 && losClear(e.x, e.y, p.x, p.y)) {
+      if (dist > 0.7) { var mx = e.x + dx / dist * e.speed * dt, my = e.y + dy / dist * e.speed * dt;
+        if (!isWall(Math.floor(mx), Math.floor(e.y))) e.x = mx;
+        if (!isWall(Math.floor(e.x), Math.floor(my))) e.y = my; }
+      else if (e.cool <= 0) { e.cool = 1.0;
+        var dmg = e.damage;
+        if (S.player.armor > 0) { var absorbed = Math.min(S.player.armor, dmg); S.player.armor -= absorbed; dmg -= absorbed; }
+        S.player.hp -= dmg; hurtUntil = Date.now() + 200; addPopup("-" + dmg + " HP", "#ff5252");
+        if (S.player.hp <= 0) { S.player.hp = 0; gameOver = true; document.exitPointerLock && document.exitPointerLock(); } }
+    }
+  });
+  S.pickups = S.pickups.filter(function (pk) {
+    var d = Math.sqrt((pk.x - p.x) * (pk.x - p.x) + (pk.y - p.y) * (pk.y - p.y));
+    if (d < 0.55) {
+      if (pk.type === "health") { p.hp = Math.min(100, p.hp + pk.amount); addPopup("+" + pk.amount + " HP", "#3ddc54"); }
+      if (pk.type === "ammo") { S.weapon.ammo += pk.amount; addPopup("+" + pk.amount + " AMMO", "#ffd60a"); }
+      if (pk.type === "armor") { p.armor += 25; addPopup("+ARMOR", "#3b82ff"); }
+      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); }
+      return false;
+    }
+    return true;
+  });
+  if (!winShown && S.goal) {
+    var won = false;
+    if (S.goal.type === "eliminate-all" && S.enemies.length === 0) won = true;
+    if (S.goal.type === "key-hunt" && S.keys >= (S.goal.keys || 1) && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
+    if (S.goal.type === "reach-exit" && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
+    if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; document.exitPointerLock && document.exitPointerLock(); }
+  }
+  updateHUD();
+}
+function shoot() {
+  if (!S || gameOver || !locked) return;
+  var now = Date.now();
+  if (now - lastShot < S.weapon.rate) return;
+  if (S.weapon.ammo <= 0) { addPopup("RELOAD (R)", "#ffd60a"); return; }
+  lastShot = now; S.weapon.ammo--; flashUntil = now + 90;
+  var p = S.player, best = null, bestD = 1e9;
+  S.enemies.forEach(function (e) {
+    var dx = e.x - p.x, dy = e.y - p.y, dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > S.weapon.range) return;
+    var ang = Math.atan2(dy, dx), diff = Math.atan2(Math.sin(ang - p.angle), Math.cos(ang - p.angle));
+    if (Math.abs(diff) > 0.09) return;
+    if (!losClear(p.x, p.y, e.x, e.y)) return;
+    if (dist < bestD) { best = e; bestD = dist; }
+  });
+  if (best) {
+    best.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
+    if (best.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== best; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+  }
+  updateHUD();
+}
+
+/* ============ Input ============ */
+document.addEventListener("keydown", function (e) {
+  var k = e.key.toLowerCase();
+  if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(k) >= 0) e.preventDefault();
+  keysDown[k] = true;
+  if (k === "r") {
+    if (gameOver && !winShown && S) { buildLevel(S, "Retry"); return; }
+    if (S && !gameOver) { var wt = WEAPON_TYPES[S.weapon.type]; S.weapon.ammo = S.weapon.mag || wt.ammo; updateHUD(); }
+  }
+});
+document.addEventListener("keyup", function (e) { keysDown[e.key.toLowerCase()] = false; });
+document.addEventListener("mousemove", function (e) { if (locked && S) S.player.angle += e.movementX * 0.0022; });
+canvas.addEventListener("click", function () {
+  if (gameOver) return;
+  if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
+  shoot();
+});
+document.addEventListener("pointerlockchange", function () {
+  locked = document.pointerLockElement === canvas;
+  document.getElementById("overlay").style.display = locked ? "none" : "flex";
+});
+
+/* ============ AI generation ============ */
+function stripFences(t) { t = t.trim(); if (t.indexOf("```") === 0) { t = t.replace(/^```[a-z]*\n?/i, "").replace(/```$/, "").trim(); } return t; }
+function keyFor(provider) { return localStorage.getItem("fpsEngine_" + provider + "Key") || ""; }
+document.getElementById("saveKeyBtn").addEventListener("click", function () {
+  var prov = document.getElementById("providerSelect").value;
+  localStorage.setItem("fpsEngine_" + prov + "Key", document.getElementById("keyInput").value.trim());
+  document.getElementById("status").textContent = "Key saved in this browser for " + prov + ".";
+});
+document.getElementById("providerSelect").addEventListener("change", function () {
+  document.getElementById("keyInput").value = keyFor(document.getElementById("providerSelect").value);
+});
+document.getElementById("keyInput").value = keyFor("meta");
+async function callAI(provider, messages) {
+  var cfg = CONFIG[provider], key = keyFor(provider);
+  var res = await fetch(cfg.baseUrl, { method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: cfg.model, messages: messages, temperature: 0.7, max_tokens: 4000 }) });
+  if (!res.ok) { var err = new Error("API error " + res.status); err.status = res.status; throw err; }
+  var data = await res.json();
+  return data.choices[0].message.content;
+}
+document.getElementById("generateBtn").addEventListener("click", async function () {
+  var prompt = document.getElementById("promptInput").value.trim();
+  if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
+  var provider = document.getElementById("providerSelect").value;
+  if (!keyFor(provider)) { document.getElementById("status").textContent = "Enter your API key first (Saved in this browser only). The demo castle still plays without one."; return; }
+  var btn = document.getElementById("generateBtn"); btn.disabled = true;
+  document.getElementById("status").textContent = "Thinking with " + provider + "...";
+  try {
+    var raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
+    var spec = JSON.parse(stripFences(raw));
+    var check = validateSpec(spec);
+    if (!check.ok) {
+      document.getElementById("status").textContent = "First try failed checks, asking the AI to fix it...";
+      raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That JSON failed these checks: " + check.errors.join("; ") + ". Return corrected valid JSON only." }]);
+      spec = JSON.parse(stripFences(raw));
+      check = validateSpec(spec);
+    }
+    if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks, so here is a fallback level. Try another prompt."; }
+    else { buildLevel(spec, "Generated (" + provider + ")"); document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + ". Click the game to play."; }
+  } catch (err) {
+    if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
+      document.getElementById("status").textContent = "Meta is busy, retrying with Groq...";
+      try {
+        var raw2 = await callAI("groq", [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
+        var spec2 = JSON.parse(stripFences(raw2));
+        if (validateSpec(spec2).ok) { buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
+        else { buildLevel(FALLBACK_SPEC, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
+      } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
+    } else {
+      document.getElementById("status").textContent = "AI call failed (" + (err.status || "network") + "). The demo castle still plays. Check your key and try again.";
+    }
+  }
+  btn.disabled = false;
+});
+
+/* ============ Boot ============ */
+if (("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches) document.getElementById("touchNote").style.display = "block";
+buildLevel(DEMO_SPEC, "Demo");
+var last = performance.now();
+function loop(now) {
+  var dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
