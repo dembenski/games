@@ -107,8 +107,10 @@
     <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors.</div>
   </div>
   <div id="feedBox" style="display:none">
-    <div class="bar"><button id="backBtn">Back to game</button><span class="small">Your saved levels, newest first. Play one, copy its link, share it, or export it as a playable file you can host anywhere, including GitHub Pages.</span></div>
+    <div class="bar"><button id="backBtn">Back to game</button><span class="small">Your saved levels, newest first. Play one, copy its link, share it, or export it as a playable file you can host anywhere, including GitHub Pages. Below them, community levels from the shared list.</span></div>
     <div id="feedCards"></div>
+    <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
+    <div id="communityCards"></div>
   </div>
   <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
@@ -884,22 +886,48 @@ function drawMini(cv, spec) {
   var tt = typeTable(spec);
   (spec.enemies || []).forEach(function (e) { var t = tt[e.type] || {}; g.fillStyle = t.color || "#ff00ff"; g.beginPath(); g.arc(e.x * cs + cs / 2, e.y * cs + cs / 2, cs * 0.3, 0, Math.PI * 2); g.fill(); });
 }
-function renderFeed() {
-  var list = loadFeed(), box = document.getElementById("feedCards");
-  if (!list.length) { box.innerHTML = "<div class='small'>No saved levels yet. Generate one (or edit one), then hit Save to feed.</div>"; return; }
-  box.innerHTML = list.map(function (item, i) {
-    var sp = item.spec, d = new Date(item.savedAt || Date.now());
-    return "<div class='feed-card'><canvas data-mini='" + i + "'></canvas><div><b>" + esc(sp.title || "Untitled") + "</b><div class='small'>" + esc(sp.theme || "") + " | " + sp.map[0].length + "x" + sp.map.length + " | " + (sp.enemies || []).length + " enemies | goal " + (sp.goal && sp.goal.type) + " | saved " + d.toLocaleDateString() + "</div></div>" +
-      "<div class='bar'><button data-act='play' data-idx='" + i + "'>Play</button><button data-act='copy' data-idx='" + i + "'>Copy link</button><button data-act='facebook' data-idx='" + i + "'>Facebook</button><button data-act='threads' data-idx='" + i + "'>Threads</button><button data-act='instagram' data-idx='" + i + "'>Instagram</button><button data-act='export' data-idx='" + i + "'>Export</button><button data-act='delete' data-idx='" + i + "'>Delete</button></div></div>";
-  }).join("");
+function cardHTML(item, i, src) {
+  var sp = item.spec, d = item.savedAt ? new Date(item.savedAt) : null;
+  var meta = esc(sp.theme || "") + " | " + sp.map[0].length + "x" + sp.map.length + " | " + (sp.enemies || []).length + " enemies | goal " + (sp.goal && sp.goal.type);
+  if (item.maker) meta = "by " + esc(item.maker) + " | " + meta;
+  else if (d) meta += " | saved " + d.toLocaleDateString();
+  var btns = "<button data-act='play' data-src='" + src + "' data-idx='" + i + "'>Play</button><button data-act='copy' data-src='" + src + "' data-idx='" + i + "'>Copy link</button><button data-act='facebook' data-src='" + src + "' data-idx='" + i + "'>Facebook</button><button data-act='threads' data-src='" + src + "' data-idx='" + i + "'>Threads</button><button data-act='instagram' data-src='" + src + "' data-idx='" + i + "'>Instagram</button><button data-act='export' data-src='" + src + "' data-idx='" + i + "'>Export</button>";
+  if (src === "local") btns += "<button data-act='delete' data-src='local' data-idx='" + i + "'>Delete</button>";
+  else btns += "<button data-act='save' data-src='community' data-idx='" + i + "'>Save to my feed</button>";
+  return "<div class='feed-card'><canvas data-mini='" + i + "'></canvas><div><b>" + esc(sp.title || "Untitled") + "</b><div class='small'>" + meta + "</div></div><div class='bar'>" + btns + "</div></div>";
+}
+function paintMinis(box, list) {
   var cvs = box.querySelectorAll("canvas[data-mini]");
   for (var k = 0; k < cvs.length; k++) drawMini(cvs[k], list[+cvs[k].getAttribute("data-mini")].spec);
+}
+function renderFeed() {
+  var list = loadFeed(), box = document.getElementById("feedCards");
+  if (!list.length) box.innerHTML = "<div class='small'>No saved levels yet. Generate one (or edit one), then hit Save to feed.</div>";
+  else { box.innerHTML = list.map(function (item, i) { return cardHTML(item, i, "local"); }).join(""); paintMinis(box, list); }
+}
+var communityList = [];
+async function loadCommunity() {
+  var box = document.getElementById("communityCards");
+  box.innerHTML = "<div class='small'>Loading community levels...</div>";
+  try {
+    var res = await fetch("fps-community-levels.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("bad status");
+    var data = await res.json();
+    if (!Array.isArray(data)) throw new Error("bad list");
+    communityList = data.filter(function (it) { return it && it.spec && it.spec.map; });
+    if (!communityList.length) box.innerHTML = "<div class='small'>No community levels listed yet.</div>";
+    else { box.innerHTML = communityList.map(function (item, i) { return cardHTML(item, i, "community"); }).join(""); paintMinis(box, communityList); }
+  } catch (e) {
+    communityList = [];
+    box.innerHTML = "<div class='small'>Community list isn't available on this copy (it loads from the hosted list file).</div>";
+  }
 }
 function showFeed() {
   document.getElementById("gameBox").style.display = "none";
   document.getElementById("editorBox").style.display = "none";
   document.getElementById("feedBox").style.display = "block";
   renderFeed();
+  loadCommunity();
 }
 function hideFeed() {
   document.getElementById("feedBox").style.display = "none";
@@ -939,20 +967,23 @@ document.getElementById("copyLinkBtn").addEventListener("click", function () {
   st.textContent = "Link copied. Anyone opening it plays this level.";
   copyText(link).then(function (ok) { if (!ok) st.textContent = "Copy blocked in this browser. The link is: " + link; });
 });
-document.getElementById("feedCards").addEventListener("click", function (ev) {
+document.getElementById("feedBox").addEventListener("click", function (ev) {
   var b = ev.target.closest ? ev.target.closest("button") : null;
   if (!b || !b.getAttribute("data-act")) return;
-  var list = loadFeed(), idx = +b.getAttribute("data-idx"), item = list[idx];
+  var src = b.getAttribute("data-src"), idx = +b.getAttribute("data-idx");
+  var list = src === "community" ? communityList : loadFeed();
+  var item = list[idx];
   if (!item) return;
   var link = specLink(item.spec), text = "I made '" + (item.spec.title || "a level") + "' with the FPS AI Game Engine! Play it here: " + link;
   var act = b.getAttribute("data-act");
-  if (act === "play") { hideFeed(); buildLevel(repairSpec(JSON.parse(JSON.stringify(item.spec))), "Feed", lastArt); document.getElementById("status").textContent = "Playing from your feed: " + (item.spec.title || "Untitled") + ". Click the game to play."; }
+  if (act === "play") { hideFeed(); buildLevel(repairSpec(JSON.parse(JSON.stringify(item.spec))), src === "community" ? "Community" : "Feed", lastArt); document.getElementById("status").textContent = "Playing from " + (src === "community" ? "community" : "your feed") + ": " + (item.spec.title || "Untitled") + ". Click the game to play."; }
   else if (act === "copy") { var st = document.getElementById("status"); st.textContent = "Link copied. Anyone opening it plays this level."; copyText(link).then(function (ok) { if (!ok) st.textContent = "Copy was blocked. Copy this link by hand: " + link; }); }
   else if (act === "facebook") { window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(link), "_blank"); }
   else if (act === "threads") { window.open("https://www.threads.net/intent/post?text=" + encodeURIComponent(text), "_blank"); }
   else if (act === "instagram") { var st2 = document.getElementById("status"); st2.textContent = "Link copied. Paste it into Instagram (Instagram has no web share button)."; copyText(link); window.open("https://www.instagram.com/", "_blank"); }
   else if (act === "export") { exportHTML(item.spec); document.getElementById("status").textContent = "Exported " + (item.spec.title || "level") + " as a playable file. Upload it to any host, including GitHub Pages."; }
   else if (act === "delete") { list.splice(idx, 1); saveFeed(list); renderFeed(); }
+  else if (act === "save") { var mine = loadFeed(); mine.unshift({ title: item.spec.title || "Untitled", theme: item.spec.theme || "", spec: JSON.parse(JSON.stringify(item.spec)), savedAt: Date.now() }); saveFeed(mine.slice(0, 50)); renderFeed(); document.getElementById("status").textContent = "Saved to your feed: " + (item.spec.title || "Untitled") + "."; }
 });
 
 /* ============ Boot ============ */
