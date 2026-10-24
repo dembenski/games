@@ -27,6 +27,8 @@
   #feed { background: #12121e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 14px; max-height: 220px; overflow-y: auto; }
   #feed div { border-bottom: 1px solid #26263a; padding: 5px 0; }
   #touchNote { display: none; background: #40200a; border: 1px solid #e08a2e; padding: 8px 10px; border-radius: 6px; margin: 10px 0; }
+  .feed-card { background: #12121e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin: 10px 0; }
+  .feed-card canvas { width: auto; max-width: 100%; border: 2px solid #444; }
   .small { font-size: 13px; color: #aaa; }
 </style>
 </head>
@@ -56,6 +58,9 @@
     <input type="text" id="promptInput" placeholder='Try: make a haunted castle FPS with skeletons, a shotgun, and a key hunt'>
     <button id="generateBtn">Generate game</button>
     <button id="editBtn">Edit map</button>
+    <button id="saveFeedBtn">Save to feed</button>
+    <button id="feedBtn">Feed</button>
+    <button id="copyLinkBtn">Copy link</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -101,7 +106,11 @@
     <canvas id="editorCanvas"></canvas>
     <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors.</div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor.</div>
+  <div id="feedBox" style="display:none">
+    <div class="bar"><button id="backBtn">Back to game</button><span class="small">Your saved levels, newest first. Play one, copy its link, share it, or export it as a playable file you can host anywhere, including GitHub Pages.</span></div>
+    <div id="feedCards"></div>
+  </div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -851,9 +860,110 @@ document.getElementById("edPlayBtn").addEventListener("click", function () {
 });
 document.getElementById("edCancelBtn").addEventListener("click", function () { closeEditor(); document.getElementById("status").textContent = "Edit cancelled, original level kept."; });
 
+/* ============ Share feed: save, link, share, export ============ */
+function b64enc(s) { return btoa(unescape(encodeURIComponent(s))); }
+function b64dec(s) { return decodeURIComponent(escape(atob(s))); }
+function specLink(spec) { return location.href.split("#")[0] + "#level=" + b64enc(JSON.stringify(spec)); }
+function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function loadFeed() {
+  try { var l = JSON.parse(localStorage.getItem("fpsEngine_feed") || "[]"); return Array.isArray(l) ? l : []; }
+  catch (e) { return []; }
+}
+function saveFeed(list) { try { localStorage.setItem("fpsEngine_feed", JSON.stringify(list)); } catch (e) {} }
+function drawMini(cv, spec) {
+  var map = spec.map, rows = map.length, cols = map[0].length, cs = 8;
+  cv.width = cols * cs; cv.height = rows * cs;
+  var g = cv.getContext("2d");
+  for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
+    g.fillStyle = map[y][x] === 1 ? "#8a8a9a" : map[y][x] === 2 ? "#b07a1e" : "#20202e";
+    g.fillRect(x * cs, y * cs, cs, cs);
+  }
+  var ps = spec.playerStart || { x: 1, y: 1 };
+  g.fillStyle = "#3ddc54"; g.fillRect(ps.x * cs + 1, ps.y * cs + 1, cs - 2, cs - 2);
+  if (spec.goal && spec.goal.type !== "eliminate-all") { g.fillStyle = "#ffd76a"; g.beginPath(); g.arc(spec.goal.exitX * cs + cs / 2, spec.goal.exitY * cs + cs / 2, cs * 0.35, 0, Math.PI * 2); g.fill(); }
+  var tt = typeTable(spec);
+  (spec.enemies || []).forEach(function (e) { var t = tt[e.type] || {}; g.fillStyle = t.color || "#ff00ff"; g.beginPath(); g.arc(e.x * cs + cs / 2, e.y * cs + cs / 2, cs * 0.3, 0, Math.PI * 2); g.fill(); });
+}
+function renderFeed() {
+  var list = loadFeed(), box = document.getElementById("feedCards");
+  if (!list.length) { box.innerHTML = "<div class='small'>No saved levels yet. Generate one (or edit one), then hit Save to feed.</div>"; return; }
+  box.innerHTML = list.map(function (item, i) {
+    var sp = item.spec, d = new Date(item.savedAt || Date.now());
+    return "<div class='feed-card'><canvas data-mini='" + i + "'></canvas><div><b>" + esc(sp.title || "Untitled") + "</b><div class='small'>" + esc(sp.theme || "") + " | " + sp.map[0].length + "x" + sp.map.length + " | " + (sp.enemies || []).length + " enemies | goal " + (sp.goal && sp.goal.type) + " | saved " + d.toLocaleDateString() + "</div></div>" +
+      "<div class='bar'><button data-act='play' data-idx='" + i + "'>Play</button><button data-act='copy' data-idx='" + i + "'>Copy link</button><button data-act='facebook' data-idx='" + i + "'>Facebook</button><button data-act='threads' data-idx='" + i + "'>Threads</button><button data-act='instagram' data-idx='" + i + "'>Instagram</button><button data-act='export' data-idx='" + i + "'>Export</button><button data-act='delete' data-idx='" + i + "'>Delete</button></div></div>";
+  }).join("");
+  var cvs = box.querySelectorAll("canvas[data-mini]");
+  for (var k = 0; k < cvs.length; k++) drawMini(cvs[k], list[+cvs[k].getAttribute("data-mini")].spec);
+}
+function showFeed() {
+  document.getElementById("gameBox").style.display = "none";
+  document.getElementById("editorBox").style.display = "none";
+  document.getElementById("feedBox").style.display = "block";
+  renderFeed();
+}
+function hideFeed() {
+  document.getElementById("feedBox").style.display = "none";
+  document.getElementById("gameBox").style.display = "block";
+}
+function copyText(t) {
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(function () { return true; }).catch(function () { return false; });
+  var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+  var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+  ta.remove(); return Promise.resolve(ok);
+}
+function exportHTML(spec) {
+  var title = (spec.title || "level").replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "level";
+  var html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+  var boot = "<scr" + "ipt>window.addEventListener('load', function(){ try { document.getElementById('gameBox').style.display='block'; document.getElementById('editorBox').style.display='none'; var fb=document.getElementById('feedBox'); if (fb) fb.style.display='none'; buildLevel(" + JSON.stringify(spec) + ", 'Shared'); } catch (e) {} });</scr" + "ipt>";
+  var i = html.lastIndexOf("</body>");
+  if (i >= 0) html = html.slice(0, i) + boot + html.slice(i);
+  var blob = new Blob([html], { type: "text/html" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = title + ".html";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+}
+document.getElementById("saveFeedBtn").addEventListener("click", function () {
+  if (!lastSpec) { document.getElementById("status").textContent = "No level to save yet."; return; }
+  var list = loadFeed();
+  list.unshift({ title: lastSpec.title || "Untitled", theme: lastSpec.theme || "", spec: JSON.parse(JSON.stringify(lastSpec)), savedAt: Date.now() });
+  saveFeed(list.slice(0, 50));
+  document.getElementById("status").textContent = "Saved to your feed: " + (lastSpec.title || "Untitled") + ".";
+});
+document.getElementById("feedBtn").addEventListener("click", showFeed);
+document.getElementById("backBtn").addEventListener("click", hideFeed);
+document.getElementById("copyLinkBtn").addEventListener("click", function () {
+  if (!lastSpec) { document.getElementById("status").textContent = "No level to link yet."; return; }
+  var link = specLink(lastSpec), st = document.getElementById("status");
+  st.textContent = "Link copied. Anyone opening it plays this level.";
+  copyText(link).then(function (ok) { if (!ok) st.textContent = "Copy blocked in this browser. The link is: " + link; });
+});
+document.getElementById("feedCards").addEventListener("click", function (ev) {
+  var b = ev.target.closest ? ev.target.closest("button") : null;
+  if (!b || !b.getAttribute("data-act")) return;
+  var list = loadFeed(), idx = +b.getAttribute("data-idx"), item = list[idx];
+  if (!item) return;
+  var link = specLink(item.spec), text = "I made '" + (item.spec.title || "a level") + "' with the FPS AI Game Engine! Play it here: " + link;
+  var act = b.getAttribute("data-act");
+  if (act === "play") { hideFeed(); buildLevel(repairSpec(JSON.parse(JSON.stringify(item.spec))), "Feed", lastArt); document.getElementById("status").textContent = "Playing from your feed: " + (item.spec.title || "Untitled") + ". Click the game to play."; }
+  else if (act === "copy") { var st = document.getElementById("status"); st.textContent = "Link copied. Anyone opening it plays this level."; copyText(link).then(function (ok) { if (!ok) st.textContent = "Copy was blocked. Copy this link by hand: " + link; }); }
+  else if (act === "facebook") { window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(link), "_blank"); }
+  else if (act === "threads") { window.open("https://www.threads.net/intent/post?text=" + encodeURIComponent(text), "_blank"); }
+  else if (act === "instagram") { var st2 = document.getElementById("status"); st2.textContent = "Link copied. Paste it into Instagram (Instagram has no web share button)."; copyText(link); window.open("https://www.instagram.com/", "_blank"); }
+  else if (act === "export") { exportHTML(item.spec); document.getElementById("status").textContent = "Exported " + (item.spec.title || "level") + " as a playable file. Upload it to any host, including GitHub Pages."; }
+  else if (act === "delete") { list.splice(idx, 1); saveFeed(list); renderFeed(); }
+});
+
 /* ============ Boot ============ */
 if (("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches) document.getElementById("touchNote").style.display = "block";
 buildLevel(DEMO_SPEC, "Demo");
+try {
+  if (location.hash.indexOf("#level=") === 0) {
+    var sharedSpec = repairSpec(JSON.parse(b64dec(location.hash.slice(7))));
+    if (validateSpec(sharedSpec).ok) { buildLevel(sharedSpec, "Shared"); document.getElementById("status").textContent = "Shared level loaded: " + (sharedSpec.title || "Untitled") + ". Click the game to play."; }
+  }
+} catch (e) { /* broken link: the demo stays */ }
 var last = performance.now();
 function loop(now) {
   var dt = Math.min(0.05, (now - last) / 1000); last = now;
