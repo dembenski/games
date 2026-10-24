@@ -55,6 +55,7 @@
   <div class="bar">
     <input type="text" id="promptInput" placeholder='Try: make a haunted castle FPS with skeletons, a shotgun, and a key hunt'>
     <button id="generateBtn">Generate game</button>
+    <button id="editBtn">Edit map</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -72,7 +73,35 @@
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown.</div>
+  <div id="editorBox" style="display:none">
+    <div class="bar">
+      <label>Tool:
+        <select id="edTool">
+          <option value="wall">Wall</option>
+          <option value="floor">Floor</option>
+          <option value="door">Locked door</option>
+          <option value="player">Player start</option>
+          <option value="exit">Goal exit</option>
+          <option value="enemy">Enemy</option>
+          <option value="pickup">Pickup</option>
+          <option value="eraser">Eraser</option>
+        </select>
+      </label>
+      <label>Enemy type: <select id="edEnemyType"></select></label>
+      <label>Pickup: <select id="edPickupType"><option value="health">health</option><option value="ammo">ammo</option><option value="armor">armor</option><option value="key">key</option></select></label>
+      <button id="edRotateBtn">Rotate 90°</button>
+      <button id="edFlipBtn">Flip</button>
+      <button id="edScaleUpBtn">Scale 2x</button>
+      <button id="edScaleDownBtn">Scale 1/2</button>
+      <button id="edTurnBtn">Turn start 90°</button>
+      <button id="edPlayBtn">Play edited level</button>
+      <button id="edCancelBtn">Cancel</button>
+    </div>
+    <div id="edInfo" class="small"></div>
+    <canvas id="editorCanvas"></canvas>
+    <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors.</div>
+  </div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -287,11 +316,14 @@ function repairSpec(spec) {
 var canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 var W = 960, H = 540;
 var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtUntil = 0, popups = [], startTime = 0, sessionTotal = 0, gameOver = false, winShown = false;
+var lastSpec = null, lastArt = null;
 var zbuffer = new Array(W);
 
 function isWall(x, y) { if (!S) return true; if (y < 0 || y >= S.map.length || x < 0 || x >= S.map[0].length) return true; return S.map[y][x] !== 0; }
 function buildLevel(spec, sourceLabel, art) {
   S = JSON.parse(JSON.stringify(spec));
+  lastSpec = JSON.parse(JSON.stringify(spec));
+  lastArt = art || null;
   S.art = null;
   if (art) {
     var sprites = {};
@@ -646,6 +678,178 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   }
   btn.disabled = false;
 });
+
+/* ============ Hand editor: fix a weird AI level by hand ============ */
+var E = null, ePainting = false;
+function editorTypes() { return typeTable(E.spec); }
+function openEditor() {
+  if (!lastSpec) { document.getElementById("status").textContent = "No level to edit yet."; return; }
+  var sp = JSON.parse(JSON.stringify(lastSpec));
+  sp.playerStart = sp.playerStart || { x: 1, y: 1, angle: 0 };
+  sp.playerStart.x = Math.floor(sp.playerStart.x); sp.playerStart.y = Math.floor(sp.playerStart.y);
+  (sp.enemies || []).forEach(function (e) { e.x = Math.floor(e.x); e.y = Math.floor(e.y); });
+  (sp.pickups || []).forEach(function (p) { p.x = Math.floor(p.x); p.y = Math.floor(p.y); });
+  if (sp.goal) { sp.goal.exitX = Math.floor(sp.goal.exitX || 0); sp.goal.exitY = Math.floor(sp.goal.exitY || 0); }
+  E = { spec: sp };
+  var sel = document.getElementById("edEnemyType"); sel.innerHTML = "";
+  Object.keys(editorTypes()).forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = k; sel.appendChild(o); });
+  document.getElementById("gameBox").style.display = "none";
+  document.getElementById("editorBox").style.display = "block";
+  drawEditor();
+  document.getElementById("status").textContent = "Editing: click tiles to fix the level, then Play edited level.";
+}
+function closeEditor() {
+  E = null;
+  document.getElementById("editorBox").style.display = "none";
+  document.getElementById("gameBox").style.display = "block";
+}
+function drawEditor() {
+  if (!E) return;
+  var map = E.spec.map, rows = map.length, cols = map[0].length;
+  var cs = Math.max(14, Math.min(28, Math.floor(900 / cols)));
+  var cv = document.getElementById("editorCanvas");
+  cv.width = cols * cs; cv.height = rows * cs;
+  var g = cv.getContext("2d");
+  for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
+    g.fillStyle = map[y][x] === 1 ? "#8a8a9a" : map[y][x] === 2 ? "#b07a1e" : "#20202e";
+    g.fillRect(x * cs, y * cs, cs, cs);
+    g.strokeStyle = "#111"; g.strokeRect(x * cs + 0.5, y * cs + 0.5, cs - 1, cs - 1);
+  }
+  var ps = E.spec.playerStart;
+  g.fillStyle = "#3ddc54"; g.fillRect(ps.x * cs + 3, ps.y * cs + 3, cs - 6, cs - 6);
+  g.fillStyle = "#000"; g.font = "bold " + Math.floor(cs * 0.5) + "px Verdana"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("P", ps.x * cs + cs / 2, ps.y * cs + cs / 2 + 1);
+  if (E.spec.goal && E.spec.goal.type !== "eliminate-all") {
+    g.fillStyle = "#ffd76a"; g.beginPath(); g.arc(E.spec.goal.exitX * cs + cs / 2, E.spec.goal.exitY * cs + cs / 2, cs * 0.32, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#000"; g.fillText("X", E.spec.goal.exitX * cs + cs / 2, E.spec.goal.exitY * cs + cs / 2 + 1);
+  }
+  (E.spec.enemies || []).forEach(function (e) {
+    var t = editorTypes()[e.type] || {};
+    g.fillStyle = t.color || "#ff00ff"; g.beginPath(); g.arc(e.x * cs + cs / 2, e.y * cs + cs / 2, cs * 0.3, 0, Math.PI * 2); g.fill();
+  });
+  var pcol = { health: "#3ddc54", ammo: "#e5c100", armor: "#4aa8ff", key: "#ff8c2e" };
+  (E.spec.pickups || []).forEach(function (p) {
+    g.fillStyle = pcol[p.type] || "#fff"; g.fillRect(p.x * cs + cs * 0.3, p.y * cs + cs * 0.3, cs * 0.4, cs * 0.4);
+  });
+  document.getElementById("edInfo").textContent = (E.spec.title || "Untitled") + " | " + cols + "x" + rows + " | " + (E.spec.enemies || []).length + " enemies | " + (E.spec.pickups || []).length + " pickups | goal " + (E.spec.goal && E.spec.goal.type);
+}
+function edCell(ev) {
+  var cv = document.getElementById("editorCanvas"), r = cv.getBoundingClientRect();
+  var cols = E.spec.map[0].length, rows = E.spec.map.length;
+  var x = Math.floor((ev.clientX - r.left) / r.width * cols), y = Math.floor((ev.clientY - r.top) / r.height * rows);
+  if (x < 0 || y < 0 || x >= cols || y >= rows) return null;
+  return { x: x, y: y };
+}
+function clearTile(x, y) {
+  E.spec.enemies = (E.spec.enemies || []).filter(function (e) { return !(e.x === x && e.y === y); });
+  E.spec.pickups = (E.spec.pickups || []).filter(function (p) { return !(p.x === x && p.y === y); });
+}
+function applyTool(cell) {
+  if (!E || !cell) return;
+  var tool = document.getElementById("edTool").value, map = E.spec.map, x = cell.x, y = cell.y;
+  if (tool === "wall") { map[y][x] = 1; clearTile(x, y); }
+  else if (tool === "floor") { map[y][x] = 0; }
+  else if (tool === "door") { map[y][x] = 2; clearTile(x, y); }
+  else if (tool === "player") { if (map[y][x] === 0) E.spec.playerStart = { x: x, y: y, angle: 0 }; }
+  else if (tool === "exit") { if (map[y][x] === 0) { if (!E.spec.goal) E.spec.goal = { type: "reach-exit", keys: 0, exitX: x, exitY: y }; E.spec.goal.exitX = x; E.spec.goal.exitY = y; } }
+  else if (tool === "enemy") {
+    if (map[y][x] !== 0) return;
+    var list = E.spec.enemies || (E.spec.enemies = []);
+    if (list.length >= CAPS.enemiesMax) { document.getElementById("status").textContent = "Enemy cap reached (20)."; return; }
+    if (list.some(function (e) { return e.x === x && e.y === y; })) return;
+    var t = editorTypes()[document.getElementById("edEnemyType").value] || {};
+    list.push({ type: document.getElementById("edEnemyType").value, x: x, y: y, health: t.hp || 30, speed: t.speed || 1, damage: t.damage || 10 });
+  }
+  else if (tool === "pickup") {
+    if (map[y][x] !== 0) return;
+    var pl = E.spec.pickups || (E.spec.pickups = []);
+    if (pl.length >= CAPS.pickupsMax) { document.getElementById("status").textContent = "Pickup cap reached (30)."; return; }
+    if (pl.some(function (p) { return p.x === x && p.y === y; })) return;
+    pl.push({ type: document.getElementById("edPickupType").value, x: x, y: y, amount: 25 });
+  }
+  else if (tool === "eraser") { clearTile(x, y); }
+  drawEditor();
+}
+document.getElementById("editorCanvas").addEventListener("mousedown", function (ev) { ePainting = true; applyTool(edCell(ev)); });
+document.getElementById("editorCanvas").addEventListener("mousemove", function (ev) {
+  if (!ePainting) return;
+  var tool = document.getElementById("edTool").value;
+  if (tool === "wall" || tool === "floor" || tool === "door" || tool === "eraser") applyTool(edCell(ev));
+});
+document.addEventListener("mouseup", function () { ePainting = false; });
+function edTransform(fn) {
+  if (!E) return;
+  E.spec = fn(E.spec);
+  drawEditor();
+}
+function rotateSpec(sp) {
+  var H = sp.map.length, W = sp.map[0].length, nm = [];
+  for (var x = 0; x < W; x++) { var row = []; for (var y = H - 1; y >= 0; y--) row.push(sp.map[y][x]); nm.push(row); }
+  sp.map = nm;
+  var f = function (px, py) { return { x: H - 1 - py, y: px }; };
+  var ps = f(sp.playerStart.x, sp.playerStart.y); sp.playerStart.x = ps.x; sp.playerStart.y = ps.y;
+  (sp.enemies || []).forEach(function (e) { var c = f(e.x, e.y); e.x = c.x; e.y = c.y; });
+  (sp.pickups || []).forEach(function (p) { var c = f(p.x, p.y); p.x = c.x; p.y = c.y; });
+  if (sp.goal) { var g = f(sp.goal.exitX, sp.goal.exitY); sp.goal.exitX = g.x; sp.goal.exitY = g.y; }
+  return sp;
+}
+function flipSpec(sp) {
+  var W = sp.map[0].length;
+  sp.map = sp.map.map(function (row) { return row.slice().reverse(); });
+  var f = function (px) { return W - 1 - px; };
+  sp.playerStart.x = f(sp.playerStart.x);
+  (sp.enemies || []).forEach(function (e) { e.x = f(e.x); });
+  (sp.pickups || []).forEach(function (p) { p.x = f(p.x); });
+  if (sp.goal) sp.goal.exitX = f(sp.goal.exitX);
+  return sp;
+}
+function scaleSpec(sp, factor) {
+  var H = sp.map.length, W = sp.map[0].length;
+  if (factor === 2) {
+    if (W * 2 > CAPS.mapMax || H * 2 > CAPS.mapMax) { document.getElementById("status").textContent = "Too big to double (max 24 tiles each side)."; return sp; }
+    var nm = [];
+    sp.map.forEach(function (row) { var r2 = []; row.forEach(function (c) { r2.push(c, c); }); nm.push(r2.slice(), r2.slice()); });
+    sp.map = nm;
+    var d = function (v) { return v * 2; };
+    sp.playerStart.x = d(sp.playerStart.x); sp.playerStart.y = d(sp.playerStart.y);
+    (sp.enemies || []).forEach(function (e) { e.x = d(e.x); e.y = d(e.y); });
+    (sp.pickups || []).forEach(function (p) { p.x = d(p.x); p.y = d(p.y); });
+    if (sp.goal) { sp.goal.exitX = d(sp.goal.exitX); sp.goal.exitY = d(sp.goal.exitY); }
+  } else {
+    if (W % 2 || H % 2) { document.getElementById("status").textContent = "Halving needs even sides (this map is " + W + "x" + H + ")."; return sp; }
+    var nm2 = [];
+    for (var y = 0; y < H; y += 2) { var row2 = []; for (var x = 0; x < W; x += 2) row2.push(sp.map[y][x]); nm2.push(row2); }
+    sp.map = nm2;
+    var h = function (v) { return Math.floor(v / 2); };
+    sp.playerStart.x = h(sp.playerStart.x); sp.playerStart.y = h(sp.playerStart.y);
+    var seen = {};
+    sp.enemies = (sp.enemies || []).filter(function (e) { e.x = h(e.x); e.y = h(e.y); var k = e.x + "," + e.y; if (seen[k]) return false; seen[k] = 1; return true; });
+    var seen2 = {};
+    sp.pickups = (sp.pickups || []).filter(function (p) { p.x = h(p.x); p.y = h(p.y); var k = p.x + "," + p.y; if (seen2[k]) return false; seen2[k] = 1; return true; });
+    if (sp.goal) { sp.goal.exitX = h(sp.goal.exitX); sp.goal.exitY = h(sp.goal.exitY); }
+  }
+  return sp;
+}
+document.getElementById("editBtn").addEventListener("click", openEditor);
+document.getElementById("edRotateBtn").addEventListener("click", function () { edTransform(rotateSpec); });
+document.getElementById("edFlipBtn").addEventListener("click", function () { edTransform(flipSpec); });
+document.getElementById("edScaleUpBtn").addEventListener("click", function () { edTransform(function (sp) { return scaleSpec(sp, 2); }); });
+document.getElementById("edScaleDownBtn").addEventListener("click", function () { edTransform(function (sp) { return scaleSpec(sp, 0.5); }); });
+document.getElementById("edTurnBtn").addEventListener("click", function () {
+  if (!E) return;
+  E.spec.playerStart.angle = ((E.spec.playerStart.angle || 0) + 90) % 360;
+  document.getElementById("status").textContent = "Start now faces " + E.spec.playerStart.angle + " degrees.";
+});
+document.getElementById("edPlayBtn").addEventListener("click", function () {
+  if (!E) return;
+  var spec = repairSpec(E.spec);
+  var check = validateSpec(spec);
+  if (!check.ok) { document.getElementById("status").textContent = "Edited level still fails checks: " + check.errors.join("; "); return; }
+  closeEditor();
+  buildLevel(spec, "Edited", lastArt);
+  document.getElementById("status").textContent = "Edited level built: " + (spec.title || "Untitled") + ". Click the game to play.";
+});
+document.getElementById("edCancelBtn").addEventListener("click", function () { closeEditor(); document.getElementById("status").textContent = "Edit cancelled, original level kept."; });
 
 /* ============ Boot ============ */
 if (("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches) document.getElementById("touchNote").style.display = "block";
