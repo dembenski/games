@@ -22,7 +22,7 @@
   #hpBar { display: block; height: 100%; width: 100%; background: #3ddc54; }
   #gameBox { position: relative; width: 960px; max-width: 100%; margin: 0 auto; }
   canvas { display: block; width: 100%; background: #000; border: 2px solid #444; }
-  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 26px; cursor: pointer; text-align: center; padding: 20px; }
+  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-size: 26px; cursor: pointer; text-align: center; padding: 20px; }
   #vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px 30px rgba(255,0,0,0); transition: box-shadow 0.15s; }
   #feed { background: #12121e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 14px; max-height: 220px; overflow-y: auto; }
   #feed div { border-bottom: 1px solid #26263a; padding: 5px 0; }
@@ -39,6 +39,13 @@
       <select id="providerSelect">
         <option value="meta">Meta AI (Recommended)</option>
         <option value="groq">Groq (Free backup)</option>
+      </select>
+    </label>
+    <label>Art:
+      <select id="artSelect">
+        <option value="painted">Painted (free)</option>
+        <option value="mixed">Mixed (Meta, 1 image)</option>
+        <option value="full">Full AI art (Meta)</option>
       </select>
     </label>
     <input type="password" id="keyInput" placeholder="Paste your API key here">
@@ -65,7 +72,7 @@
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 enemy types + provider-matched art.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -577,13 +584,14 @@ function b64ToCanvas(b64, size) {
     img.src = "data:image/png;base64," + b64;
   });
 }
-async function buildArt(provider, spec) {
-  if (provider !== "meta" || !keyFor("meta")) return { images: 0, wallTex: null, sprites: {} };
+async function buildArt(provider, spec, artMode) {
+  if (artMode === "painted") return { images: 0, wallTex: null, sprites: {} };
+  if (!keyFor("meta")) return { images: 0, wallTex: null, sprites: {}, needKey: true };
   var ad = spec.artDirection || {};
   var jobs = [];
   var wallPrompt = ad.wallPrompt || ("Seamless repeating game wall texture, " + (spec.theme || "dungeon") + ", " + (spec.wallTexture || "brick") + ", flat front view, no text");
   jobs.push(callImageMeta(wallPrompt).then(function (b) { return b64ToCanvas(b, 64); }).catch(function () { return null; }).then(function (c) { return { k: "__wall", v: c }; }));
-  (spec.enemyTypes || []).slice(0, 3).forEach(function (t) {
+  if (artMode === "full") (spec.enemyTypes || []).slice(0, 3).forEach(function (t) {
     var p = "Retro FPS enemy game sprite, " + (t.name || t.id) + ", " + (t.look || t.shape || "monster") + ", " + (ad.spriteStyle || "bold cartoon style") + ", centered, plain solid black background, no text";
     jobs.push(callImageMeta(p).then(function (b) { return b64ToCanvas(b, 256); }).catch(function () { return null; }).then(function (c) { return { k: t.id, v: c }; }));
   });
@@ -611,10 +619,11 @@ document.getElementById("generateBtn").addEventListener("click", async function 
     }
     if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
-      document.getElementById("status").textContent = provider === "meta" ? "Level checks passed. Painting art with Meta..." : "Level checks passed. Painting procedural art...";
-      var art = await buildArt(provider, spec);
+      var artMode = document.getElementById("artSelect").value;
+      document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : "Level checks passed. Painting art with Meta...";
+      var art = await buildArt(provider, spec, artMode);
       buildLevel(spec, "Generated (" + provider + ")", art);
-      var artNote = art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (provider === "meta" ? " Art: procedural (image generation unavailable)." : " Art: procedural (Groq has no image generator).");
+      var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
       document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + "." + artNote + " Click the game to play.";
       if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
     }
