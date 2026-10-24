@@ -37,6 +37,13 @@
   <h1>FPS AI Game Engine Prototype</h1>
   <div class="proto">Practice build, NOT the hackathon submission. The real entry gets built fresh Oct 26 to Nov 4, 2026. Type a game wish, the AI designs the level, you play it.</div>
   <div class="bar">
+    <label>Game type:
+      <select id="typeSelect">
+        <option value="fps">FPS (2.5D)</option>
+        <option value="topview">Top-view shooter</option>
+        <option value="sidescroll">Side-scroll shooter</option>
+      </select>
+    </label>
     <label>AI provider:
       <select id="providerSelect">
         <option value="meta">Meta AI (Recommended)</option>
@@ -112,7 +119,7 @@
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -123,6 +130,8 @@ var CONFIG = {
   groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-20b" }
 };
 var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
+var SYSTEM_PROMPT_TOP = "You are a 2D top-down shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW top-down arena every time: rooms, corridors, arenas, choke points viewed from above, never copy the demo castle. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: 'topview', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
+var SYSTEM_PROMPT_SIDE = "You are a 2D side-scrolling shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW side-scrolling level every time: platforms, gaps, and solid ground viewed from the side, never copy the demo castle. Map tiles: 0 open air, 1 solid ground or platform, 2 locked door. Map 16-24 tiles wide, 10-14 tiles tall. Bottom row all solid. Player start on an open tile standing on solid ground. Enemies stand on platforms or solid ground. Jump height is about 2 tiles, so platforms must be reachable by jumps of 1-2 tiles and gaps of 1-2 tiles. Spec shape: {gameType: 'sidescroll', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
 var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, typesMax: 8, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
 var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
 var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
@@ -262,7 +271,7 @@ function validateSpec(spec) {
   if ((spec.pickups || []).length > CAPS.pickupsMax) errors.push("too many pickups");
   if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0) errors.push("unknown wall texture");
   if (GOAL_TYPES.indexOf((spec.goal || {}).type) < 0) errors.push("unknown goal");
-  if (errors.length === 0 && spec.map[ps.y]) {
+  if (errors.length === 0 && spec.map[ps.y] && spec.gameType !== "sidescroll") {
     var seen = [], stack = [[ps.x, ps.y]], count = 0, open = 0;
     for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { seen.push(0); if (spec.map[yy][xx] === 0) open++; }
     seen[ps.y * w + ps.x] = 1;
@@ -282,8 +291,11 @@ function firstOpenTile(map) {
   return { x: 1, y: 1 };
 }
 function repairSpec(spec) {
+  var gt = (spec && spec.gameType) || "fps";
+  if (["fps", "topview", "sidescroll"].indexOf(gt) < 0) gt = "fps";
+  if (spec && typeof spec === "object") spec.gameType = gt;
   if (!spec || typeof spec !== "object" || !Array.isArray(spec.map) || spec.map.length === 0) {
-    spec = { title: "Repaired", theme: "", map: JSON.parse(JSON.stringify(FALLBACK_SPEC.map)), wallTexture: "brick", floorColor: "#1a1a1a", ceilingColor: "#050510", playerStart: { x: 1, y: 1, angle: 0 }, weapons: [{ type: "pistol", damage: 20, ammo: 12 }], enemies: [], pickups: [], goal: { type: "eliminate-all", keys: 0, exitX: 10, exitY: 10 } };
+    spec = { gameType: gt, title: "Repaired", theme: "", map: JSON.parse(JSON.stringify(FALLBACK_SPEC.map)), wallTexture: "brick", floorColor: "#1a1a1a", ceilingColor: "#050510", playerStart: { x: 1, y: 1, angle: 0 }, weapons: [{ type: "pistol", damage: 20, ammo: 12 }], enemies: [], pickups: [], goal: { type: "eliminate-all", keys: 0, exitX: 10, exitY: 10 } };
     return spec;
   }
   var w = 0;
@@ -300,6 +312,7 @@ function repairSpec(spec) {
   for (var y = 0; y < h; y++) { spec.map[y][0] = 1; spec.map[y][w - 1] = 1; }
   var ps = spec.playerStart;
   if (!ps || !spec.map[ps.y] || spec.map[ps.y][ps.x] !== 0) { var s = firstOpenTile(spec.map); spec.playerStart = { x: s.x, y: s.y, angle: 0 }; }
+  if (spec.gameType !== "sidescroll") {
   var seen = [], stack = [[spec.playerStart.x, spec.playerStart.y]];
   for (var yy = 0; yy < h; yy++) { seen[yy] = []; for (var xx = 0; xx < w; xx++) seen[yy][xx] = 0; }
   seen[spec.playerStart.y][spec.playerStart.x] = 1;
@@ -307,6 +320,7 @@ function repairSpec(spec) {
     [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { var nx = cur[0] + d[0], ny = cur[1] + d[1];
       if (nx >= 0 && ny >= 0 && nx < w && ny < h && spec.map[ny][nx] === 0 && !seen[ny][nx]) { seen[ny][nx] = 1; stack.push([nx, ny]); } }); }
   for (var y2 = 0; y2 < h; y2++) for (var x2 = 0; x2 < w; x2++) if (spec.map[y2][x2] === 0 && !seen[y2][x2]) spec.map[y2][x2] = 1;
+  }
   if (!Array.isArray(spec.enemies)) spec.enemies = [];
   if (Array.isArray(spec.enemyTypes)) spec.enemyTypes = spec.enemyTypes.map(normalizeType).filter(Boolean).slice(0, CAPS.typesMax);
   var rtable = typeTable(spec);
@@ -335,6 +349,10 @@ function buildLevel(spec, sourceLabel, art) {
   S = JSON.parse(JSON.stringify(spec));
   lastSpec = JSON.parse(JSON.stringify(spec));
   lastArt = art || null;
+  S.gameType = spec.gameType || "fps";
+  S.bullets = [];
+  S.camX = 0;
+  S.mouseX = W / 2; S.mouseY = H / 2;
   S.art = null;
   if (art) {
     var sprites = {};
@@ -342,6 +360,7 @@ function buildLevel(spec, sourceLabel, art) {
     if ((art.wallTex && art.wallTex.width) || Object.keys(sprites).length) S.art = { wallTex: (art.wallTex && art.wallTex.width) ? art.wallTex : null, sprites: sprites };
   }
   S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true };
+  if (S.gameType === "sidescroll") { S.player.vx = 0; S.player.vy = 0; S.player.facing = 1; S.player.grounded = false; }
   var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
   var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
   S.weapon = { type: w0.type, damage: w0.damage || wt.damage, mag: w0.ammo || wt.ammo, ammo: w0.ammo || wt.ammo, range: wt.range, rate: wt.rate };
@@ -566,7 +585,11 @@ document.addEventListener("keydown", function (e) {
   var k = e.key.toLowerCase();
   if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(k) >= 0) e.preventDefault();
   keysDown[k] = true;
-  if (k === " " && !e.repeat && S && !gameOver && S.player.grounded) { S.player.vz = 5.2; S.player.grounded = false; }
+  if (k === " " && !e.repeat && S && !gameOver && S.player.grounded) {
+    if (S.gameType === "sidescroll") { S.player.vy = -11; S.player.grounded = false; }
+    else if (S.gameType === "topview") { shoot2D(); }
+    else { S.player.vz = 5.2; S.player.grounded = false; }
+  }
   if (k === "r") {
     if (gameOver && !winShown && S) { buildLevel(S, "Retry"); return; }
     if (S && !gameOver) { var wt = WEAPON_TYPES[S.weapon.type]; S.weapon.ammo = S.weapon.mag || wt.ammo; updateHUD(); }
@@ -576,11 +599,17 @@ document.addEventListener("keyup", function (e) { keysDown[e.key.toLowerCase()] 
 document.addEventListener("mousemove", function (e) { if (locked && S) S.player.angle += e.movementX * 0.0022; });
 canvas.addEventListener("click", function () {
   if (gameOver) return;
+  if (S && S.gameType !== "fps") { shoot2D(); return; }
   if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
   shoot();
 });
+canvas.addEventListener("mousemove", function (e) {
+  var r = canvas.getBoundingClientRect();
+  if (S) { S.mouseX = (e.clientX - r.left) / r.width * W; S.mouseY = (e.clientY - r.top) / r.height * H; }
+});
 document.getElementById("overlay").addEventListener("click", function () {
   if (gameOver) return;
+  if (S && S.gameType !== "fps") { document.getElementById("overlay").style.display = "none"; return; }
   var p = canvas.requestPointerLock && canvas.requestPointerLock();
   if (p && p.catch) p.catch(function (err) { document.getElementById("status").textContent = "Pointer lock blocked: " + (err && err.message ? err.message : err) + ". Try clicking again in a second."; });
 });
@@ -647,37 +676,39 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   var prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
   var provider = document.getElementById("providerSelect").value;
+  var type = document.getElementById("typeSelect").value;
+  var sysPrompt = type === "topview" ? SYSTEM_PROMPT_TOP : type === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT;
   if (!keyFor(provider)) { document.getElementById("status").textContent = "Enter your API key first (Saved in this browser only). The demo castle still plays without one."; return; }
   var btn = document.getElementById("generateBtn"); btn.disabled = true;
   document.getElementById("status").textContent = "Thinking with " + provider + "...";
   try {
-    var raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
-    var spec = repairSpec(JSON.parse(stripFences(raw)));
+    var raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
+    var spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
     var check = validateSpec(spec);
     if (!check.ok) {
       document.getElementById("status").textContent = "First try failed checks, asking the AI to fix it...";
-      raw = await callAI(provider, [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That JSON failed these checks: " + check.errors.join("; ") + ". Return corrected valid JSON only." }]);
-      spec = repairSpec(JSON.parse(stripFences(raw)));
+      raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That JSON failed these checks: " + check.errors.join("; ") + ". Return corrected valid JSON only." }]);
+      spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
       check = validateSpec(spec);
     }
-    if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
+    if (!check.ok) { buildLevel(fallbackFor(type), "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
       var artMode = document.getElementById("artSelect").value;
       document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : "Level checks passed. Painting art with Meta...";
       var art = await buildArt(provider, spec, artMode);
       buildLevel(spec, "Generated (" + provider + ")", art);
       var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
-      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + "." + artNote + " Click the game to play.";
+      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + " Click the game to play.";
       if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
     }
   } catch (err) {
     if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
       document.getElementById("status").textContent = "Meta is busy, retrying with Groq...";
       try {
-        var raw2 = await callAI("groq", [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }]);
-        var spec2 = repairSpec(JSON.parse(stripFences(raw2)));
+        var raw2 = await callAI("groq", [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
+        var spec2 = JSON.parse(stripFences(raw2)); spec2.gameType = type; spec2 = repairSpec(spec2);
         if (validateSpec(spec2).ok) { buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
-        else { buildLevel(FALLBACK_SPEC, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
+        else { buildLevel(fallbackFor(type), "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
     } else if (err.status === 404) {
       document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
@@ -888,7 +919,7 @@ function drawMini(cv, spec) {
 }
 function cardHTML(item, i, src) {
   var sp = item.spec, d = item.savedAt ? new Date(item.savedAt) : null;
-  var meta = esc(sp.theme || "") + " | " + sp.map[0].length + "x" + sp.map.length + " | " + (sp.enemies || []).length + " enemies | goal " + (sp.goal && sp.goal.type);
+  var meta = (sp.gameType || "fps") + " | " + esc(sp.theme || "") + " | " + sp.map[0].length + "x" + sp.map.length + " | " + (sp.enemies || []).length + " enemies | goal " + (sp.goal && sp.goal.type);
   if (item.maker) meta = "by " + esc(item.maker) + " | " + meta;
   else if (d) meta += " | saved " + d.toLocaleDateString();
   var btns = "<button data-act='play' data-src='" + src + "' data-idx='" + i + "'>Play</button><button data-act='copy' data-src='" + src + "' data-idx='" + i + "'>Copy link</button><button data-act='facebook' data-src='" + src + "' data-idx='" + i + "'>Facebook</button><button data-act='threads' data-src='" + src + "' data-idx='" + i + "'>Threads</button><button data-act='instagram' data-src='" + src + "' data-idx='" + i + "'>Instagram</button><button data-act='export' data-src='" + src + "' data-idx='" + i + "'>Export</button>";
@@ -986,6 +1017,234 @@ document.getElementById("feedBox").addEventListener("click", function (ev) {
   else if (act === "save") { var mine = loadFeed(); mine.unshift({ title: item.spec.title || "Untitled", theme: item.spec.theme || "", spec: JSON.parse(JSON.stringify(item.spec)), savedAt: Date.now() }); saveFeed(mine.slice(0, 50)); renderFeed(); document.getElementById("status").textContent = "Saved to your feed: " + (item.spec.title || "Untitled") + "."; }
 });
 
+/* ============ 2D generators: top-view + side-scroll ============ */
+function fallbackFor(type) {
+  var fb = JSON.parse(JSON.stringify(FALLBACK_SPEC));
+  fb.gameType = type;
+  return fb;
+}
+function blockedAt(x, y, r) {
+  return isWall(Math.floor(x - r), Math.floor(y - r)) || isWall(Math.floor(x + r), Math.floor(y - r)) ||
+    isWall(Math.floor(x - r), Math.floor(y + r)) || isWall(Math.floor(x + r), Math.floor(y + r));
+}
+function shoot2D() {
+  if (!S || gameOver) return;
+  var now = Date.now();
+  if (now - lastShot < S.weapon.rate) return;
+  if (S.weapon.ammo <= 0) { addPopup("RELOAD (R)", "#ffd60a"); return; }
+  lastShot = now; S.weapon.ammo--; flashUntil = now + 90;
+  var p = S.player;
+  if (S.gameType === "topview") S.bullets.push({ x: p.x, y: p.y, vx: Math.cos(p.angle) * 14, vy: Math.sin(p.angle) * 14, life: 1.2 });
+  else S.bullets.push({ x: p.x + p.facing * 0.4, y: p.y, vx: p.facing * 14, vy: 0, life: 1.2 });
+  updateHUD();
+}
+function damagePlayer2D(dmg) {
+  var p = S.player;
+  if (p.armor > 0) { var absorbed = Math.min(p.armor, dmg); p.armor -= absorbed; dmg -= absorbed; }
+  p.hp -= dmg; hurtUntil = Date.now() + 200; addPopup("-" + dmg + " HP", "#ff5252");
+  if (p.hp <= 0) { p.hp = 0; gameOver = true; }
+}
+function collect2D(p, rx, ry) {
+  S.pickups = S.pickups.filter(function (pk) {
+    if (Math.abs(pk.x - p.x) < rx && Math.abs(pk.y - p.y) < ry) {
+      if (pk.type === "health") { p.hp = Math.min(100, p.hp + pk.amount); addPopup("+" + pk.amount + " HP", "#3ddc54"); }
+      if (pk.type === "ammo") { S.weapon.ammo += pk.amount; addPopup("+" + pk.amount + " AMMO", "#ffd60a"); }
+      if (pk.type === "armor") { p.armor += 25; addPopup("+ARMOR", "#3b82ff"); }
+      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); }
+      return false;
+    }
+    return true;
+  });
+}
+function checkWin2D(p) {
+  if (winShown || !S.goal) return;
+  var won = false;
+  if (S.goal.type === "eliminate-all" && S.enemies.length === 0) won = true;
+  if (S.goal.type === "key-hunt" && S.keys >= (S.goal.keys || 1) && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
+  if (S.goal.type === "reach-exit" && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
+  if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; }
+}
+function updateTop(dt) {
+  if (!S || gameOver) return;
+  var p = S.player, speed = (keysDown["shift"] ? 5.0 : 3.5) * dt;
+  var fx = 0, fy = 0;
+  if (keysDown["w"] || keysDown["arrowup"]) fy -= 1;
+  if (keysDown["s"] || keysDown["arrowdown"]) fy += 1;
+  if (keysDown["a"] || keysDown["arrowleft"]) fx -= 1;
+  if (keysDown["d"] || keysDown["arrowright"]) fx += 1;
+  if (fx || fy) { var len = Math.sqrt(fx * fx + fy * fy); fx /= len; fy /= len;
+    var nx = p.x + fx * speed; if (!blockedAt(nx, p.y, 0.25)) p.x = nx;
+    var ny = p.y + fy * speed; if (!blockedAt(p.x, ny, 0.25)) p.y = ny; }
+  if (S.view && S.mouseX !== undefined) {
+    var mx = (S.mouseX - S.view.ox) / S.view.scale, my = (S.mouseY - S.view.oy) / S.view.scale;
+    p.angle = Math.atan2(my - p.y, mx - p.x);
+  }
+  S.enemies.forEach(function (e) {
+    if (!e.moving) return;
+    e.cool -= dt;
+    var dx = p.x - e.x, dy = p.y - e.y, dist = Math.sqrt(dx * dx + dy * dy);
+    var seen = dist < 8 && losClear(e.x, e.y, p.x, p.y);
+    if (e.wander && !seen) {
+      e.wanderT -= dt;
+      if (e.wanderT <= 0) { e.wanderT = 1 + Math.random() * 1.5; var wa = Math.random() * Math.PI * 2; e.wanderX = Math.cos(wa); e.wanderY = Math.sin(wa); }
+      var wx = e.x + e.wanderX * e.speed * 0.5 * dt, wy = e.y + e.wanderY * e.speed * 0.5 * dt;
+      if (!blockedAt(wx, e.y, 0.25)) e.x = wx;
+      if (!blockedAt(e.x, wy, 0.25)) e.y = wy;
+    }
+    if (seen && dist > 0.7) { var mx2 = e.x + dx / dist * e.speed * dt, my2 = e.y + dy / dist * e.speed * dt;
+      if (!blockedAt(mx2, e.y, 0.25)) e.x = mx2;
+      if (!blockedAt(e.x, my2, 0.25)) e.y = my2; }
+    if (Math.abs(e.x - p.x) < 0.6 && Math.abs(e.y - p.y) < 0.6 && e.cool <= 0) { e.cool = 1.0; damagePlayer2D(e.damage); }
+  });
+  S.bullets.forEach(function (b) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; });
+  S.bullets = S.bullets.filter(function (b) {
+    if (b.life <= 0) return false;
+    if (isWall(Math.floor(b.x), Math.floor(b.y))) return false;
+    var hit = null;
+    S.enemies.forEach(function (e) { if (Math.sqrt((e.x - b.x) * (e.x - b.x) + (e.y - b.y) * (e.y - b.y)) < 0.45) hit = e; });
+    if (hit) {
+      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
+      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+      return false;
+    }
+    return true;
+  });
+  collect2D(p, 0.55, 0.55);
+  checkWin2D(p);
+  updateHUD();
+}
+function drawEndTail() {
+  var now = Date.now();
+  popups = popups.filter(function (pp) { return now - pp.t < 1400; });
+  popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.textAlign = "center"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
+  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Press R to retry this level, or generate a new one.", W / 2, H / 2 + 30); }
+  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
+  document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
+}
+function renderTop() {
+  if (!S) return;
+  var cols = S.map[0].length, rows = S.map.length;
+  var scale = Math.min(W / cols, H / rows), ox = (W - cols * scale) / 2, oy = (H - rows * scale) / 2;
+  S.view = { scale: scale, ox: ox, oy: oy };
+  ctx.fillStyle = S.floorColor || "#1a1a1a"; ctx.fillRect(0, 0, W, H);
+  var tex = TEXTURES[S.wallTexture] || null;
+  for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
+    var px = ox + x * scale, py = oy + y * scale;
+    if (S.map[y][x] === 1) { if (tex) ctx.drawImage(tex, px, py, scale, scale); else { ctx.fillStyle = "#888"; ctx.fillRect(px, py, scale, scale); } }
+    else if (S.map[y][x] === 2) { ctx.fillStyle = "#b07a1e"; ctx.fillRect(px, py, scale, scale); }
+  }
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  for (var gx = 0; gx <= cols; gx++) { ctx.beginPath(); ctx.moveTo(ox + gx * scale, oy); ctx.lineTo(ox + gx * scale, oy + rows * scale); ctx.stroke(); }
+  for (var gy = 0; gy <= rows; gy++) { ctx.beginPath(); ctx.moveTo(ox, oy + gy * scale); ctx.lineTo(ox + cols * scale, oy + gy * scale); ctx.stroke(); }
+  if (S.goal && S.goal.type !== "eliminate-all") { ctx.fillStyle = "#ffcc00"; ctx.fillRect(ox + S.goal.exitX * scale + scale * 0.2, oy + S.goal.exitY * scale + scale * 0.2, scale * 0.6, scale * 0.6); }
+  var pcol = { health: "#ff3b30", ammo: "#ffd60a", armor: "#3b82ff", key: "#ffcc00" };
+  S.pickups.forEach(function (pk) { ctx.fillStyle = pcol[pk.type] || "#fff"; ctx.fillRect(ox + pk.x * scale + scale * 0.3, oy + pk.y * scale + scale * 0.3, scale * 0.4, scale * 0.4); });
+  S.enemies.forEach(function (e) {
+    var ex = ox + e.x * scale, ey = oy + e.y * scale, r = Math.max(4, scale * 0.3);
+    if (e.img) ctx.drawImage(e.img, ex - r, ey - r, r * 2, r * 2);
+    else { ctx.fillStyle = e.color || "#ff00ff"; ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#fff"; ctx.font = "11px Verdana"; ctx.textAlign = "center"; ctx.fillText(Math.ceil(e.hp), ex, ey - r - 2);
+  });
+  var p = S.player, px2 = ox + p.x * scale, py2 = oy + p.y * scale, pr = Math.max(5, scale * 0.32);
+  ctx.fillStyle = "#3ddc54"; ctx.beginPath();
+  ctx.moveTo(px2 + Math.cos(p.angle) * pr * 1.4, py2 + Math.sin(p.angle) * pr * 1.4);
+  ctx.lineTo(px2 + Math.cos(p.angle + 2.5) * pr, py2 + Math.sin(p.angle + 2.5) * pr);
+  ctx.lineTo(px2 + Math.cos(p.angle - 2.5) * pr, py2 + Math.sin(p.angle - 2.5) * pr);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffe600";
+  S.bullets.forEach(function (b) { ctx.beginPath(); ctx.arc(ox + b.x * scale, oy + b.y * scale, 3, 0, Math.PI * 2); ctx.fill(); });
+  if (Date.now() < flashUntil) { ctx.fillStyle = "rgba(255,220,80,0.25)"; ctx.fillRect(0, 0, W, H); }
+  drawEndTail();
+}
+function moveAxis(e, dx, dy) {
+  var hw = 0.3, hh = 0.45, blocked = false;
+  var nx = e.x + dx;
+  for (var ty = Math.floor(e.y - hh); ty <= Math.floor(e.y + hh) && !blocked; ty++)
+    for (var tx = Math.floor(nx - hw); tx <= Math.floor(nx + hw) && !blocked; tx++)
+      if (isWall(tx, ty)) blocked = true;
+  var xBlocked = blocked;
+  if (!blocked) e.x = nx;
+  var ny = e.y + dy, landed = false;
+  blocked = false;
+  for (var ty2 = Math.floor(ny - hh); ty2 <= Math.floor(ny + hh) && !blocked; ty2++)
+    for (var tx2 = Math.floor(e.x - hw); tx2 <= Math.floor(e.x + hw) && !blocked; tx2++)
+      if (isWall(tx2, ty2)) blocked = true;
+  if (!blocked) e.y = ny;
+  else if (dy > 0) landed = true;
+  return { xBlocked: xBlocked, landed: landed };
+}
+function updateSide(dt) {
+  if (!S || gameOver) return;
+  var p = S.player;
+  var mv = 0;
+  if (keysDown["a"] || keysDown["arrowleft"]) mv -= 1;
+  if (keysDown["d"] || keysDown["arrowright"]) mv += 1;
+  if (mv !== 0) { p.facing = mv; moveAxis(p, mv * 4.2 * dt, 0); }
+  p.vy += 26 * dt; if (p.vy > 16) p.vy = 16;
+  var res = moveAxis(p, 0, p.vy * dt);
+  if (res.landed) { p.grounded = true; p.vy = 0; } else p.grounded = false;
+  S.enemies.forEach(function (e) {
+    if (e.vx === undefined) { e.vx = 0; e.vy = 0; e.facing = Math.random() < 0.5 ? -1 : 1; e.grounded = false; }
+    e.cool -= dt;
+    var dx = p.x - e.x, adx = Math.abs(dx);
+    if (e.behavior === "turret") { /* stationary */ }
+    else if (adx < 8 && !e.wander) { var dir = dx > 0 ? 1 : -1; e.facing = dir; moveAxis(e, dir * e.speed * dt, 0); }
+    else { var r = moveAxis(e, e.facing * e.speed * 0.5 * dt, 0); if (r.xBlocked) e.facing *= -1; }
+    e.vy += 26 * dt; if (e.vy > 16) e.vy = 16;
+    var er = moveAxis(e, 0, e.vy * dt);
+    if (er.landed) { e.grounded = true; e.vy = 0; } else e.grounded = false;
+    if (Math.abs(e.x - p.x) < 0.6 && Math.abs(e.y - p.y) < 0.9 && e.cool <= 0) { e.cool = 1.0; damagePlayer2D(e.damage); }
+  });
+  S.bullets.forEach(function (b) { b.x += b.vx * dt; b.life -= dt; });
+  S.bullets = S.bullets.filter(function (b) {
+    if (b.life <= 0) return false;
+    if (isWall(Math.floor(b.x), Math.floor(b.y))) return false;
+    var hit = null;
+    S.enemies.forEach(function (e) { if (Math.abs(e.x - b.x) < 0.5 && Math.abs(e.y - b.y) < 0.6) hit = e; });
+    if (hit) {
+      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
+      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+      return false;
+    }
+    return true;
+  });
+  collect2D(p, 0.7, 0.8);
+  checkWin2D(p);
+  updateHUD();
+}
+function renderSide() {
+  if (!S) return;
+  var T = 48, cols = S.map[0].length, rows = S.map.length;
+  var p = S.player;
+  var oy = rows * T < H ? (H - rows * T) / 2 : 0;
+  S.camX = Math.max(0, Math.min(cols * T - W, p.x * T - W / 2));
+  ctx.fillStyle = S.ceilingColor || "#050510"; ctx.fillRect(0, 0, W, H);
+  var tex = TEXTURES[S.wallTexture] || null;
+  var x0 = Math.max(0, Math.floor(S.camX / T)), x1 = Math.min(cols - 1, Math.floor((S.camX + W) / T));
+  for (var y = 0; y < rows; y++) for (var x = x0; x <= x1; x++) {
+    var sx = x * T - S.camX, sy = y * T + oy;
+    if (S.map[y][x] === 1) { if (tex) ctx.drawImage(tex, sx, sy, T, T); else { ctx.fillStyle = "#888"; ctx.fillRect(sx, sy, T, T); } }
+    else if (S.map[y][x] === 2) { ctx.fillStyle = "#b07a1e"; ctx.fillRect(sx, sy, T, T); }
+  }
+  if (S.goal && S.goal.type !== "eliminate-all") { ctx.fillStyle = "#ffcc00"; ctx.fillRect(S.goal.exitX * T - S.camX + 8, S.goal.exitY * T + oy + 8, T - 16, T - 16); }
+  var pcol = { health: "#ff3b30", ammo: "#ffd60a", armor: "#3b82ff", key: "#ffcc00" };
+  S.pickups.forEach(function (pk) { var sx = pk.x * T - S.camX, sy = pk.y * T + oy; if (sx < -T || sx > W) return; ctx.fillStyle = pcol[pk.type] || "#fff"; ctx.fillRect(sx + 12, sy + 12, T - 24, T - 24); });
+  S.enemies.forEach(function (e) {
+    var ex = e.x * T - S.camX, ey = e.y * T + oy;
+    if (ex < -T || ex > W + T) return;
+    if (e.img) ctx.drawImage(e.img, ex - 18, ey - 18, 36, 36);
+    else { ctx.fillStyle = e.color || "#ff00ff"; ctx.beginPath(); ctx.arc(ex, ey, 16, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#fff"; ctx.font = "11px Verdana"; ctx.textAlign = "center"; ctx.fillText(Math.ceil(e.hp), ex, ey - 22);
+  });
+  var px = p.x * T - S.camX, py = p.y * T + oy;
+  ctx.fillStyle = "#3ddc54"; ctx.fillRect(px - 14, py - 21, 28, 42);
+  ctx.fillStyle = "#1a1a1a"; ctx.fillRect(px + (p.facing > 0 ? 14 : -22), py - 4, 8, 4);
+  ctx.fillStyle = "#ffe600";
+  S.bullets.forEach(function (b) { ctx.fillRect(b.x * T - S.camX - 6, b.y * T + oy - 2, 12, 4); });
+  if (Date.now() < flashUntil) { ctx.fillStyle = "rgba(255,220,80,0.25)"; ctx.fillRect(0, 0, W, H); }
+  drawEndTail();
+}
+
 /* ============ Boot ============ */
 if (("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches) document.getElementById("touchNote").style.display = "block";
 buildLevel(DEMO_SPEC, "Demo");
@@ -998,7 +1257,11 @@ try {
 var last = performance.now();
 function loop(now) {
   var dt = Math.min(0.05, (now - last) / 1000); last = now;
-  update(dt); render();
+  if (S) {
+    if (S.gameType === "topview") { updateTop(dt); renderTop(); }
+    else if (S.gameType === "sidescroll") { updateSide(dt); renderSide(); }
+    else { update(dt); render(); }
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
