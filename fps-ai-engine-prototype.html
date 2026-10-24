@@ -63,7 +63,7 @@
   <div id="gameBox">
     <canvas id="game" width="960" height="540"></canvas>
     <div id="vignette"></div>
-    <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; R reload &nbsp; Shift run</span></div>
+    <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
   </div>
   <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
@@ -216,7 +216,7 @@ var zbuffer = new Array(W);
 function isWall(x, y) { if (!S) return true; if (y < 0 || y >= S.map.length || x < 0 || x >= S.map[0].length) return true; return S.map[y][x] !== 0; }
 function buildLevel(spec, sourceLabel) {
   S = JSON.parse(JSON.stringify(spec));
-  S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0 };
+  S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true };
   var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
   var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
   S.weapon = { type: w0.type, damage: w0.damage || wt.damage, mag: w0.ammo || wt.ammo, ammo: w0.ammo || wt.ammo, range: wt.range, rate: wt.rate };
@@ -224,7 +224,7 @@ function buildLevel(spec, sourceLabel) {
   S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
   document.getElementById("overlay").style.display = "flex";
-  document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; R reload &nbsp; Shift run</span>";
+  document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>";
   updateHUD();
   logFeed(sourceLabel + ": " + (S.title || "Untitled") + " | map " + S.map[0].length + "x" + S.map.length + " | " + S.enemies.length + " enemies | goal " + (S.goal && S.goal.type));
 }
@@ -273,8 +273,9 @@ function losClear(x0, y0, x1, y1) {
 function render() {
   if (!S) return;
   var p = S.player;
-  ctx.fillStyle = S.ceilingColor || "#0a0a18"; ctx.fillRect(0, 0, W, H / 2);
-  ctx.fillStyle = S.floorColor || "#2a1a12"; ctx.fillRect(0, H / 2, W, H / 2);
+  var horizonY = H / 2 - (p.z || 0) * 90;
+  ctx.fillStyle = S.ceilingColor || "#0a0a18"; ctx.fillRect(0, 0, W, horizonY);
+  ctx.fillStyle = S.floorColor || "#2a1a12"; ctx.fillRect(0, horizonY, W, H - horizonY);
   var dirX = Math.cos(p.angle), dirY = Math.sin(p.angle);
   var planeX = -dirY * 0.66, planeY = dirX * 0.66;
   var tex = TEXTURES[S.wallTexture] || TEXTURES.brick;
@@ -285,7 +286,7 @@ function render() {
     var dist = Math.max(0.05, hit.dist);
     zbuffer[col] = dist;
     var lineH = H / dist;
-    var top = Math.max(0, (H - lineH) / 2), bot = Math.min(H, (H + lineH) / 2);
+    var top = Math.max(0, horizonY - lineH / 2), bot = Math.min(H, horizonY + lineH / 2);
     var texX = Math.floor(hit.wallX * 64);
     if ((hit.side === 0 && rdx > 0) || (hit.side === 1 && rdy < 0)) texX = 63 - texX;
     ctx.drawImage(tex, texX, 0, 1, 64, col, top, 1, bot - top);
@@ -308,7 +309,7 @@ function render() {
     if (sx < -size || sx > W + size) return;
     var midCol = Math.max(0, Math.min(W - 1, sx));
     if (zbuffer[midCol] < ty) return;
-    var top = (H - size) / 2;
+    var top = horizonY - size / 2;
     if (sp.kind === "enemy") {
       ctx.fillStyle = sp.ref.color; ctx.beginPath(); ctx.arc(sx, top + size / 2, size * 0.32, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "#000"; ctx.font = Math.max(12, size * 0.18) + "px Verdana"; ctx.textAlign = "center";
@@ -331,7 +332,7 @@ function render() {
   ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = "13px Verdana"; ctx.textAlign = "center";
   ctx.fillText(S.weapon.type.toUpperCase(), W / 2, H - 14);
   ctx.fillStyle = "#fff"; ctx.font = "20px Verdana";
-  ctx.fillText("+", W / 2, H / 2 + 7);
+  ctx.fillText("+", W / 2, horizonY + 7);
   var now = Date.now();
   popups = popups.filter(function (pp) { return now - pp.t < 1400; });
   popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
@@ -353,6 +354,7 @@ function update(dt) {
   if (fx || fy) { var len = Math.sqrt(fx * fx + fy * fy); fx /= len; fy /= len;
     var nx = p.x + fx * speed; if (!isWall(Math.floor(nx), Math.floor(p.y))) p.x = nx;
     var ny = p.y + fy * speed; if (!isWall(Math.floor(p.x), Math.floor(ny))) p.y = ny; }
+  if (!p.grounded) { p.vz -= 14 * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; p.vz = 0; p.grounded = true; } }
   S.enemies.forEach(function (e) {
     if (!e.moving) return;
     e.cool -= dt;
@@ -415,6 +417,7 @@ document.addEventListener("keydown", function (e) {
   var k = e.key.toLowerCase();
   if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(k) >= 0) e.preventDefault();
   keysDown[k] = true;
+  if (k === " " && !e.repeat && S && !gameOver && S.player.grounded) { S.player.vz = 5.2; S.player.grounded = false; }
   if (k === "r") {
     if (gameOver && !winShown && S) { buildLevel(S, "Retry"); return; }
     if (S && !gameOver) { var wt = WEAPON_TYPES[S.weapon.type]; S.weapon.ammo = S.weapon.mag || wt.ammo; updateHUD(); }
