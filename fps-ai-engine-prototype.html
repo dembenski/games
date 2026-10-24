@@ -477,6 +477,10 @@ canvas.addEventListener("click", function () {
   if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
   shoot();
 });
+document.getElementById("overlay").addEventListener("click", function () {
+  if (gameOver) return;
+  canvas.requestPointerLock && canvas.requestPointerLock();
+});
 document.addEventListener("pointerlockchange", function () {
   locked = document.pointerLockElement === canvas;
   document.getElementById("overlay").style.display = locked ? "none" : "flex";
