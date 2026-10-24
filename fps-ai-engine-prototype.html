@@ -65,7 +65,7 @@
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: clickfix-25be768 + lockmsg.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 enemy types + provider-matched art.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -75,13 +75,29 @@ var CONFIG = {
   meta: { baseUrl: "https://api.meta.ai/v1/chat/completions", model: "muse-spark-1.3" },
   groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-20b" }
 };
-var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences, matching exactly the spec shape given. Map tiles: 0 open, 1 wall, 2 locked door. Map max 24x24 with all border tiles walls. Player start on an open tile. Enemies max 20, only from this roster: skeleton, zombie, ghost, goblin, bat, turret. Weapons only from: pistol, shotgun, blaster, rifle. Pickups only from: health, ammo, armor, key. Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. Keep every number inside the stated caps.";
-var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
+var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
+var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, typesMax: 8, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
 var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
 var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
 var PICKUP_TYPES = ["health", "ammo", "armor", "key"];
 var WALL_TEXTURES = ["brick", "castle-brick", "neon-grid", "cave-rock", "tech-panel", "wood"];
 var GOAL_TYPES = ["eliminate-all", "key-hunt", "reach-exit"];
+var ENEMY_BEHAVIORS = ["chase", "wander", "turret"];
+var ENEMY_SHAPES = ["brute", "flyer", "blob", "spiky"];
+function typeTable(spec) {
+  var t = {};
+  Object.keys(ENEMY_TYPES).forEach(function (k) { t[k] = ENEMY_TYPES[k]; });
+  (spec.enemyTypes || []).forEach(function (et) { if (et && et.id) t[et.id] = et; });
+  return t;
+}
+function normalizeType(et) {
+  if (!et || !et.id) return null;
+  return { id: String(et.id), name: et.name || et.id, color: (typeof et.color === "string" && et.color) ? et.color : "#ff00ff",
+    hp: clamp(et.hp || 30, CAPS.hpMin, CAPS.hpMax), speed: clamp(et.speed == null ? 1 : et.speed, CAPS.spdMin, CAPS.spdMax),
+    damage: clamp(et.damage || 10, CAPS.dmgMin, CAPS.dmgMax),
+    behavior: ENEMY_BEHAVIORS.indexOf(et.behavior) >= 0 ? et.behavior : "chase",
+    shape: ENEMY_SHAPES.indexOf(et.shape) >= 0 ? et.shape : "blob", look: et.look || "" };
+}
 
 /* ============ Procedural wall textures ============ */
 function makeTexture(name) {
@@ -179,8 +195,14 @@ function validateSpec(spec) {
   }
   var ps = spec.playerStart || {};
   if (!spec.map[ps.y] || spec.map[ps.y][ps.x] !== 0) errors.push("player start not on open tile");
+  var table = typeTable(spec);
+  if ((spec.enemyTypes || []).length > CAPS.typesMax) errors.push("too many enemy types");
+  (spec.enemyTypes || []).forEach(function (et) {
+    if (!et || !et.id) errors.push("enemy type without id");
+    else if (et.behavior !== undefined && ENEMY_BEHAVIORS.indexOf(et.behavior) < 0) errors.push("bad behavior " + et.behavior);
+  });
   (spec.enemies || []).forEach(function (e) {
-    if (!ENEMY_TYPES[e.type]) errors.push("unknown enemy " + e.type);
+    if (!table[e.type]) errors.push("unknown enemy " + e.type);
     if (!spec.map[e.y] || spec.map[e.y][e.x] !== 0) errors.push("enemy not on open tile");
   });
   (spec.pickups || []).forEach(function (p) {
@@ -239,7 +261,9 @@ function repairSpec(spec) {
       if (nx >= 0 && ny >= 0 && nx < w && ny < h && spec.map[ny][nx] === 0 && !seen[ny][nx]) { seen[ny][nx] = 1; stack.push([nx, ny]); } }); }
   for (var y2 = 0; y2 < h; y2++) for (var x2 = 0; x2 < w; x2++) if (spec.map[y2][x2] === 0 && !seen[y2][x2]) spec.map[y2][x2] = 1;
   if (!Array.isArray(spec.enemies)) spec.enemies = [];
-  spec.enemies = spec.enemies.filter(function (e) { return e && ENEMY_TYPES[e.type] && spec.map[e.y] && spec.map[e.y][e.x] === 0; }).slice(0, CAPS.enemiesMax);
+  if (Array.isArray(spec.enemyTypes)) spec.enemyTypes = spec.enemyTypes.map(normalizeType).filter(Boolean).slice(0, CAPS.typesMax);
+  var rtable = typeTable(spec);
+  spec.enemies = spec.enemies.filter(function (e) { return e && rtable[e.type] && spec.map[e.y] && spec.map[e.y][e.x] === 0; }).slice(0, CAPS.enemiesMax);
   spec.enemies.forEach(function (e) { e.health = clamp(e.health || 30, CAPS.hpMin, CAPS.hpMax); e.speed = clamp(e.speed || 1, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(e.damage || 10, CAPS.dmgMin, CAPS.dmgMax); });
   if (!Array.isArray(spec.pickups)) spec.pickups = [];
   spec.pickups = spec.pickups.filter(function (p) { return p && PICKUP_TYPES.indexOf(p.type) >= 0 && spec.map[p.y] && spec.map[p.y][p.x] === 0; }).slice(0, CAPS.pickupsMax);
@@ -259,13 +283,20 @@ var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtU
 var zbuffer = new Array(W);
 
 function isWall(x, y) { if (!S) return true; if (y < 0 || y >= S.map.length || x < 0 || x >= S.map[0].length) return true; return S.map[y][x] !== 0; }
-function buildLevel(spec, sourceLabel) {
+function buildLevel(spec, sourceLabel, art) {
   S = JSON.parse(JSON.stringify(spec));
+  S.art = null;
+  if (art) {
+    var sprites = {};
+    Object.keys(art.sprites || {}).forEach(function (k) { if (art.sprites[k] && art.sprites[k].width) sprites[k] = art.sprites[k]; });
+    if ((art.wallTex && art.wallTex.width) || Object.keys(sprites).length) S.art = { wallTex: (art.wallTex && art.wallTex.width) ? art.wallTex : null, sprites: sprites };
+  }
   S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true };
   var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
   var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
   S.weapon = { type: w0.type, damage: w0.damage || wt.damage, mag: w0.ammo || wt.ammo, ammo: w0.ammo || wt.ammo, range: wt.range, rate: wt.rate };
-  S.enemies = (S.enemies || []).map(function (e) { var t = ENEMY_TYPES[e.type]; return { type: e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: e.speed || t.speed, damage: e.damage || t.damage, color: t.color, cool: 0, moving: t.speed > 0 }; });
+  var btable = typeTable(S);
+  S.enemies = (S.enemies || []).map(function (e) { var t = btable[e.type] || ENEMY_TYPES.skeleton; var beh = t.behavior || "chase"; var spd = beh === "turret" ? 0 : (e.speed || t.speed); return { type: e.type, name: t.name || e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: spd, damage: e.damage || t.damage, color: t.color || "#ff00ff", shape: t.shape || "blob", behavior: beh, img: (S.art && S.art.sprites[e.type]) || null, cool: 0, moving: beh === "turret" ? true : spd > 0, wander: beh === "wander", wanderT: 0, wanderX: 0, wanderY: 0 }; });
   S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
   document.getElementById("overlay").style.display = "flex";
@@ -291,6 +322,18 @@ function updateHUD() {
   document.getElementById("timeText").textContent = Math.floor((Date.now() - startTime) / 1000) + "s";
 }
 function addPopup(text, color) { popups.push({ text: text, color: color || "#fff", t: Date.now() }); }
+
+/* ============ Procedural enemy sprite painter (Groq branch + fallback) ============ */
+function drawEnemySprite(e, sx, top, size) {
+  var c = e.color, cx = sx, cy = top + size / 2, r = size * 0.32;
+  ctx.fillStyle = c;
+  if (e.shape === "brute") { ctx.fillRect(cx - r, cy - r * 0.9, r * 2, r * 1.8); ctx.fillRect(cx - r * 1.25, cy - r * 0.5, r * 0.5, r * 0.9); ctx.fillRect(cx + r * 0.75, cy - r * 0.5, r * 0.5, r * 0.9); }
+  else if (e.shape === "flyer") { ctx.beginPath(); ctx.ellipse(cx, cy, r * 1.1, r * 0.7, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx - r * 0.5, cy); ctx.lineTo(cx - r * 1.5, cy - r * 0.8); ctx.lineTo(cx - r * 0.5, cy - r * 0.2); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx + r * 0.5, cy); ctx.lineTo(cx + r * 1.5, cy - r * 0.8); ctx.lineTo(cx + r * 0.5, cy - r * 0.2); ctx.fill(); }
+  else if (e.shape === "spiky") { ctx.beginPath(); for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; var rr = i % 2 === 0 ? r * 1.3 : r * 0.7; var px2 = cx + Math.cos(a) * rr, py2 = cy + Math.sin(a) * rr; if (i === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2); } ctx.closePath(); ctx.fill(); }
+  else if (e.shape === "turret") { ctx.fillRect(cx - r * 0.9, cy - r * 0.6, r * 1.8, r * 1.2); ctx.fillRect(cx - r * 0.3, cy - r * 1.1, r * 0.6, r * 0.7); }
+  else { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx - r * 0.35, cy - r * 0.2, Math.max(2, r * 0.16), 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + r * 0.35, cy - r * 0.2, Math.max(2, r * 0.16), 0, Math.PI * 2); ctx.fill();
+}
 
 /* ============ Raycaster ============ */
 function castRay(px, py, rdx, rdy) {
@@ -323,7 +366,7 @@ function render() {
   ctx.fillStyle = S.floorColor || "#2a1a12"; ctx.fillRect(0, horizonY, W, H - horizonY);
   var dirX = Math.cos(p.angle), dirY = Math.sin(p.angle);
   var planeX = -dirY * 0.66, planeY = dirX * 0.66;
-  var tex = TEXTURES[S.wallTexture] || TEXTURES.brick;
+  var tex = (S.art && S.art.wallTex) || TEXTURES[S.wallTexture] || TEXTURES.brick;
   for (var col = 0; col < W; col++) {
     var camX = 2 * col / W - 1;
     var rdx = dirX + planeX * camX, rdy = dirY + planeY * camX;
@@ -356,7 +399,8 @@ function render() {
     if (zbuffer[midCol] < ty) return;
     var top = horizonY - size / 2;
     if (sp.kind === "enemy") {
-      ctx.fillStyle = sp.ref.color; ctx.beginPath(); ctx.arc(sx, top + size / 2, size * 0.32, 0, Math.PI * 2); ctx.fill();
+      if (sp.ref.img) { ctx.drawImage(sp.ref.img, sx - size * 0.32, top + size * 0.18, size * 0.64, size * 0.64); }
+      else drawEnemySprite(sp.ref, sx, top, size);
       ctx.fillStyle = "#000"; ctx.font = Math.max(12, size * 0.18) + "px Verdana"; ctx.textAlign = "center";
       ctx.fillText("HP " + Math.ceil(sp.ref.hp), sx, top - 4);
     } else if (sp.kind === "pickup") {
@@ -404,7 +448,15 @@ function update(dt) {
     if (!e.moving) return;
     e.cool -= dt;
     var dx = p.x - e.x, dy = p.y - e.y, dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 8 && losClear(e.x, e.y, p.x, p.y)) {
+    var seen = dist < 8 && losClear(e.x, e.y, p.x, p.y);
+    if (e.wander && !seen) {
+      e.wanderT -= dt;
+      if (e.wanderT <= 0) { e.wanderT = 1 + Math.random() * 1.5; var wa = Math.random() * Math.PI * 2; e.wanderX = Math.cos(wa); e.wanderY = Math.sin(wa); }
+      var wx = e.x + e.wanderX * e.speed * 0.5 * dt, wy = e.y + e.wanderY * e.speed * 0.5 * dt;
+      if (!isWall(Math.floor(wx), Math.floor(e.y))) e.x = wx;
+      if (!isWall(Math.floor(e.x), Math.floor(wy))) e.y = wy;
+    }
+    if (seen) {
       if (dist > 0.7) { var mx = e.x + dx / dist * e.speed * dt, my = e.y + dy / dist * e.speed * dt;
         if (!isWall(Math.floor(mx), Math.floor(e.y))) e.x = mx;
         if (!isWall(Math.floor(e.x), Math.floor(my))) e.y = my; }
@@ -507,6 +559,39 @@ async function callAI(provider, messages) {
   var data = await res.json();
   return data.choices[0].message.content;
 }
+async function callImageMeta(prompt) {
+  var key = keyFor("meta");
+  var res = await fetch("https://api.meta.ai/v1/images/generations", { method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "muse-image-1.0", prompt: prompt, n: 1, size: "1024x1024", response_format: "b64_json", output_format: "png" }) });
+  if (!res.ok) { var err = new Error("Image error " + res.status); err.status = res.status; throw err; }
+  var data = await res.json();
+  var b64 = data && data.data && data.data[0] && data.data[0].b64_json;
+  if (!b64) throw new Error("No image returned");
+  return b64;
+}
+function b64ToCanvas(b64, size) {
+  return new Promise(function (resolve, reject) {
+    var img = new Image();
+    img.onload = function () { var c = document.createElement("canvas"); c.width = size; c.height = size; c.getContext("2d").drawImage(img, 0, 0, size, size); resolve(c); };
+    img.onerror = reject;
+    img.src = "data:image/png;base64," + b64;
+  });
+}
+async function buildArt(provider, spec) {
+  if (provider !== "meta" || !keyFor("meta")) return { images: 0, wallTex: null, sprites: {} };
+  var ad = spec.artDirection || {};
+  var jobs = [];
+  var wallPrompt = ad.wallPrompt || ("Seamless repeating game wall texture, " + (spec.theme || "dungeon") + ", " + (spec.wallTexture || "brick") + ", flat front view, no text");
+  jobs.push(callImageMeta(wallPrompt).then(function (b) { return b64ToCanvas(b, 64); }).catch(function () { return null; }).then(function (c) { return { k: "__wall", v: c }; }));
+  (spec.enemyTypes || []).slice(0, 3).forEach(function (t) {
+    var p = "Retro FPS enemy game sprite, " + (t.name || t.id) + ", " + (t.look || t.shape || "monster") + ", " + (ad.spriteStyle || "bold cartoon style") + ", centered, plain solid black background, no text";
+    jobs.push(callImageMeta(p).then(function (b) { return b64ToCanvas(b, 256); }).catch(function () { return null; }).then(function (c) { return { k: t.id, v: c }; }));
+  });
+  var parts = await Promise.all(jobs);
+  var art = { images: 0, wallTex: null, sprites: {} };
+  parts.forEach(function (pt) { if (pt.v) { art.images++; if (pt.k === "__wall") art.wallTex = pt.v; else art.sprites[pt.k] = pt.v; } });
+  return art;
+}
 document.getElementById("generateBtn").addEventListener("click", async function () {
   var prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
@@ -525,7 +610,14 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       check = validateSpec(spec);
     }
     if (!check.ok) { buildLevel(FALLBACK_SPEC, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
-    else { buildLevel(spec, "Generated (" + provider + ")"); document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + ". Click the game to play."; }
+    else {
+      document.getElementById("status").textContent = provider === "meta" ? "Level checks passed. Painting art with Meta..." : "Level checks passed. Painting procedural art...";
+      var art = await buildArt(provider, spec);
+      buildLevel(spec, "Generated (" + provider + ")", art);
+      var artNote = art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (provider === "meta" ? " Art: procedural (image generation unavailable)." : " Art: procedural (Groq has no image generator).");
+      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " with " + provider + "." + artNote + " Click the game to play.";
+      if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
+    }
   } catch (err) {
     if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
       document.getElementById("status").textContent = "Meta is busy, retrying with Groq...";
