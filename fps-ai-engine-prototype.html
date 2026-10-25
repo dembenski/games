@@ -61,6 +61,14 @@
         <option value="full">Full AI art (Meta)</option>
       </select>
     </label>
+    <label>Difficulty:
+      <select id="diffSelect">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+        <option value="insane">Insane</option>
+      </select>
+    </label>
     <input type="password" id="keyInput" placeholder="Paste your API key here">
     <button id="saveKeyBtn">Save key</button>
     <span class="small">Key stays in this browser only. Never in the code.</span>
@@ -74,6 +82,23 @@
     <button id="copyLinkBtn">Copy link</button>
     <button id="texBtn">Textures</button>
     <button id="stickyBtn">Sticky texture: OFF</button>
+    <button id="instantBtn">Instant level</button>
+    <label><input type="checkbox" id="bossToggle"> Boss level</label>
+    <button id="soundBtn">Sound: ON</button>
+  </div>
+  <div class="bar">
+    <input type="text" id="remixInput" placeholder="Remix this level: make it scarier...">
+    <button id="remixBtn">Remix</button>
+    <button id="copySpecBtn">Copy spec</button>
+    <button id="pasteSpecBtn">Paste spec</button>
+  </div>
+  <div class="bar" id="themeBar">
+    <span class="small">Themes:</span>
+    <button data-theme="castle">Haunted Castle</button>
+    <button data-theme="arcade">Neon Arcade</button>
+    <button data-theme="candy">Candy Land</button>
+    <button data-theme="space">Space Station</button>
+    <button data-theme="jungle">Jungle Temple</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -105,9 +130,11 @@
           <option value="pickup">Pickup</option>
           <option value="eraser">Eraser</option>
           <option value="sketch">Sketch (draw freehand)</option>
+          <option value="fill">Fill (flood fill)</option>
         </select>
       </label>
       <label>Brush: <select id="edBrush"><option value="1">1</option><option value="3">3</option><option value="5">5</option></select></label>
+      <label>Fill with: <select id="edFillWith"><option value="1">Wall</option><option value="0">Floor</option><option value="2">Locked door</option></select></label>
       <label>Sketch color: <input type="color" id="edSketchColor" value="#ffcc00"></label>
       <label>Enemy type: <select id="edEnemyType"></select></label>
       <label>Pickup: <select id="edPickupType"><option value="health">health</option><option value="ammo">ammo</option><option value="armor">armor</option><option value="key">key</option></select></label>
@@ -116,6 +143,8 @@
       <button id="edScaleUpBtn">Scale 2x</button>
       <button id="edScaleDownBtn">Scale 1/2</button>
       <button id="edTurnBtn">Turn start 90°</button>
+      <button id="edUndoBtn">Undo</button>
+      <button id="edRedoBtn">Redo</button>
       <button id="edPlayBtn">Play edited level</button>
       <button id="edSaveBtn">Save edited level</button>
       <button id="edCancelBtn">Cancel</button>
@@ -124,21 +153,37 @@
       <span id="edSelInfo" class="small">Pick the Select tool, then click anything in the map to inspect it.</span>
       <button id="edRegenBtn" style="display:none">Regenerate</button>
       <button id="edDeleteBtn" style="display:none">Delete</button>
+      <button id="edPatrolBtn" style="display:none">Make patrol</button>
+      <button id="edWaypointBtn" style="display:none">Add waypoint</button>
+      <button id="edClearPathBtn" style="display:none">Clear path</button>
+      <button id="edCopyRoomBtn">Copy 5x5</button>
+      <button id="edPasteRoomBtn">Paste</button>
       <button id="edWeaponsBtn">Regenerate weapons</button>
       <button id="edWallStyleBtn">New wall style</button>
       <label>Upload image: <input type="file" id="edImgFile" accept="image/*"></label>
       <button id="edWallImgBtn" style="display:none">Use as wall texture</button>
       <button id="edEnemyImgBtn" style="display:none">Use as monster sprite</button>
     </div>
+    <div class="bar">
+      <label>Title: <input type="text" id="edTitleInput" size="24"></label>
+      <label>Theme: <input type="text" id="edThemeInput" size="18"></label>
+      <label>Floor: <input type="color" id="edFloorInput" value="#30303e"></label>
+      <label>Ceiling: <input type="color" id="edCeilInput" value="#10101c"></label>
+    </div>
     <div id="edInfo" class="small"></div>
     <canvas id="editorCanvas"></canvas>
-    <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups. Drag to paint walls and floors. Select + click anything to regenerate it. Sketch draws freehand (shows in top-view and side-scroll). Uploaded images ride inside shared links, so keep them small.</div>
+    <div class="small">Grey = wall, brown = locked door, dark = floor, green P = you, gold X = goal exit, colored dots = monsters, small squares = pickups, yellow dashed lines = patrol routes. Drag to paint walls and floors. Select + click anything to regenerate it, or drag a monster or pickup to move it. Fill floods a whole connected area. Copy 5x5 + Paste duplicates a room. Sketch draws freehand (shows in top-view and side-scroll). Uploaded images ride inside shared links, so keep them small.</div>
   </div>
   <div id="feedBox" style="display:none">
     <div class="bar"><button id="backBtn">Back to game</button><span class="small">Your saved levels, newest first. Play one, copy its link, share it, or export it as a playable file you can host anywhere, including GitHub Pages. Below them, community levels from the shared list.</span></div>
     <div id="feedCards"></div>
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
+  </div>
+  <div id="specBox" style="display:none">
+    <div class="bar"><button id="specBackBtn">Back to game</button><span class="small">Paste a level spec (JSON) to load it. Copy one with Copy spec first.</span></div>
+    <textarea id="specInput" rows="10" style="width:100%" placeholder='{"title": "...", "map": [[...]], ...}'></textarea>
+    <div class="bar"><button id="specLoadBtn">Load spec</button></div>
   </div>
   <div id="texBox" style="display:none">
     <div class="bar"><button id="texBackBtn">Back to game</button><span class="small">Free CC0 textures from Poly Haven (public domain, no attribution). Click one to put it on this level's walls. It rides in the level's shared link, feed save, and export. Painted textures below are the built-in free ones.</span></div>
@@ -149,7 +194,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -159,16 +204,16 @@ var CONFIG = {
   meta: { baseUrl: "https://api.meta.ai/v1/chat/completions", model: "muse-spark-1.3" },
   groq: { baseUrl: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-20b" }
 };
-var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
-var SYSTEM_PROMPT_TOP = "You are a 2D top-down shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW top-down arena every time: rooms, corridors, arenas, choke points viewed from above, never copy the demo castle. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: 'topview', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
-var SYSTEM_PROMPT_SIDE = "You are a 2D side-scrolling shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW side-scrolling level every time: platforms, gaps, and solid ground viewed from the side, never copy the demo castle. Map tiles: 0 open air, 1 solid ground or platform, 2 locked door. Map 16-24 tiles wide, 10-14 tiles tall. Bottom row all solid. Player start on an open tile standing on solid ground. Enemies stand on platforms or solid ground. Jump height is about 2 tiles, so platforms must be reachable by jumps of 1-2 tiles and gaps of 1-2 tiles. Spec shape: {gameType: 'sidescroll', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander or turret, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Keep every number inside the stated caps.";
+var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
+var SYSTEM_PROMPT_TOP = "You are a 2D top-down shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW top-down arena every time: rooms, corridors, arenas, choke points viewed from above, never copy the demo castle. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: 'topview', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
+var SYSTEM_PROMPT_SIDE = "You are a 2D side-scrolling shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW side-scrolling level every time: platforms, gaps, and solid ground viewed from the side, never copy the demo castle. Map tiles: 0 open air, 1 solid ground or platform, 2 locked door. Map 16-24 tiles wide, 10-14 tiles tall. Bottom row all solid. Player start on an open tile standing on solid ground. Enemies stand on platforms or solid ground. Jump height is about 2 tiles, so platforms must be reachable by jumps of 1-2 tiles and gaps of 1-2 tiles. Spec shape: {gameType: 'sidescroll', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
 var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, typesMax: 8, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
 var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
 var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
 var PICKUP_TYPES = ["health", "ammo", "armor", "key"];
 var WALL_TEXTURES = ["brick", "castle-brick", "neon-grid", "cave-rock", "tech-panel", "wood"];
 var GOAL_TYPES = ["eliminate-all", "key-hunt", "reach-exit"];
-var ENEMY_BEHAVIORS = ["chase", "wander", "turret"];
+var ENEMY_BEHAVIORS = ["chase", "wander", "turret", "patrol"];
 var ENEMY_SHAPES = ["brute", "flyer", "blob", "spiky"];
 function typeTable(spec) {
   var t = {};
@@ -290,6 +335,7 @@ function validateSpec(spec) {
   (spec.enemies || []).forEach(function (e) {
     if (!table[e.type]) errors.push("unknown enemy " + e.type);
     if (!spec.map[e.y] || spec.map[e.y][e.x] !== 0) errors.push("enemy not on open tile");
+    (e.path || []).forEach(function (wp) { if (!spec.map[wp.y] || spec.map[wp.y][wp.x] !== 0) errors.push("bad patrol waypoint"); });
   });
   (spec.pickups || []).forEach(function (p) {
     if (PICKUP_TYPES.indexOf(p.type) < 0) errors.push("unknown pickup " + p.type);
@@ -355,7 +401,7 @@ function repairSpec(spec) {
   if (Array.isArray(spec.enemyTypes)) spec.enemyTypes = spec.enemyTypes.map(normalizeType).filter(Boolean).slice(0, CAPS.typesMax);
   var rtable = typeTable(spec);
   spec.enemies = spec.enemies.filter(function (e) { return e && rtable[e.type] && spec.map[e.y] && spec.map[e.y][e.x] === 0; }).slice(0, CAPS.enemiesMax);
-  spec.enemies.forEach(function (e) { e.health = clamp(e.health || 30, CAPS.hpMin, CAPS.hpMax); e.speed = clamp(e.speed || 1, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(e.damage || 10, CAPS.dmgMin, CAPS.dmgMax); });
+  spec.enemies.forEach(function (e) { e.health = clamp(e.health || 30, CAPS.hpMin, CAPS.hpMax); e.speed = clamp(e.speed || 1, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(e.damage || 10, CAPS.dmgMin, CAPS.dmgMax); if (Array.isArray(e.path)) { e.path = e.path.filter(function (wp) { return wp && spec.map[wp.y] && spec.map[wp.y][wp.x] === 0; }).slice(0, 12); if (!e.path.length) delete e.path; } });
   if (!Array.isArray(spec.pickups)) spec.pickups = [];
   spec.pickups = spec.pickups.filter(function (p) { return p && PICKUP_TYPES.indexOf(p.type) >= 0 && spec.map[p.y] && spec.map[p.y][p.x] === 0; }).slice(0, CAPS.pickupsMax);
   if (!Array.isArray(spec.weapons)) spec.weapons = [];
@@ -364,6 +410,8 @@ function repairSpec(spec) {
   if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom" && spec.wallTexture !== "picked") spec.wallTexture = "brick";
   if (!spec.goal || GOAL_TYPES.indexOf(spec.goal.type) < 0) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
   if (spec.goal.type !== "eliminate-all" && (!spec.map[spec.goal.exitY] || spec.map[spec.goal.exitY][spec.goal.exitX] !== 0)) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
+  if (typeof spec.questIntro !== "string") spec.questIntro = "";
+  if (typeof spec.questWin !== "string") spec.questWin = "";
   return spec;
 }
 
@@ -373,6 +421,24 @@ var W = 960, H = 540;
 var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtUntil = 0, popups = [], startTime = 0, sessionTotal = 0, gameOver = false, winShown = false;
 var lastSpec = null, lastArt = null;
 var zbuffer = new Array(W);
+
+/* ============ Sound: tiny built-in synth, zero files ============ */
+var SFX = { ctx: null, on: true };
+try { SFX.on = localStorage.getItem("fpsEngine_sound") !== "off"; } catch (e) {}
+function sfxInit() { if (!SFX.ctx) { try { SFX.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function sfxTone(freq, dur, type, vol, slide) { if (!SFX.on) return; sfxInit(); if (!SFX.ctx) return; try { var o = SFX.ctx.createOscillator(), g = SFX.ctx.createGain(); o.type = type || "square"; o.frequency.value = freq; if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), SFX.ctx.currentTime + dur); g.gain.value = vol || 0.08; g.gain.exponentialRampToValueAtTime(0.001, SFX.ctx.currentTime + dur); o.connect(g); g.connect(SFX.ctx.destination); o.start(); o.stop(SFX.ctx.currentTime + dur); } catch (e) {} }
+function sfxShoot() { sfxTone(220, 0.12, "square", 0.07, -120); }
+function sfxHit() { sfxTone(160, 0.08, "sawtooth", 0.07, -60); }
+function sfxKill() { sfxTone(520, 0.18, "square", 0.08, 300); }
+function sfxPickup() { sfxTone(660, 0.1, "sine", 0.09); setTimeout(function () { sfxTone(880, 0.12, "sine", 0.09); }, 70); }
+function sfxJump() { sfxTone(300, 0.12, "sine", 0.06, 200); }
+function sfxWin() { [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { sfxTone(f, 0.16, "triangle", 0.1); }, i * 110); }); }
+function sfxLose() { [400, 300, 200, 130].forEach(function (f, i) { setTimeout(function () { sfxTone(f, 0.18, "sawtooth", 0.08); }, i * 130); }); }
+
+/* ============ Local best scores: best per level, this browser only ============ */
+function bestKey(spec) { return (spec.gameType || "fps") + "|" + (spec.title || "Untitled") + "|" + spec.map[0].length + "x" + spec.map.length; }
+function loadBests() { try { return JSON.parse(localStorage.getItem("fpsEngine_bests") || "{}"); } catch (e) { return {}; } }
+function recordBest() { if (!S || !winShown) return; var b = loadBests(), k = bestKey(lastSpec || S); var secs = Math.floor((Date.now() - startTime) / 1000); var cur = b[k]; if (!cur || S.score > cur.score || (S.score === cur.score && secs < cur.secs)) { b[k] = { score: S.score, secs: secs }; try { localStorage.setItem("fpsEngine_bests", JSON.stringify(b)); } catch (e) {} document.getElementById("status").textContent = "New best for " + (S.title || "Untitled") + ": " + S.score + " pts in " + secs + "s."; } }
 
 function isWall(x, y) { if (!S) return true; if (y < 0 || y >= S.map.length || x < 0 || x >= S.map[0].length) return true; return S.map[y][x] !== 0; }
 function buildLevel(spec, sourceLabel, art) {
@@ -397,13 +463,13 @@ function buildLevel(spec, sourceLabel, art) {
   var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
   S.weapon = { type: w0.type, damage: w0.damage || wt.damage, mag: w0.ammo || wt.ammo, ammo: w0.ammo || wt.ammo, range: wt.range, rate: wt.rate };
   var btable = typeTable(S);
-  S.enemies = (S.enemies || []).map(function (e) { var t = btable[e.type] || ENEMY_TYPES.skeleton; var beh = t.behavior || "chase"; var spd = beh === "turret" ? 0 : (e.speed || t.speed); return { type: e.type, name: t.name || e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: spd, damage: e.damage || t.damage, color: t.color || "#ff00ff", shape: t.shape || "blob", behavior: beh, img: (S.art && S.art.sprites[e.type]) || null, cool: 0, moving: beh === "turret" ? true : spd > 0, wander: beh === "wander", wanderT: 0, wanderX: 0, wanderY: 0 }; });
+  S.enemies = (S.enemies || []).map(function (e) { var t = btable[e.type] || ENEMY_TYPES.skeleton; var beh = t.behavior || "chase"; var spd = beh === "turret" ? 0 : (e.speed || t.speed); if (beh === "patrol" && (!Array.isArray(e.path) || !e.path.length)) beh = "wander"; var pth = beh === "patrol" ? e.path : null; return { type: e.type, name: t.name || e.type, x: e.x + 0.5, y: e.y + 0.5, hp: e.health || t.hp, maxHp: e.health || t.hp, speed: spd, damage: e.damage || t.damage, color: t.color || "#ff00ff", shape: t.shape || "blob", behavior: beh, path: pth, pathIdx: 0, patrol: beh === "patrol", img: (S.art && S.art.sprites[e.type]) || null, cool: 0, moving: beh === "turret" ? true : spd > 0, wander: beh === "wander", wanderT: 0, wanderX: 0, wanderY: 0 }; });
   S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
   if (S.customWallImg) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["custom"] = c; }; wi.src = S.customWallImg; }
   S.enemies.forEach(function (e, i) { var raw = (spec.enemies || [])[i]; if (raw && raw.imgSrc) { var im = new Image(); im.src = raw.imgSrc; e.img = im; } });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
   document.getElementById("overlay").style.display = "flex";
-  document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>";
+  document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>" + (S.questIntro ? "<br><span style=\"font-size:18px\">" + esc(S.questIntro) + "</span>" : "");
   updateHUD();
   logFeed(sourceLabel + ": " + (S.title || "Untitled") + " | map " + S.map[0].length + "x" + S.map.length + " | " + S.enemies.length + " enemies | goal " + (S.goal && S.goal.type));
 }
@@ -529,7 +595,7 @@ function render() {
   popups = popups.filter(function (pp) { return now - pp.t < 1400; });
   popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
   if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Click to play or press R to play again.", W / 2, H / 2 + 30); }
-  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
+  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); if (S.questWin) { ctx.fillText(esc(S.questWin), W / 2, H / 2 + 60); } try { var bk = loadBests()[bestKey(lastSpec || S)]; if (bk) ctx.fillText("Best: " + bk.score + " pts in " + bk.secs + "s.", W / 2, H / 2 + 90); } catch (e) {} }
   document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
 }
 
@@ -559,7 +625,21 @@ function update(dt) {
       if (!isWall(Math.floor(wx), Math.floor(e.y))) e.x = wx;
       if (!isWall(Math.floor(e.x), Math.floor(wy))) e.y = wy;
     }
-    if (seen) {
+    if (e.patrol && e.path && e.path.length) {
+      var wp = e.path[e.pathIdx % e.path.length];
+      var tx = wp.x + 0.5, ty = wp.y + 0.5, pdx = tx - e.x, pdy = ty - e.y, pd = Math.sqrt(pdx * pdx + pdy * pdy);
+      if (pd < 0.3) { e.pathIdx = (e.pathIdx + 1) % e.path.length; }
+      else { var pmx = e.x + pdx / pd * e.speed * dt, pmy = e.y + pdy / pd * e.speed * dt;
+        if (!isWall(Math.floor(pmx), Math.floor(e.y))) e.x = pmx;
+        if (!isWall(Math.floor(e.x), Math.floor(pmy))) e.y = pmy; }
+      var cdx = p.x - e.x, cdy = p.y - e.y, cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+      if (cdist < 0.7 && e.cool <= 0) { e.cool = 1.0;
+        var dmg2 = e.damage;
+        if (S.player.armor > 0) { var ab2 = Math.min(S.player.armor, dmg2); S.player.armor -= ab2; dmg2 -= ab2; }
+        S.player.hp -= dmg2; hurtUntil = Date.now() + 200; addPopup("-" + dmg2 + " HP", "#ff5252");
+        if (S.player.hp <= 0) { S.player.hp = 0; gameOver = true; sfxLose(); document.exitPointerLock && document.exitPointerLock(); } }
+    }
+    if (seen && !e.patrol) {
       if (dist > 0.7) { var mx = e.x + dx / dist * e.speed * dt, my = e.y + dy / dist * e.speed * dt;
         if (!isWall(Math.floor(mx), Math.floor(e.y))) e.x = mx;
         if (!isWall(Math.floor(e.x), Math.floor(my))) e.y = my; }
@@ -567,7 +647,7 @@ function update(dt) {
         var dmg = e.damage;
         if (S.player.armor > 0) { var absorbed = Math.min(S.player.armor, dmg); S.player.armor -= absorbed; dmg -= absorbed; }
         S.player.hp -= dmg; hurtUntil = Date.now() + 200; addPopup("-" + dmg + " HP", "#ff5252");
-        if (S.player.hp <= 0) { S.player.hp = 0; gameOver = true; document.exitPointerLock && document.exitPointerLock(); } }
+        if (S.player.hp <= 0) { S.player.hp = 0; gameOver = true; sfxLose(); document.exitPointerLock && document.exitPointerLock(); } }
     }
   });
   S.pickups = S.pickups.filter(function (pk) {
@@ -576,7 +656,7 @@ function update(dt) {
       if (pk.type === "health") { p.hp = Math.min(100, p.hp + pk.amount); addPopup("+" + pk.amount + " HP", "#3ddc54"); }
       if (pk.type === "ammo") { S.weapon.ammo += pk.amount; addPopup("+" + pk.amount + " AMMO", "#ffd60a"); }
       if (pk.type === "armor") { p.armor += 25; addPopup("+ARMOR", "#3b82ff"); }
-      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); }
+      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); sfxPickup(); }
       return false;
     }
     return true;
@@ -586,7 +666,7 @@ function update(dt) {
     if (S.goal.type === "eliminate-all" && S.enemies.length === 0) won = true;
     if (S.goal.type === "key-hunt" && S.keys >= (S.goal.keys || 1) && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
     if (S.goal.type === "reach-exit" && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
-    if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; document.exitPointerLock && document.exitPointerLock(); }
+    if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; sfxWin(); recordBest(); document.exitPointerLock && document.exitPointerLock(); }
   }
   updateHUD();
 }
@@ -595,7 +675,7 @@ function shoot() {
   var now = Date.now();
   if (now - lastShot < S.weapon.rate) return;
   if (S.weapon.ammo <= 0) { addPopup("RELOAD (R)", "#ffd60a"); return; }
-  lastShot = now; S.weapon.ammo--; flashUntil = now + 90;
+  lastShot = now; S.weapon.ammo--; flashUntil = now + 90; sfxShoot();
   var p = S.player, best = null, bestD = 1e9;
   S.enemies.forEach(function (e) {
     var dx = e.x - p.x, dy = e.y - p.y, dist = Math.sqrt(dx * dx + dy * dy);
@@ -606,8 +686,8 @@ function shoot() {
     if (dist < bestD) { best = e; bestD = dist; }
   });
   if (best) {
-    best.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
-    if (best.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== best; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+    best.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a"); sfxHit();
+    if (best.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== best; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); sfxKill(); }
   }
   updateHUD();
 }
@@ -628,9 +708,9 @@ document.addEventListener("keydown", function (e) {
   if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(k) >= 0) e.preventDefault();
   keysDown[k] = true;
   if (k === " " && !e.repeat && S && !gameOver && S.player.grounded) {
-    if (S.gameType === "sidescroll") { S.player.vy = -11; S.player.grounded = false; }
+    if (S.gameType === "sidescroll") { S.player.vy = -11; S.player.grounded = false; sfxJump(); }
     else if (S.gameType === "topview") { shoot2D(); }
-    else { S.player.vz = 5.2; S.player.grounded = false; }
+    else { S.player.vz = 5.2; S.player.grounded = false; sfxJump(); }
   }
   if (k === "r") {
     if (gameOver && S) { retryLevel(); return; }
@@ -714,6 +794,29 @@ async function buildArt(provider, spec, artMode) {
   parts.forEach(function (pt) { if (pt.v) { art.images++; if (pt.k === "__wall") art.wallTex = pt.v; else art.sprites[pt.k] = pt.v; } });
   return art;
 }
+/* ============ Difficulty + boss: post-process any fresh spec before building ============ */
+function applyDifficulty(spec) {
+  var d = (document.getElementById("diffSelect") || {}).value || "normal";
+  spec.difficulty = d;
+  if (d === "normal") return spec;
+  var m = { easy: { hp: 0.7, spd: 0.8, dmg: 0.7 }, hard: { hp: 1.3, spd: 1.15, dmg: 1.3 }, insane: { hp: 1.6, spd: 1.3, dmg: 1.5 } }[d];
+  (spec.enemyTypes || []).forEach(function (t) { t.hp = clamp(Math.round((t.hp || 30) * m.hp), CAPS.hpMin, CAPS.hpMax); t.speed = clamp((t.speed || 1) * m.spd, CAPS.spdMin, CAPS.spdMax); t.damage = clamp(Math.round((t.damage || 10) * m.dmg), CAPS.dmgMin, CAPS.dmgMax); });
+  (spec.enemies || []).forEach(function (e) { e.health = clamp(Math.round((e.health || 30) * m.hp), CAPS.hpMin, CAPS.hpMax); e.speed = clamp((e.speed || 1) * m.spd, CAPS.spdMin, CAPS.spdMax); e.damage = clamp(Math.round((e.damage || 10) * m.dmg), CAPS.dmgMin, CAPS.dmgMax); });
+  if (d === "easy" && spec.enemies.length > 3) spec.enemies = spec.enemies.filter(function (e, i) { return i % 3 !== 2; });
+  return spec;
+}
+function applyBoss(spec) {
+  var tog = document.getElementById("bossToggle");
+  if (!tog || !tog.checked) return spec;
+  var ps = spec.playerStart || { x: 1, y: 1 }, best = null, bestD = -1;
+  spec.map.forEach(function (row, y) { row.forEach(function (t, x) { if (t === 0) { var d = Math.abs(x - ps.x) + Math.abs(y - ps.y); if (d > bestD) { bestD = d; best = { x: x, y: y }; } } }); });
+  if (!best) return spec;
+  spec.enemyTypes = (spec.enemyTypes || []).filter(function (t) { return t.id !== "boss"; });
+  spec.enemyTypes.push({ id: "boss", name: (spec.title || "Level") + " Boss", color: "#ff2222", hp: 200, speed: 1, damage: 30, behavior: "chase", shape: "brute", look: "a giant boss monster" });
+  spec.enemies = [{ type: "boss", x: best.x, y: best.y, health: 200, speed: 1, damage: 30 }];
+  spec.title = "BOSS: " + (spec.title || "Untitled");
+  return spec;
+}
 document.getElementById("generateBtn").addEventListener("click", async function () {
   var prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
@@ -733,15 +836,17 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
       check = validateSpec(spec);
     }
-    if (!check.ok) { var fb0 = fallbackFor(type); applyWallPref(fb0); buildLevel(fb0, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
+    if (!check.ok) { var fb0 = fallbackFor(type); applyWallPref(fb0); applyDifficulty(fb0); applyBoss(fb0); buildLevel(fb0, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
       var artMode = document.getElementById("artSelect").value;
       document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : "Level checks passed. Painting art with Meta...";
       var art = await buildArt(provider, spec, artMode);
       applyWallPref(spec);
+      applyDifficulty(spec);
+      applyBoss(spec);
       buildLevel(spec, "Generated (" + provider + ")", art);
       var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
-      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + " Click the game to play.";
+      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + (spec.difficulty && spec.difficulty !== "normal" ? " Difficulty: " + spec.difficulty + "." : "") + " Click the game to play.";
       if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
     }
   } catch (err) {
@@ -750,8 +855,8 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       try {
         var raw2 = await callAI("groq", [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
         var spec2 = JSON.parse(stripFences(raw2)); spec2.gameType = type; spec2 = repairSpec(spec2);
-        if (validateSpec(spec2).ok) { applyWallPref(spec2); buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
-        else { var fb1 = fallbackFor(type); applyWallPref(fb1); buildLevel(fb1, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
+        if (validateSpec(spec2).ok) { applyWallPref(spec2); applyDifficulty(spec2); applyBoss(spec2); buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
+        else { var fb1 = fallbackFor(type); applyWallPref(fb1); applyDifficulty(fb1); applyBoss(fb1); buildLevel(fb1, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
     } else if (err.status === 404) {
       document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
@@ -766,8 +871,160 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   btn.disabled = false;
 });
 
+/* ============ Themes, instant levels, remix, spec copy/paste, sound toggle ============ */
+var THEME_PROMPTS = {
+  castle: "Build a spooky haunted castle FPS called HAUNTED KEEP. Theme: a torch-lit castle at midnight, castle-brick walls, dark stone floor, deep purple ceiling. Map: about 18 by 18 tiles, a great hall in the middle, corner towers, and narrow corridors. Player starts at the south gate with a shotgun. Weapons: shotgun, pistol. Enemies: ghost flyers that dart, skeleton brutes that chase, and a turret gargoyle that shoots from a corner. Pickups: health, ammo, armor, 1 key. Goal: key-hunt, 1 key, exit in the north tower. Art direction: spooky cartoon castle, grey ghosts and white skeletons on dark stone.",
+  arcade: "Build a bright neon arcade FPS level called NEON SUGAR RUSH. Theme: a glowing candy arcade at midnight, neon-grid walls, hot pink floor, electric blue ceiling. Map: a big open arena, about 18 by 18 tiles, with a candy counter island in the middle, four corner rooms, and wide lanes between them. Player starts at the south gate with a shotgun. Weapons: shotgun, blaster, pistol. Enemies: pink blob gumballs that waddle, yellow flyer lollipop drones, green spiky sour brutes, purple turret cupcake bots. Pickups: 6 health candies, 4 ammo boxes, 2 armor shields, 1 key. Goal: eliminate all monsters. Art direction: bold cartoon arcade, every monster a different bright color and shape.",
+  candy: "Build a sweet candy land FPS called GUMDROP VALLEY. Theme: a pastel candy valley, brick walls painted pink, rose floor, lavender ceiling. Map: about 16 by 16 tiles, rolling candy hills as wall blocks, a chocolate river lane down the middle. Player starts at the west gate with a blaster. Weapons: blaster, pistol. Enemies: blob jelly monsters, flyer candy bees, spiky jawbreaker brutes. Pickups: health, ammo, armor. Goal: eliminate all monsters. Art direction: soft pastel cartoon, pink and gold monsters on cream walls.",
+  space: "Build a sci-fi space station FPS called STARHOLD STATION. Theme: a steel space station, tech-panel walls, dark blue floor, black ceiling with stars. Map: about 18 by 18 tiles, a command deck in the middle, docking bays at the corners, straight corridors. Player starts at the airlock with a rifle. Weapons: rifle, blaster. Enemies: robot brutes that chase, drone flyers that dart, turret sentries that guard doors. Pickups: health, ammo, armor, 1 key. Goal: reach-exit, exit at the escape pod bay. Art direction: clean sci-fi cartoon, silver robots with glowing blue eyes.",
+  jungle: "Build a jungle temple FPS called VINE TEMPLE. Theme: an overgrown jungle temple, cave-rock walls, mossy green floor, dark jungle ceiling. Map: about 18 by 18 tiles, a temple courtyard in the middle, vine wall blocks, a hidden side chamber. Player starts at the temple steps with a shotgun. Weapons: shotgun, pistol. Enemies: spiky vine monsters, blob moss creatures, bat flyers. Pickups: health, ammo, armor. Goal: eliminate all monsters. Art direction: lush cartoon jungle, green and orange monsters on grey stone."
+};
+document.getElementById("themeBar").addEventListener("click", function (ev) {
+  var b = ev.target.closest ? ev.target.closest("button") : null;
+  if (!b || !b.getAttribute("data-theme")) return;
+  var t = THEME_PROMPTS[b.getAttribute("data-theme")];
+  if (t) { document.getElementById("promptInput").value = t; document.getElementById("status").textContent = "Theme loaded. Hit Generate game."; }
+});
+function randPick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function instantLevel(type) {
+  var themes = [
+    { title: "Neon Sugar Rush", theme: "neon candy arcade", wall: "neon-grid", floor: "#2a0a2e", ceil: "#0a0a2e", colors: ["#ff5da2", "#ffd60a", "#3ddc54", "#b26ae5"] },
+    { title: "Haunted Keep", theme: "spooky castle", wall: "castle-brick", floor: "#1a1a1a", ceil: "#050510", colors: ["#e8e8e8", "#5fbf3f", "#cfd8ff", "#ff8c2e"] },
+    { title: "Gumdrop Valley", theme: "candy land", wall: "brick", floor: "#3a1420", ceil: "#1a0a2e", colors: ["#ff5da2", "#ffd60a", "#3ddc54", "#ff8c2e"] },
+    { title: "Starhold Station", theme: "space station", wall: "tech-panel", floor: "#0a1420", ceil: "#050510", colors: ["#00e5ff", "#9aa0a6", "#ff5252", "#ffd60a"] },
+    { title: "Vine Temple", theme: "jungle temple", wall: "cave-rock", floor: "#14200a", ceil: "#0a1405", colors: ["#5fbf3f", "#ff8c2e", "#b26ae5", "#e8e8e8"] }
+  ];
+  var th = randPick(themes);
+  var spec = { gameType: type, title: th.title, theme: th.theme, wallTexture: th.wall, floorColor: th.floor, ceilingColor: th.ceil, questIntro: "Welcome to " + th.title + " — clear every monster!", questWin: th.title + " cleared! Victory!" };
+  var names = ["Goblin", "Bat", "Ghost", "Slime", "Drone", "Wisp", "Brute", "Spiker", "Mimic", "Sprite"];
+  if (type === "sidescroll") {
+    var cols = 18 + Math.floor(Math.random() * 5), rows = 12;
+    var map = [];
+    for (var y = 0; y < rows; y++) { var row = []; for (var x = 0; x < cols; x++) row.push(0); map.push(row); }
+    for (var x2 = 0; x2 < cols; x2++) map[rows - 1][x2] = 1;
+    function platRow(r, segs) { var x3 = 2; for (var s = 0; s < segs; s++) { var wseg = 3 + Math.floor(Math.random() * 3); for (var k = 0; k < wseg && x3 < cols - 2; k++) map[r][x3++] = 1; x3 += 1 + Math.floor(Math.random() * 2); } }
+    platRow(rows - 3, 3); platRow(rows - 5, 2);
+    spec.map = map;
+    spec.playerStart = { x: 1, y: rows - 2, angle: 0 };
+    var stand = [];
+    for (var xx = 0; xx < cols; xx++) { if (map[rows - 2][xx] === 0) stand.push({ x: xx, y: rows - 2 }); if (map[rows - 4][xx] === 0 && map[rows - 3][xx] === 1) stand.push({ x: xx, y: rows - 4 }); if (map[rows - 6][xx] === 0 && map[rows - 5][xx] === 1) stand.push({ x: xx, y: rows - 6 }); }
+    spec._stand = stand;
+  } else {
+    var W = 16 + Math.floor(Math.random() * 5), H = 16 + Math.floor(Math.random() * 5);
+    var map2 = [];
+    for (var y2 = 0; y2 < H; y2++) { var row2 = []; for (var x4 = 0; x4 < W; x4++) row2.push((y2 === 0 || y2 === H - 1 || x4 === 0 || x4 === W - 1) ? 1 : 0); map2.push(row2); }
+    var pillars = [], tries = 0;
+    while (pillars.length < Math.floor(W * H / 28) && tries < 200) { tries++; var px = 2 + Math.floor(Math.random() * (W - 4)), py = 2 + Math.floor(Math.random() * (H - 4)); if (pillars.some(function (p) { return Math.abs(p.x - px) <= 1 && Math.abs(p.y - py) <= 1; })) continue; pillars.push({ x: px, y: py }); map2[py][px] = 1; }
+    var doors = 0;
+    while (doors < 2) { var dx = 2 + Math.floor(Math.random() * (W - 4)), dy = 2 + Math.floor(Math.random() * (H - 4)); if (map2[dy][dx] === 0) { map2[dy][dx] = 2; doors++; } }
+    spec.map = map2;
+    spec.playerStart = { x: 1, y: 1, angle: 0 };
+    var open = [];
+    map2.forEach(function (row3, yy) { row3.forEach(function (t, xx) { if (t === 0) open.push({ x: xx, y: yy }); }); });
+    spec._stand = open;
+  }
+  var standTiles = spec._stand.filter(function (c) { return !(c.x === spec.playerStart.x && c.y === spec.playerStart.y); });
+  function takeTile() { if (!standTiles.length) return null; return standTiles.splice(Math.floor(Math.random() * standTiles.length), 1)[0]; }
+  var nTypes = 2 + Math.floor(Math.random() * 3), usedNames = {};
+  spec.enemyTypes = [];
+  for (var i = 0; i < nTypes; i++) {
+    var nm = randPick(names); if (usedNames[nm]) nm = nm + " " + (i + 1); usedNames[nm] = 1;
+    var beh = randPick(["chase", "wander", "turret", "patrol"]);
+    spec.enemyTypes.push({ id: nm.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + i, name: nm, color: th.colors[i % th.colors.length], hp: 15 + Math.floor(Math.random() * 66), speed: beh === "turret" ? 0 : (0.7 + Math.random() * 1.3), damage: 6 + Math.floor(Math.random() * 15), behavior: beh, shape: randPick(ENEMY_SHAPES), look: "a " + nm.toLowerCase() });
+  }
+  spec.enemies = [];
+  var nEn = 6 + Math.floor(Math.random() * 7);
+  for (var j = 0; j < nEn; j++) {
+    var cell = takeTile(); if (!cell) break;
+    var t = randPick(spec.enemyTypes);
+    var en = { type: t.id, x: cell.x, y: cell.y, health: t.hp, speed: t.speed, damage: t.damage };
+    if (t.behavior === "patrol") { en.path = []; for (var q = 0; q < 3; q++) { var wpc = standTiles.length ? standTiles[Math.floor(Math.random() * standTiles.length)] : cell; en.path.push({ x: wpc.x, y: wpc.y }); } }
+    spec.enemies.push(en);
+  }
+  var wps = ["shotgun", randPick(["pistol", "blaster", "rifle"])];
+  spec.weapons = wps.map(function (w) { var wt = WEAPON_TYPES[w]; return { type: w, damage: wt.damage, ammo: wt.ammo }; });
+  spec.pickups = [];
+  for (var k = 0; k < 6; k++) { var pc = takeTile(); if (!pc) break; spec.pickups.push({ type: randPick(["health", "ammo", "armor"]), x: pc.x, y: pc.y, amount: 25 }); }
+  var r = Math.random(), far = spec._stand[spec._stand.length - 1] || { x: 2, y: 2 };
+  if (r < 0.55) spec.goal = { type: "eliminate-all", keys: 0, exitX: far.x, exitY: far.y };
+  else if (r < 0.8) spec.goal = { type: "reach-exit", keys: 0, exitX: far.x, exitY: far.y };
+  else { spec.goal = { type: "key-hunt", keys: 2, exitX: far.x, exitY: far.y }; for (var m = 0; m < 2; m++) { var kc = takeTile(); if (kc) spec.pickups.push({ type: "key", x: kc.x, y: kc.y, amount: 25 }); } }
+  delete spec._stand;
+  return spec;
+}
+document.getElementById("instantBtn").addEventListener("click", function () {
+  var type = document.getElementById("typeSelect").value;
+  var spec = repairSpec(instantLevel(type));
+  if (!validateSpec(spec).ok) spec = fallbackFor(type);
+  applyWallPref(spec); applyDifficulty(spec); applyBoss(spec);
+  buildLevel(spec, "Instant", null);
+  document.getElementById("status").textContent = "Instant level: " + (spec.title || "Untitled") + " (" + type + "). No AI call, no key needed.";
+});
+document.getElementById("remixBtn").addEventListener("click", async function () {
+  var inst = document.getElementById("remixInput").value.trim();
+  if (!inst) { document.getElementById("status").textContent = "Type a remix wish first (like: make it scarier)."; return; }
+  if (!lastSpec) { document.getElementById("status").textContent = "No level to remix yet."; return; }
+  var provider = document.getElementById("providerSelect").value;
+  var type = document.getElementById("typeSelect").value;
+  var sysPrompt = type === "topview" ? SYSTEM_PROMPT_TOP : type === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT;
+  if (!keyFor(provider)) { document.getElementById("status").textContent = "Enter your API key first (Saved in this browser only). The demo castle still plays without one."; return; }
+  var btn = document.getElementById("remixBtn"); btn.disabled = true;
+  document.getElementById("status").textContent = "Remixing with " + provider + "...";
+  try {
+    var raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: "Remix this level: " + inst + ". Keep the same gameType and return a full valid JSON spec. Current level: " + JSON.stringify(lastSpec) }]);
+    var spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
+    if (!validateSpec(spec).ok) { btn.disabled = false; document.getElementById("status").textContent = "That remix did not pass checks, keeping your current level. Try another remix."; return; }
+    var artMode = document.getElementById("artSelect").value;
+    var art = await buildArt(provider, spec, artMode);
+    applyWallPref(spec); applyDifficulty(spec); applyBoss(spec);
+    buildLevel(spec, "Remixed (" + provider + ")", art);
+    document.getElementById("status").textContent = "Remixed: " + (spec.title || "Untitled") + " (" + type + "). Click the game to play.";
+  } catch (err) {
+    if (err.status === 429) document.getElementById("status").textContent = "AI is rate-limited right now (429: too many requests on the free tier). Wait a minute and try again. Your key is fine.";
+    else if (err.status === 404) document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key.";
+    else if (err.message === "Failed to fetch") document.getElementById("status").textContent = "AI call failed (network — the request never reached the API). Check your connection and try again.";
+    else document.getElementById("status").textContent = "Remix failed (" + (err.status || "network") + "). Your current level is untouched. Check your key and try again.";
+  }
+  btn.disabled = false;
+});
+document.getElementById("copySpecBtn").addEventListener("click", function () {
+  if (!lastSpec) { document.getElementById("status").textContent = "No level to copy yet."; return; }
+  var st = document.getElementById("status");
+  copyText(JSON.stringify(lastSpec, null, 2)).then(function (ok) { st.textContent = ok ? "Level spec copied. Paste it anywhere, or load it back with Paste spec." : "Copy blocked in this browser."; });
+});
+document.getElementById("pasteSpecBtn").addEventListener("click", function () {
+  document.getElementById("gameBox").style.display = "none";
+  document.getElementById("editorBox").style.display = "none";
+  document.getElementById("feedBox").style.display = "none";
+  document.getElementById("texBox").style.display = "none";
+  document.getElementById("specBox").style.display = "block";
+});
+document.getElementById("specBackBtn").addEventListener("click", function () {
+  document.getElementById("specBox").style.display = "none";
+  document.getElementById("gameBox").style.display = "block";
+});
+document.getElementById("specLoadBtn").addEventListener("click", function () {
+  var txt = document.getElementById("specInput").value.trim();
+  if (!txt) { document.getElementById("status").textContent = "Paste a spec first."; return; }
+  var spec;
+  try { spec = JSON.parse(txt); } catch (e) { document.getElementById("status").textContent = "That is not valid JSON. Check the paste and try again."; return; }
+  spec = repairSpec(spec);
+  if (!validateSpec(spec).ok) { document.getElementById("status").textContent = "That spec did not pass checks: " + validateSpec(spec).errors.join("; "); return; }
+  document.getElementById("specBox").style.display = "none";
+  document.getElementById("gameBox").style.display = "block";
+  buildLevel(spec, "Pasted", null);
+  document.getElementById("status").textContent = "Pasted level loaded: " + (spec.title || "Untitled") + ". Click the game to play.";
+});
+document.getElementById("soundBtn").addEventListener("click", function () {
+  SFX.on = !SFX.on;
+  try { localStorage.setItem("fpsEngine_sound", SFX.on ? "on" : "off"); } catch (e) {}
+  document.getElementById("soundBtn").textContent = SFX.on ? "Sound: ON" : "Sound: OFF";
+  document.getElementById("status").textContent = SFX.on ? "Sound on." : "Sound off.";
+});
+document.getElementById("soundBtn").textContent = SFX.on ? "Sound: ON" : "Sound: OFF";
+
 /* ============ Hand editor: fix a weird AI level by hand ============ */
-var E = null, ePainting = false, edSel = null, edSketchStroke = null, edUploadData = null;
+var E = null, ePainting = false, edSel = null, edSketchStroke = null, edUploadData = null, edUndo = [], edRedo = [], edCopyMode = false, edPasteMode = false, edClipboard = null, edDrag = null, edWaypointMode = false;
 function editorTypes() { return typeTable(E.spec); }
 function openEditor() {
   if (!lastSpec) { document.getElementById("status").textContent = "No level to edit yet."; return; }
@@ -778,7 +1035,12 @@ function openEditor() {
   (sp.pickups || []).forEach(function (p) { p.x = Math.floor(p.x); p.y = Math.floor(p.y); });
   if (sp.goal) { sp.goal.exitX = Math.floor(sp.goal.exitX || 0); sp.goal.exitY = Math.floor(sp.goal.exitY || 0); }
   E = { spec: sp };
+  edUndo = []; edRedo = []; edCopyMode = false; edPasteMode = false; edWaypointMode = false; edDrag = null;
   edSel = null; edSketchStroke = null; edUploadData = null;
+  document.getElementById("edTitleInput").value = sp.title || "";
+  document.getElementById("edThemeInput").value = sp.theme || "";
+  if (/^#[0-9a-fA-F]{6}$/.test(sp.floorColor || "")) document.getElementById("edFloorInput").value = sp.floorColor;
+  if (/^#[0-9a-fA-F]{6}$/.test(sp.ceilingColor || "")) document.getElementById("edCeilInput").value = sp.ceilingColor;
   document.getElementById("edImgFile").value = "";
   document.getElementById("edWallImgBtn").style.display = "none";
   renderSelPanel();
@@ -789,8 +1051,11 @@ function openEditor() {
   drawEditor();
   document.getElementById("status").textContent = "Editing: click tiles to fix the level, then Save edited level or Play it.";
 }
+function pushEdHistory() { if (!E) return; edUndo.push(JSON.stringify(E.spec)); if (edUndo.length > 50) edUndo.shift(); edRedo = []; }
+function edUndoDo() { if (!E || !edUndo.length) { document.getElementById("status").textContent = "Nothing to undo."; return; } edRedo.push(JSON.stringify(E.spec)); E.spec = JSON.parse(edUndo.pop()); edSel = null; renderSelPanel(); drawEditor(); }
+function edRedoDo() { if (!E || !edRedo.length) { document.getElementById("status").textContent = "Nothing to redo."; return; } edUndo.push(JSON.stringify(E.spec)); E.spec = JSON.parse(edRedo.pop()); edSel = null; renderSelPanel(); drawEditor(); }
 function closeEditor() {
-  E = null; edSel = null; edSketchStroke = null;
+  E = null; edSel = null; edSketchStroke = null; edCopyMode = false; edPasteMode = false; edWaypointMode = false; edDrag = null;
   document.getElementById("editorBox").style.display = "none";
   document.getElementById("gameBox").style.display = "block";
 }
@@ -826,6 +1091,13 @@ function drawEditor() {
     var t = editorTypes()[e.type] || {};
     g.fillStyle = t.color || "#ff00ff"; g.beginPath(); g.arc(e.x * cs + cs / 2, e.y * cs + cs / 2, cs * 0.3, 0, Math.PI * 2); g.fill();
   });
+  (E.spec.enemies || []).forEach(function (e) {
+    if (!e.path || e.path.length < 2) return;
+    g.strokeStyle = "#ffe600"; g.lineWidth = 2; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(e.x * cs + cs / 2, e.y * cs + cs / 2);
+    e.path.forEach(function (wp) { g.lineTo(wp.x * cs + cs / 2, wp.y * cs + cs / 2); });
+    g.stroke(); g.setLineDash([]);
+  });
   var pcol = { health: "#3ddc54", ammo: "#e5c100", armor: "#4aa8ff", key: "#ff8c2e" };
   (E.spec.pickups || []).forEach(function (p) {
     g.fillStyle = pcol[p.type] || "#fff"; g.fillRect(p.x * cs + cs * 0.3, p.y * cs + cs * 0.3, cs * 0.4, cs * 0.4);
@@ -860,6 +1132,21 @@ function applyTool(cell) {
   if (!E || !cell) return;
   var tool = document.getElementById("edTool").value, map = E.spec.map, x = cell.x, y = cell.y;
   if (tool === "select") { selectAt(cell); drawEditor(); return; }
+  if (tool === "fill") {
+    var target = map[y][x], fill = +document.getElementById("edFillWith").value;
+    if (target !== fill) {
+      var stack = [[x, y]], seenF = {};
+      while (stack.length) {
+        var c = stack.pop(), k = c[0] + "," + c[1];
+        if (seenF[k]) continue; seenF[k] = 1;
+        if (!map[c[1]] || map[c[1]][c[0]] !== target) continue;
+        map[c[1]][c[0]] = fill;
+        if (fill === 1 || fill === 2) clearTile(c[0], c[1]);
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) { stack.push([c[0] + d[0], c[1] + d[1]]); });
+      }
+    }
+    drawEditor(); return;
+  }
   if (tool === "wall" || tool === "floor" || tool === "door" || tool === "eraser") {
     var brush = +document.getElementById("edBrush").value || 1, r = Math.floor((brush - 1) / 2);
     for (var dy = -r; dy <= r; dy++) for (var dx = -r; dx <= r; dx++) applyToolCell(tool, x + dx, y + dy);
@@ -885,19 +1172,71 @@ function applyTool(cell) {
   drawEditor();
 }
 document.getElementById("editorCanvas").addEventListener("mousedown", function (ev) {
+  if (edCopyMode) {
+    var cc = edCell(ev);
+    if (cc) {
+      var tiles = [];
+      for (var dy = -2; dy <= 2; dy++) { var trow = []; for (var dx = -2; dx <= 2; dx++) { var tx = cc.x + dx, ty = cc.y + dy; trow.push((E.spec.map[ty] && E.spec.map[ty][tx] !== undefined) ? E.spec.map[ty][tx] : null); } tiles.push(trow); }
+      edClipboard = { w: 5, h: 5, tiles: tiles };
+      document.getElementById("status").textContent = "Copied 5x5 tiles. Hit Paste, then click where it goes.";
+    }
+    edCopyMode = false; return;
+  }
+  if (edPasteMode) {
+    var pc = edCell(ev);
+    if (pc && edClipboard) {
+      pushEdHistory();
+      for (var py = 0; py < edClipboard.h; py++) for (var px = 0; px < edClipboard.w; px++) {
+        var v = edClipboard.tiles[py][px]; if (v === null) continue;
+        var gx = pc.x + px, gy = pc.y + py;
+        if (E.spec.map[gy] && E.spec.map[gy][gx] !== undefined) { E.spec.map[gy][gx] = v; if (v === 1 || v === 2) clearTile(gx, gy); }
+      }
+      drawEditor(); document.getElementById("status").textContent = "Pasted.";
+    }
+    edPasteMode = false; return;
+  }
+  if (edWaypointMode) {
+    var wc = edCell(ev);
+    if (wc && edSel && edSel.kind === "enemy") {
+      var we = E.spec.enemies[edSel.index];
+      if (we && E.spec.map[wc.y][wc.x] === 0) {
+        if (!we.path) we.path = [];
+        we.path.push({ x: wc.x, y: wc.y });
+        drawEditor();
+        document.getElementById("status").textContent = "Waypoint added (" + we.path.length + "). Click more tiles, or Stop waypoints when done.";
+      }
+    }
+    return;
+  }
   var tool = document.getElementById("edTool").value;
   if (tool === "sketch") { ePainting = true; var pt = edPoint(ev); edSketchStroke = { color: document.getElementById("edSketchColor").value, pts: [[pt.x, pt.y]] }; return; }
-  ePainting = true; applyTool(edCell(ev));
+  if (tool !== "select") pushEdHistory();
+  ePainting = true;
+  var c0 = edCell(ev);
+  applyTool(c0);
+  if (tool === "select" && edSel && (edSel.kind === "enemy" || edSel.kind === "pickup") && c0) edDrag = { kind: edSel.kind, index: edSel.index, from: { x: c0.x, y: c0.y }, to: null };
 });
 document.getElementById("editorCanvas").addEventListener("mousemove", function (ev) {
   if (!ePainting) return;
+  if (edDrag) { var dc = edCell(ev); if (dc) edDrag.to = dc; return; }
   var tool = document.getElementById("edTool").value;
   if (tool === "sketch") { var pt = edPoint(ev); if (edSketchStroke) { edSketchStroke.pts.push([pt.x, pt.y]); drawEditor(); } return; }
   if (tool === "wall" || tool === "floor" || tool === "door" || tool === "eraser") applyTool(edCell(ev));
 });
 document.addEventListener("mouseup", function () {
+  if (edDrag && E) {
+    var dg = edDrag; edDrag = null;
+    if (dg.to && (dg.to.x !== dg.from.x || dg.to.y !== dg.from.y)) {
+      var list = dg.kind === "enemy" ? E.spec.enemies : E.spec.pickups;
+      var it = list && list[dg.index];
+      if (it && E.spec.map[dg.to.y] && E.spec.map[dg.to.y][dg.to.x] === 0 && !list.some(function (o, oi) { return oi !== dg.index && o.x === dg.to.x && o.y === dg.to.y; })) {
+        pushEdHistory(); it.x = dg.to.x; it.y = dg.to.y; edSel = { kind: dg.kind, index: dg.index, x: dg.to.x, y: dg.to.y }; renderSelPanel(); drawEditor();
+      } else { document.getElementById("status").textContent = "Can't move there — that tile is taken or not open."; }
+    }
+  } else edDrag = null;
   if (ePainting && edSketchStroke && edSketchStroke.pts.length > 1) {
     if (!E.spec.sketch) E.spec.sketch = [];
+    pushEdHistory();
     E.spec.sketch.push(edSketchStroke);
   }
   edSketchStroke = null; ePainting = false;
@@ -916,16 +1255,20 @@ function selectAt(cell) {
 }
 function renderSelPanel() {
   var info = document.getElementById("edSelInfo"), rb = document.getElementById("edRegenBtn"), db = document.getElementById("edDeleteBtn"), eb = document.getElementById("edEnemyImgBtn");
+  var pb = document.getElementById("edPatrolBtn"), wb = document.getElementById("edWaypointBtn"), cb = document.getElementById("edClearPathBtn");
   if (!E || !edSel) {
     info.textContent = "Pick the Select tool, then click anything in the map to inspect it.";
-    rb.style.display = "none"; db.style.display = "none"; eb.style.display = "none"; return;
+    rb.style.display = "none"; db.style.display = "none"; eb.style.display = "none"; pb.style.display = "none"; wb.style.display = "none"; cb.style.display = "none"; return;
   }
+  pb.style.display = "none"; wb.style.display = "none"; cb.style.display = "none";
   var sp = E.spec;
   if (edSel.kind === "enemy") {
     var e = sp.enemies[edSel.index], t = editorTypes()[e.type] || {};
     info.textContent = "Monster: " + (t.name || e.type) + " (HP " + e.health + ", speed " + e.speed + ", damage " + e.damage + ", " + (t.behavior || "chase") + ").";
     rb.textContent = "Regenerate monster"; rb.style.display = "";
     db.textContent = "Delete"; db.style.display = "";
+    if ((t.behavior || "chase") === "patrol") { wb.style.display = ""; cb.style.display = ""; }
+    else pb.style.display = "";
   } else if (edSel.kind === "pickup") {
     var p = sp.pickups[edSel.index];
     info.textContent = "Pickup: " + p.type + " (+" + p.amount + ").";
@@ -1038,8 +1381,59 @@ async function regenWeapons() {
   sp.weapons = picked.map(function (t) { return { type: t, damage: WEAPON_TYPES[t].damage, ammo: WEAPON_TYPES[t].ammo }; });
   status.textContent = "Weapons regenerated (random): " + picked.join(", ") + ".";
 }
+document.getElementById("edUndoBtn").addEventListener("click", edUndoDo);
+document.getElementById("edRedoBtn").addEventListener("click", edRedoDo);
+document.getElementById("edCopyRoomBtn").addEventListener("click", function () {
+  if (!E) return;
+  edCopyMode = true; edPasteMode = false; edWaypointMode = false;
+  document.getElementById("status").textContent = "Copy mode: click the center of the 5x5 room to copy.";
+});
+document.getElementById("edPasteRoomBtn").addEventListener("click", function () {
+  if (!E) return;
+  if (!edClipboard) { document.getElementById("status").textContent = "Nothing copied yet — hit Copy 5x5 first."; return; }
+  edPasteMode = true; edCopyMode = false; edWaypointMode = false;
+  document.getElementById("status").textContent = "Paste mode: click the top-left tile where the room goes.";
+});
+document.getElementById("edPatrolBtn").addEventListener("click", function () {
+  if (!E || !edSel || edSel.kind !== "enemy") return;
+  var e = E.spec.enemies[edSel.index], t = editorTypes()[e.type] || {};
+  pushEdHistory();
+  var base = (t.id || e.type) + "-patrol", nid = base, n = 2;
+  while (editorTypes()[nid]) nid = base + "-" + (n++);
+  if (!E.spec.enemyTypes) E.spec.enemyTypes = [];
+  E.spec.enemyTypes.push({ id: nid, name: (t.name || e.type) + " Patrol", color: t.color || "#ff00ff", hp: t.hp || 30, speed: t.speed || 1, damage: t.damage || 10, behavior: "patrol", shape: t.shape || "blob", look: t.look || "" });
+  e.type = nid; e.path = [];
+  refreshEnemyTypeSelect(); renderSelPanel(); drawEditor();
+  document.getElementById("status").textContent = "Patrol monster ready. Hit Add waypoint, then click open tiles for its route.";
+});
+document.getElementById("edWaypointBtn").addEventListener("click", function () {
+  if (!E || !edSel || edSel.kind !== "enemy") return;
+  if (edWaypointMode) { edWaypointMode = false; document.getElementById("edWaypointBtn").textContent = "Add waypoint"; document.getElementById("status").textContent = "Waypoint mode off."; return; }
+  pushEdHistory();
+  edWaypointMode = true; document.getElementById("edWaypointBtn").textContent = "Stop waypoints";
+  document.getElementById("status").textContent = "Waypoint mode: click open tiles to add to the patrol route. Click Stop waypoints when done.";
+});
+document.getElementById("edClearPathBtn").addEventListener("click", function () {
+  if (!E || !edSel || edSel.kind !== "enemy") return;
+  pushEdHistory();
+  E.spec.enemies[edSel.index].path = [];
+  renderSelPanel(); drawEditor();
+  document.getElementById("status").textContent = "Patrol route cleared.";
+});
+function edMetaChange() {
+  if (!E) return;
+  pushEdHistory();
+  E.spec.title = document.getElementById("edTitleInput").value;
+  E.spec.theme = document.getElementById("edThemeInput").value;
+  var fc = document.getElementById("edFloorInput").value, cc = document.getElementById("edCeilInput").value;
+  if (/^#[0-9a-fA-F]{6}$/.test(fc)) E.spec.floorColor = fc;
+  if (/^#[0-9a-fA-F]{6}$/.test(cc)) E.spec.ceilingColor = cc;
+  drawEditor();
+}
+["edTitleInput", "edThemeInput", "edFloorInput", "edCeilInput"].forEach(function (id) { document.getElementById(id).addEventListener("change", edMetaChange); });
 document.getElementById("edRegenBtn").addEventListener("click", function () {
   if (!E || !edSel) return;
+  pushEdHistory();
   if (edSel.kind === "enemy") regenEnemy(edSel.index);
   else if (edSel.kind === "pickup") {
     var p = E.spec.pickups[edSel.index], order = ["health", "ammo", "armor", "key"];
@@ -1053,13 +1447,14 @@ document.getElementById("edRegenBtn").addEventListener("click", function () {
 });
 document.getElementById("edDeleteBtn").addEventListener("click", function () {
   if (!E || !edSel) return;
+  pushEdHistory();
   if (edSel.kind === "enemy") E.spec.enemies.splice(edSel.index, 1);
   else if (edSel.kind === "pickup") E.spec.pickups.splice(edSel.index, 1);
   else if (edSel.kind === "tile") E.spec.map[edSel.y][edSel.x] = edSel.value === 0 ? 1 : 0;
   edSel = null; renderSelPanel(); drawEditor();
 });
-document.getElementById("edWeaponsBtn").addEventListener("click", regenWeapons);
-document.getElementById("edWallStyleBtn").addEventListener("click", regenWallStyle);
+document.getElementById("edWeaponsBtn").addEventListener("click", function () { pushEdHistory(); regenWeapons(); });
+document.getElementById("edWallStyleBtn").addEventListener("click", function () { pushEdHistory(); regenWallStyle(); });
 document.getElementById("edImgFile").addEventListener("change", function (ev) {
   var f = ev.target.files && ev.target.files[0];
   if (!f) return;
@@ -1075,6 +1470,7 @@ document.getElementById("edImgFile").addEventListener("change", function (ev) {
 });
 document.getElementById("edWallImgBtn").addEventListener("click", function () {
   if (!E || !edUploadData) return;
+  pushEdHistory();
   E.spec.customWallImg = edUploadData;
   E.spec.wallTexture = "custom";
   document.getElementById("status").textContent = "Wall texture set from your image.";
@@ -1082,12 +1478,14 @@ document.getElementById("edWallImgBtn").addEventListener("click", function () {
 });
 document.getElementById("edEnemyImgBtn").addEventListener("click", function () {
   if (!E || !edSel || edSel.kind !== "enemy" || !edUploadData) { document.getElementById("status").textContent = "Select a monster first, then use an uploaded image as its sprite."; return; }
+  pushEdHistory();
   E.spec.enemies[edSel.index].imgSrc = edUploadData;
   document.getElementById("status").textContent = "Monster sprite set from your image.";
   drawEditor();
 });
 function edTransform(fn) {
   if (!E) return;
+  pushEdHistory();
   E.spec = fn(E.spec);
   drawEditor();
 }
@@ -1097,7 +1495,7 @@ function rotateSpec(sp) {
   sp.map = nm;
   var f = function (px, py) { return { x: H - 1 - py, y: px }; };
   var ps = f(sp.playerStart.x, sp.playerStart.y); sp.playerStart.x = ps.x; sp.playerStart.y = ps.y;
-  (sp.enemies || []).forEach(function (e) { var c = f(e.x, e.y); e.x = c.x; e.y = c.y; });
+  (sp.enemies || []).forEach(function (e) { var c = f(e.x, e.y); e.x = c.x; e.y = c.y; (e.path || []).forEach(function (wp) { var w = f(wp.x, wp.y); wp.x = w.x; wp.y = w.y; }); });
   (sp.pickups || []).forEach(function (p) { var c = f(p.x, p.y); p.x = c.x; p.y = c.y; });
   if (sp.goal) { var g = f(sp.goal.exitX, sp.goal.exitY); sp.goal.exitX = g.x; sp.goal.exitY = g.y; }
   (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { var c = f(pt[0], pt[1]); return [c.x, c.y]; }); });
@@ -1108,7 +1506,7 @@ function flipSpec(sp) {
   sp.map = sp.map.map(function (row) { return row.slice().reverse(); });
   var f = function (px) { return W - 1 - px; };
   sp.playerStart.x = f(sp.playerStart.x);
-  (sp.enemies || []).forEach(function (e) { e.x = f(e.x); });
+  (sp.enemies || []).forEach(function (e) { e.x = f(e.x); (e.path || []).forEach(function (wp) { wp.x = f(wp.x); }); });
   (sp.pickups || []).forEach(function (p) { p.x = f(p.x); });
   if (sp.goal) sp.goal.exitX = f(sp.goal.exitX);
   (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { return [W - 1 - pt[0], pt[1]]; }); });
@@ -1123,7 +1521,7 @@ function scaleSpec(sp, factor) {
     sp.map = nm;
     var d = function (v) { return v * 2; };
     sp.playerStart.x = d(sp.playerStart.x); sp.playerStart.y = d(sp.playerStart.y);
-    (sp.enemies || []).forEach(function (e) { e.x = d(e.x); e.y = d(e.y); });
+    (sp.enemies || []).forEach(function (e) { e.x = d(e.x); e.y = d(e.y); (e.path || []).forEach(function (wp) { wp.x = d(wp.x); wp.y = d(wp.y); }); });
     (sp.pickups || []).forEach(function (p) { p.x = d(p.x); p.y = d(p.y); });
     if (sp.goal) { sp.goal.exitX = d(sp.goal.exitX); sp.goal.exitY = d(sp.goal.exitY); }
     (sp.sketch || []).forEach(function (st) { st.pts = st.pts.map(function (pt) { return [pt[0] * 2, pt[1] * 2]; }); });
@@ -1135,7 +1533,7 @@ function scaleSpec(sp, factor) {
     var h = function (v) { return Math.floor(v / 2); };
     sp.playerStart.x = h(sp.playerStart.x); sp.playerStart.y = h(sp.playerStart.y);
     var seen = {};
-    sp.enemies = (sp.enemies || []).filter(function (e) { e.x = h(e.x); e.y = h(e.y); var k = e.x + "," + e.y; if (seen[k]) return false; seen[k] = 1; return true; });
+    sp.enemies = (sp.enemies || []).filter(function (e) { e.x = h(e.x); e.y = h(e.y); (e.path || []).forEach(function (wp) { wp.x = h(wp.x); wp.y = h(wp.y); }); var k = e.x + "," + e.y; if (seen[k]) return false; seen[k] = 1; return true; });
     var seen2 = {};
     sp.pickups = (sp.pickups || []).filter(function (p) { p.x = h(p.x); p.y = h(p.y); var k = p.x + "," + p.y; if (seen2[k]) return false; seen2[k] = 1; return true; });
     if (sp.goal) { sp.goal.exitX = h(sp.goal.exitX); sp.goal.exitY = h(sp.goal.exitY); }
@@ -1150,6 +1548,7 @@ document.getElementById("edScaleUpBtn").addEventListener("click", function () { 
 document.getElementById("edScaleDownBtn").addEventListener("click", function () { edTransform(function (sp) { return scaleSpec(sp, 0.5); }); });
 document.getElementById("edTurnBtn").addEventListener("click", function () {
   if (!E) return;
+  pushEdHistory();
   E.spec.playerStart.angle = ((E.spec.playerStart.angle || 0) + 90) % 360;
   document.getElementById("status").textContent = "Start now faces " + E.spec.playerStart.angle + " degrees.";
 });
@@ -1458,7 +1857,7 @@ function shoot2D() {
   var now = Date.now();
   if (now - lastShot < S.weapon.rate) return;
   if (S.weapon.ammo <= 0) { addPopup("RELOAD (R)", "#ffd60a"); return; }
-  lastShot = now; S.weapon.ammo--; flashUntil = now + 90;
+  lastShot = now; S.weapon.ammo--; flashUntil = now + 90; sfxShoot();
   var p = S.player;
   if (S.gameType === "topview") S.bullets.push({ x: p.x, y: p.y, vx: Math.cos(p.angle) * 14, vy: Math.sin(p.angle) * 14, life: 1.2 });
   else S.bullets.push({ x: p.x + p.facing * 0.4, y: p.y, vx: p.facing * 14, vy: 0, life: 1.2 });
@@ -1468,7 +1867,7 @@ function damagePlayer2D(dmg) {
   var p = S.player;
   if (p.armor > 0) { var absorbed = Math.min(p.armor, dmg); p.armor -= absorbed; dmg -= absorbed; }
   p.hp -= dmg; hurtUntil = Date.now() + 200; addPopup("-" + dmg + " HP", "#ff5252");
-  if (p.hp <= 0) { p.hp = 0; gameOver = true; }
+  if (p.hp <= 0) { p.hp = 0; gameOver = true; sfxLose(); }
 }
 function collect2D(p, rx, ry) {
   S.pickups = S.pickups.filter(function (pk) {
@@ -1476,7 +1875,7 @@ function collect2D(p, rx, ry) {
       if (pk.type === "health") { p.hp = Math.min(100, p.hp + pk.amount); addPopup("+" + pk.amount + " HP", "#3ddc54"); }
       if (pk.type === "ammo") { S.weapon.ammo += pk.amount; addPopup("+" + pk.amount + " AMMO", "#ffd60a"); }
       if (pk.type === "armor") { p.armor += 25; addPopup("+ARMOR", "#3b82ff"); }
-      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); }
+      if (pk.type === "key") { S.keys++; addPopup("KEY " + S.keys, "#ffcc00"); sfxPickup(); }
       return false;
     }
     return true;
@@ -1488,7 +1887,7 @@ function checkWin2D(p) {
   if (S.goal.type === "eliminate-all" && S.enemies.length === 0) won = true;
   if (S.goal.type === "key-hunt" && S.keys >= (S.goal.keys || 1) && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
   if (S.goal.type === "reach-exit" && Math.floor(p.x) === S.goal.exitX && Math.floor(p.y) === S.goal.exitY) won = true;
-  if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; }
+  if (won) { winShown = true; gameOver = true; var secs = Math.floor((Date.now() - startTime) / 1000); S.score += 500 + Math.max(0, 300 - secs); sessionTotal += S.score; sfxWin(); recordBest(); }
 }
 function updateTop(dt) {
   if (!S || gameOver) return;
@@ -1517,7 +1916,15 @@ function updateTop(dt) {
       if (!blockedAt(wx, e.y, 0.25)) e.x = wx;
       if (!blockedAt(e.x, wy, 0.25)) e.y = wy;
     }
-    if (seen && dist > 0.7) { var mx2 = e.x + dx / dist * e.speed * dt, my2 = e.y + dy / dist * e.speed * dt;
+    if (e.patrol && e.path && e.path.length) {
+      var wp = e.path[e.pathIdx % e.path.length];
+      var tx = wp.x + 0.5, ty = wp.y + 0.5, pdx = tx - e.x, pdy = ty - e.y, pd = Math.sqrt(pdx * pdx + pdy * pdy);
+      if (pd < 0.3) { e.pathIdx = (e.pathIdx + 1) % e.path.length; }
+      else { var pmx = e.x + pdx / pd * e.speed * dt, pmy = e.y + pdy / pd * e.speed * dt;
+        if (!blockedAt(pmx, e.y, 0.25)) e.x = pmx;
+        if (!blockedAt(e.x, pmy, 0.25)) e.y = pmy; }
+    }
+    if (seen && !e.patrol && dist > 0.7) { var mx2 = e.x + dx / dist * e.speed * dt, my2 = e.y + dy / dist * e.speed * dt;
       if (!blockedAt(mx2, e.y, 0.25)) e.x = mx2;
       if (!blockedAt(e.x, my2, 0.25)) e.y = my2; }
     if (Math.abs(e.x - p.x) < 0.6 && Math.abs(e.y - p.y) < 0.6 && e.cool <= 0) { e.cool = 1.0; damagePlayer2D(e.damage); }
@@ -1529,8 +1936,8 @@ function updateTop(dt) {
     var hit = null;
     S.enemies.forEach(function (e) { if (Math.sqrt((e.x - b.x) * (e.x - b.x) + (e.y - b.y) * (e.y - b.y)) < 0.45) hit = e; });
     if (hit) {
-      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
-      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a"); sfxHit();
+      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); sfxKill(); }
       return false;
     }
     return true;
@@ -1544,7 +1951,7 @@ function drawEndTail() {
   popups = popups.filter(function (pp) { return now - pp.t < 1400; });
   popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.textAlign = "center"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
   if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Click to play or press R to play again.", W / 2, H / 2 + 30); }
-  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
+  if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); if (S.questWin) { ctx.fillText(esc(S.questWin), W / 2, H / 2 + 60); } try { var bk = loadBests()[bestKey(lastSpec || S)]; if (bk) ctx.fillText("Best: " + bk.score + " pts in " + bk.secs + "s.", W / 2, H / 2 + 90); } catch (e) {} }
   document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
 }
 function renderTop() {
@@ -1620,7 +2027,13 @@ function updateSide(dt) {
     if (e.vx === undefined) { e.vx = 0; e.vy = 0; e.facing = Math.random() < 0.5 ? -1 : 1; e.grounded = false; }
     e.cool -= dt;
     var dx = p.x - e.x, adx = Math.abs(dx);
-    if (e.behavior === "turret") { /* stationary */ }
+    if (e.patrol && e.path && e.path.length) {
+      var wp = e.path[e.pathIdx % e.path.length];
+      var wdx = (wp.x + 0.5) - e.x;
+      if (Math.abs(wdx) < 0.5) { e.pathIdx = (e.pathIdx + 1) % e.path.length; }
+      else { e.facing = wdx > 0 ? 1 : -1; moveAxis(e, e.facing * e.speed * dt, 0); }
+    }
+    else if (e.behavior === "turret") { /* stationary */ }
     else if (adx < 8 && !e.wander) { var dir = dx > 0 ? 1 : -1; e.facing = dir; moveAxis(e, dir * e.speed * dt, 0); }
     else { var r = moveAxis(e, e.facing * e.speed * 0.5 * dt, 0); if (r.xBlocked) e.facing *= -1; }
     e.vy += 26 * dt; if (e.vy > 16) e.vy = 16;
@@ -1635,8 +2048,8 @@ function updateSide(dt) {
     var hit = null;
     S.enemies.forEach(function (e) { if (Math.abs(e.x - b.x) < 0.5 && Math.abs(e.y - b.y) < 0.6) hit = e; });
     if (hit) {
-      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a");
-      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); }
+      hit.hp -= S.weapon.damage; addPopup("HIT -" + S.weapon.damage, "#ffd76a"); sfxHit();
+      if (hit.hp <= 0) { S.enemies = S.enemies.filter(function (e) { return e !== hit; }); S.score += 100; S.kills++; addPopup("+100", "#3ddc54"); sfxKill(); }
       return false;
     }
     return true;
