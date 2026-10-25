@@ -196,7 +196,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -780,10 +780,15 @@ async function callImageMeta(prompt) {
   if (!b64) throw new Error("No image returned");
   return b64;
 }
+function normCfUrl(u) {
+  u = (u || "").trim().replace(/\/$/, "");
+  if (u && u.indexOf("://") < 0) u = "https://" + u;
+  return u;
+}
 async function callImageCf(prompt) {
-  var url = (localStorage.getItem("fpsEngine_cfWorker") || "").replace(/\/$/, "");
+  var url = normCfUrl(localStorage.getItem("fpsEngine_cfWorker"));
   var res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: prompt }) });
-  if (!res.ok) { var err = new Error("Worker error " + res.status); err.status = res.status; throw err; }
+  if (!res.ok) { var err = new Error("Worker error " + res.status); err.status = res.status; try { err.detail = (await res.text() || "").slice(0, 80); } catch (e) {} throw err; }
   var data = await res.json();
   var b64 = data && data.image;
   if (!b64) throw new Error("No image returned");
@@ -792,7 +797,9 @@ async function callImageCf(prompt) {
 function syncCfBox() { document.getElementById("cfBox").style.display = document.getElementById("artSelect").value === "cfworker" ? "" : "none"; }
 document.getElementById("artSelect").addEventListener("change", syncCfBox);
 document.getElementById("saveCfBtn").addEventListener("click", function () {
-  localStorage.setItem("fpsEngine_cfWorker", document.getElementById("cfWorkerInput").value.trim().replace(/\/$/, ""));
+  var u = normCfUrl(document.getElementById("cfWorkerInput").value);
+  localStorage.setItem("fpsEngine_cfWorker", u);
+  document.getElementById("cfWorkerInput").value = u;
   document.getElementById("status").textContent = "Cloudflare Worker URL saved in this browser.";
 });
 document.getElementById("cfWorkerInput").value = localStorage.getItem("fpsEngine_cfWorker") || "";
@@ -825,7 +832,7 @@ async function buildArt(provider, spec, artMode) {
   var parts = await Promise.all(jobs);
   var art = { images: 0, wallTex: null, sprites: {} };
   parts.forEach(function (pt) { if (pt.v) { art.images++; if (pt.k === "__wall") art.wallTex = pt.v; else art.sprites[pt.k] = pt.v; } });
-  if (firstErr) art.artFail = firstErr.status ? "HTTP " + firstErr.status : (firstErr.message === "Failed to fetch" ? "network error (request never reached the server)" : (firstErr.message || "unknown error"));
+  if (firstErr) art.artFail = firstErr.status ? "HTTP " + firstErr.status + (firstErr.detail ? " (" + firstErr.detail + ")" : "") : (firstErr.message === "Failed to fetch" ? "network error (request never reached the server)" : (firstErr.message || "unknown error"));
   return art;
 }
 /* ============ Difficulty + boss: post-process any fresh spec before building ============ */
