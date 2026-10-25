@@ -93,12 +93,8 @@
     <button id="pasteSpecBtn">Paste spec</button>
   </div>
   <div class="bar" id="themeBar">
-    <span class="small">Themes:</span>
-    <button data-theme="castle">Haunted Castle</button>
-    <button data-theme="arcade">Neon Arcade</button>
-    <button data-theme="candy">Candy Land</button>
-    <button data-theme="space">Space Station</button>
-    <button data-theme="jungle">Jungle Temple</button>
+    <span class="small">Themes (200):</span>
+    <button id="themeShuffleBtn">Shuffle theme</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -194,7 +190,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -872,18 +868,218 @@ document.getElementById("generateBtn").addEventListener("click", async function 
 });
 
 /* ============ Themes, instant levels, remix, spec copy/paste, sound toggle ============ */
-var THEME_PROMPTS = {
-  castle: "Build a spooky haunted castle FPS called HAUNTED KEEP. Theme: a torch-lit castle at midnight, castle-brick walls, dark stone floor, deep purple ceiling. Map: about 18 by 18 tiles, a great hall in the middle, corner towers, and narrow corridors. Player starts at the south gate with a shotgun. Weapons: shotgun, pistol. Enemies: ghost flyers that dart, skeleton brutes that chase, and a turret gargoyle that shoots from a corner. Pickups: health, ammo, armor, 1 key. Goal: key-hunt, 1 key, exit in the north tower. Art direction: spooky cartoon castle, grey ghosts and white skeletons on dark stone.",
-  arcade: "Build a bright neon arcade FPS level called NEON SUGAR RUSH. Theme: a glowing candy arcade at midnight, neon-grid walls, hot pink floor, electric blue ceiling. Map: a big open arena, about 18 by 18 tiles, with a candy counter island in the middle, four corner rooms, and wide lanes between them. Player starts at the south gate with a shotgun. Weapons: shotgun, blaster, pistol. Enemies: pink blob gumballs that waddle, yellow flyer lollipop drones, green spiky sour brutes, purple turret cupcake bots. Pickups: 6 health candies, 4 ammo boxes, 2 armor shields, 1 key. Goal: eliminate all monsters. Art direction: bold cartoon arcade, every monster a different bright color and shape.",
-  candy: "Build a sweet candy land FPS called GUMDROP VALLEY. Theme: a pastel candy valley, brick walls painted pink, rose floor, lavender ceiling. Map: about 16 by 16 tiles, rolling candy hills as wall blocks, a chocolate river lane down the middle. Player starts at the west gate with a blaster. Weapons: blaster, pistol. Enemies: blob jelly monsters, flyer candy bees, spiky jawbreaker brutes. Pickups: health, ammo, armor. Goal: eliminate all monsters. Art direction: soft pastel cartoon, pink and gold monsters on cream walls.",
-  space: "Build a sci-fi space station FPS called STARHOLD STATION. Theme: a steel space station, tech-panel walls, dark blue floor, black ceiling with stars. Map: about 18 by 18 tiles, a command deck in the middle, docking bays at the corners, straight corridors. Player starts at the airlock with a rifle. Weapons: rifle, blaster. Enemies: robot brutes that chase, drone flyers that dart, turret sentries that guard doors. Pickups: health, ammo, armor, 1 key. Goal: reach-exit, exit at the escape pod bay. Art direction: clean sci-fi cartoon, silver robots with glowing blue eyes.",
-  jungle: "Build a jungle temple FPS called VINE TEMPLE. Theme: an overgrown jungle temple, cave-rock walls, mossy green floor, dark jungle ceiling. Map: about 18 by 18 tiles, a temple courtyard in the middle, vine wall blocks, a hidden side chamber. Player starts at the temple steps with a shotgun. Weapons: shotgun, pistol. Enemies: spiky vine monsters, blob moss creatures, bat flyers. Pickups: health, ammo, armor. Goal: eliminate all monsters. Art direction: lush cartoon jungle, green and orange monsters on grey stone."
-};
-document.getElementById("themeBar").addEventListener("click", function (ev) {
-  var b = ev.target.closest ? ev.target.closest("button") : null;
-  if (!b || !b.getAttribute("data-theme")) return;
-  var t = THEME_PROMPTS[b.getAttribute("data-theme")];
-  if (t) { document.getElementById("promptInput").value = t; document.getElementById("status").textContent = "Theme loaded. Hit Generate game."; }
+/* ============ Theme shuffle: one button, 200 themes ============ */
+var THEME_POOL = [
+{n:"Haunted Keep",s:"a torch-lit castle at midnight with creaking halls",w:"castle-brick",e:"ghosts, walking suits of armor, and bats",m:"spooky but playful"},
+{n:"Dragon's Roost",s:"a mountain peak lair piled with gold and bones",w:"cave-rock",e:"baby dragons, fire imps, and a big old dragon brute",m:"epic and fiery"},
+{n:"Wizard Tower",s:"a tall crooked tower full of floating books and potions",w:"castle-brick",e:"living spellbooks, potion blobs, and a wizard brute",m:"magical and weird"},
+{n:"Goblin Mine",s:"a lantern-lit mine with rickety tracks and gem veins",w:"cave-rock",e:"goblins, cave bats, and a troll brute",m:"mischievous and gritty"},
+{n:"Elven Ruins",s:"a moonlit forest ruin with carved arches and moss",w:"castle-brick",e:"forest sprites, stone golems, and owl flyers",m:"serene and ancient"},
+{n:"Dwarf Forge",s:"a roaring underground forge with lava channels",w:"cave-rock",e:"forge goblins, ember sprites, and an anvil brute",m:"hot and industrious"},
+{n:"Vampire Manor",s:"a grand decaying manor with red velvet and candelabras",w:"castle-brick",e:"vampires, ghost maids, and bat swarms",m:"gothic and dramatic"},
+{n:"Fairy Glade",s:"a glowing mushroom glade with sparkling streams",w:"wood",e:"fairies, mushroom blobs, and firefly drones",m:"dreamy and bright"},
+{n:"Knight's Arena",s:"a tournament ground with banners, stands, and a jousting lane",w:"castle-brick",e:"knight brutes, squire blobs, and a champion brute",m:"bold and chivalrous"},
+{n:"Sorcerer's Library",s:"an endless library where books fly off shelves",w:"wood",e:"book mimics, ink blobs, and a librarian brute",m:"curious and chaotic"},
+{n:"Troll Bridge",s:"a mossy stone bridge over a rushing gorge",w:"castle-brick",e:"trolls, river sprites, and goat blobs",m:"grumpy and funny"},
+{n:"Ice Palace",s:"a glittering palace of ice pillars and frozen fountains",w:"castle-brick",e:"ice sprites, snow blobs, and a yeti brute",m:"cold and majestic"},
+{n:"Fire Citadel",s:"a black stone citadel above a lava lake",w:"cave-rock",e:"fire demons, ash blobs, and a magma brute",m:"intense and blazing"},
+{n:"Sunken Crypt",s:"a flooded crypt with dripping water and old tombs",w:"castle-brick",e:"skeletons, ghost sailors, and crab blobs",m:"eerie and damp"},
+{n:"Sky Castle",s:"a castle floating on clouds with wind bridges",w:"castle-brick",e:"cloud sprites, storm flyers, and a sky knight brute",m:"breezy and wondrous"},
+{n:"Thorn Maze",s:"a hedge maze of giant thorns with hidden clearings",w:"wood",e:"thorn vines, rose blobs, and a gardener brute",m:"tangled and sneaky"},
+{n:"Golem Works",s:"a workshop where clay golems are built and wound up",w:"brick",e:"golems, gear drones, and a foreman brute",m:"clanky and busy"},
+{n:"Griffin Aerie",s:"a cliffside nest of griffins above the clouds",w:"cave-rock",e:"griffins, eaglets, and a griffin queen brute",m:"wild and free"},
+{n:"Witch's Hollow",s:"a crooked cottage hollow with bubbling cauldrons",w:"wood",e:"witches, cat blobs, and pumpkin brutes",m:"spooky and silly"},
+{n:"Royal Dungeon",s:"a deep dungeon of cells, chains, and secret doors",w:"castle-brick",e:"dungeon rats, skeleton guards, and a jailer brute",m:"grim and sneaky"},
+{n:"Gumdrop Valley",s:"a pastel valley of rolling gumdrop hills",w:"brick",e:"jelly blobs, candy bees, and jawbreaker brutes",m:"sweet and sunny"},
+{n:"Lollipop Forest",s:"a forest of giant swirling lollipops",w:"wood",e:"lollipop drones, gummy bears, and a candy wolf brute",m:"sugary and bright"},
+{n:"Chocolate River",s:"a river of flowing chocolate with marshmallow banks",w:"brick",e:"chocolate blobs, marshmallow flyers, and a fudge brute",m:"rich and cozy"},
+{n:"Marshmallow Peaks",s:"snowy peaks made of stacked marshmallows",w:"brick",e:"snow blobs, cream flyers, and a yeti brute",m:"soft and dreamy"},
+{n:"Soda Falls",s:"a fizzy waterfall canyon with bubbling pools",w:"brick",e:"soda sprites, bubble blobs, and a foam brute",m:"fizzy and fun"},
+{n:"Candy Cane Lane",s:"a striped lane of candy cane lampposts and shops",w:"brick",e:"cane drones, peppermint blobs, and a nutcracker brute",m:"festive and crisp"},
+{n:"Donut Docks",s:"a harbor where donuts float like life rings",w:"wood",e:"donut blobs, seagull flyers, and a pirate brute",m:"tasty and breezy"},
+{n:"Ice Cream Isles",s:"islands of scoops and waffle cone piers",w:"brick",e:"scoop blobs, cherry drones, and a sundae brute",m:"cool and cheerful"},
+{n:"Bubblegum Bazaar",s:"a loud market of bubblegum stalls and pink smoke",w:"brick",e:"gum blobs, bubble drones, and a vendor brute",m:"loud and pink"},
+{n:"Licorice Labyrinth",s:"a black and red maze of licorice ropes",w:"brick",e:"licorice vines, twist blobs, and a maze keeper brute",m:"twisty and bold"},
+{n:"Cupcake Castle",s:"a castle of cupcakes with frosting towers",w:"brick",e:"cupcake bots, sprinkle sprites, and a baker brute",m:"cute and grand"},
+{n:"Jellybean Jungle",s:"a jungle of giant jellybeans and syrup vines",w:"wood",e:"jelly blobs, bean flyers, and a syrup brute",m:"juicy and wild"},
+{n:"Sugar Mines",s:"a sparkling mine of sugar crystals and rock candy",w:"cave-rock",e:"sugar sprites, crystal blobs, and a rock brute",m:"glittery and deep"},
+{n:"Frosting Fields",s:"open fields of swirled frosting and cookie fences",w:"brick",e:"frosting blobs, cookie drones, and a scarecrow brute",m:"smooth and sunny"},
+{n:"Caramel Caves",s:"dripping caves of golden caramel and nougat",w:"cave-rock",e:"caramel blobs, nougat bats, and a toffee brute",m:"golden and sticky"},
+{n:"Taffy Tunnels",s:"stretchy tunnels of pulled taffy in pastel stripes",w:"brick",e:"taffy vines, pull blobs, and a taffy brute",m:"stretchy and silly"},
+{n:"Sprinkle Shores",s:"a beach of rainbow sprinkles and candy sand",w:"brick",e:"sprinkle sprites, shell blobs, and a crab brute",m:"colorful and breezy"},
+{n:"Wafer Walls",s:"a fortress of stacked wafers and chocolate bricks",w:"brick",e:"wafer drones, cream blobs, and a wall guard brute",m:"crunchy and neat"},
+{n:"Pudding Plains",s:"wobbly plains of chocolate pudding with custard ponds",w:"brick",e:"pudding blobs, custard flyers, and a spoon brute",m:"wobbly and funny"},
+{n:"Toffee Towers",s:"tall towers of hard toffee with caramel windows",w:"brick",e:"toffee sprites, sticky blobs, and a tower brute",m:"tall and golden"},
+{n:"Starhold Station",s:"a steel space station with docking bays and a command deck",w:"tech-panel",e:"robot brutes, drone flyers, and sentry turrets",m:"clean and tense"},
+{n:"Lunar Base",s:"a moon base of domes, tunnels, and grey dust",w:"tech-panel",e:"moon robots, dust blobs, and a rover brute",m:"quiet and grey"},
+{n:"Mars Colony",s:"a red desert colony of habitation pods and greenhouses",w:"tech-panel",e:"mars bots, sand sprites, and a drill brute",m:"rusty and hopeful"},
+{n:"Asteroid Mine",s:"a hollow asteroid of tunnels, drills, and ore carts",w:"cave-rock",e:"mining bots, rock blobs, and a drill brute",m:"gritty and deep"},
+{n:"Nebula Reef",s:"a glowing reef of gas clouds and crystal shards",w:"neon-grid",e:"nebula sprites, shard flyers, and a reef brute",m:"dreamy and vast"},
+{n:"Robot Factory",s:"a factory line of half-built robots and conveyor belts",w:"tech-panel",e:"factory bots, arm drones, and a foreman brute",m:"clanky and busy"},
+{n:"Alien Hive",s:"a pulsing hive of alien goo and egg chambers",w:"cave-rock",e:"alien blobs, hive flyers, and a queen brute",m:"creepy and organic"},
+{n:"Zero-G Dock",s:"a floating dock where crates drift in zero gravity",w:"tech-panel",e:"dock bots, crate blobs, and a crane brute",m:"floaty and strange"},
+{n:"Plasma Plant",s:"a power plant of plasma coils and humming reactors",w:"tech-panel",e:"plasma sprites, volt blobs, and a reactor brute",m:"electric and loud"},
+{n:"Comet Outpost",s:"a lonely outpost riding on a comet tail",w:"tech-panel",e:"ice bots, tail sprites, and a comet brute",m:"cold and lonely"},
+{n:"Starship Bridge",s:"the bridge of a starship with blinking consoles",w:"tech-panel",e:"crew bots, console drones, and a captain brute",m:"sharp and heroic"},
+{n:"Moon Market",s:"a night market on the moon selling star maps and moon rocks",w:"tech-panel",e:"merchant bots, moon sprites, and a trader brute",m:"lively and odd"},
+{n:"Satellite Graveyard",s:"a drifting field of dead satellites and tangled antennas",w:"tech-panel",e:"scrap bots, antenna drones, and a salvage brute",m:"rusty and quiet"},
+{n:"Warp Gate",s:"a giant ring gate humming with warp energy",w:"neon-grid",e:"gate sprites, warp flyers, and a guardian brute",m:"humming and huge"},
+{n:"Cyborg City",s:"a rainy city of neon signs and chrome streets",w:"neon-grid",e:"cyborg brutes, street drones, and a chrome brute",m:"rainy and neon"},
+{n:"Solar Farm",s:"a field of solar panels under a blazing sun",w:"tech-panel",e:"sun sprites, panel bots, and a farm brute",m:"bright and orderly"},
+{n:"Black Hole Lab",s:"a lab orbiting a black hole with warped corridors",w:"tech-panel",e:"lab bots, gravity blobs, and a scientist brute",m:"warped and eerie"},
+{n:"Android Arena",s:"an arena where androids battle for a cheering crowd",w:"tech-panel",e:"android brutes, fan drones, and a champion brute",m:"loud and flashy"},
+{n:"Cosmic Carnival",s:"a carnival among the stars with rides and game booths",w:"neon-grid",e:"star sprites, ride bots, and a ringmaster brute",m:"sparkling and joyful"},
+{n:"Orbit Observatory",s:"a quiet observatory with telescopes and star charts",w:"tech-panel",e:"star sprites, lens drones, and an astronomer brute",m:"calm and curious"},
+{n:"Vine Temple",s:"an overgrown temple of vines, moss, and grey stone",w:"cave-rock",e:"vine monsters, moss blobs, and bat flyers",m:"lush and mysterious"},
+{n:"Mossy Ruins",s:"a crumbling ruin swallowed by moss and ferns",w:"cave-rock",e:"moss blobs, fern sprites, and a stone brute",m:"green and ancient"},
+{n:"Monkey Canopy",s:"a treetop village of rope bridges and banana stalls",w:"wood",e:"monkey blobs, parrot flyers, and a monkey king brute",m:"noisy and fun"},
+{n:"Bamboo Grove",s:"a whispering grove of tall bamboo and stone lanterns",w:"wood",e:"panda blobs, bamboo sprites, and a grove keeper brute",m:"calm and green"},
+{n:"Orchid Valley",s:"a valley of giant orchids and humming bees",w:"wood",e:"bee flyers, orchid blobs, and a gardener brute",m:"fragrant and bright"},
+{n:"Rainforest Falls",s:"a waterfall jungle with mist and hanging vines",w:"cave-rock",e:"frog blobs, toucan flyers, and a jaguar brute",m:"wet and wild"},
+{n:"Cactus Canyon",s:"a dry canyon of cacti, red rock, and old bones",w:"cave-rock",e:"cactus blobs, vulture flyers, and a coyote brute",m:"dry and rugged"},
+{n:"Coral Reef",s:"a reef of coral towers and swaying seaweed",w:"cave-rock",e:"coral sprites, fish flyers, and an octopus brute",m:"colorful and deep"},
+{n:"Kelp Forest",s:"a dark underwater forest of towering kelp",w:"cave-rock",e:"kelp vines, jelly blobs, and a shark brute",m:"dark and swaying"},
+{n:"Mushroom Grove",s:"a grove of giant glowing mushrooms",w:"wood",e:"mushroom blobs, spore sprites, and a toad brute",m:"glowing and odd"},
+{n:"Firefly Fen",s:"a marsh at dusk full of fireflies and mist",w:"wood",e:"firefly drones, frog blobs, and a will-o-wisp brute",m:"glowing and calm"},
+{n:"Butterfly Meadow",s:"a sunny meadow of wildflowers and butterflies",w:"wood",e:"butterfly flyers, flower blobs, and a bee brute",m:"sunny and light"},
+{n:"Pine Peaks",s:"snowy pine mountains with frozen lakes",w:"wood",e:"snow blobs, pine sprites, and a bear brute",m:"crisp and quiet"},
+{n:"Volcano Trail",s:"a black rock trail up a smoking volcano",w:"cave-rock",e:"lava blobs, ash sprites, and a magma brute",m:"hot and dramatic"},
+{n:"Glacier Grotto",s:"a blue ice grotto with frozen waterfalls",w:"cave-rock",e:"ice sprites, seal blobs, and a glacier brute",m:"cold and blue"},
+{n:"Sand Dunes",s:"rolling dunes with buried ruins and dry wells",w:"cave-rock",e:"sand sprites, dune blobs, and a scorpion brute",m:"golden and dry"},
+{n:"Oasis Town",s:"a palm oasis town with a blue pool and market",w:"brick",e:"palm sprites, market bots, and a merchant brute",m:"cool and lively"},
+{n:"Redwood Realm",s:"a forest of giant redwoods with fern floors",w:"wood",e:"redwood sprites, owl flyers, and a ranger brute",m:"tall and grand"},
+{n:"Tide Pools",s:"rocky tide pools full of starfish and crabs",w:"cave-rock",e:"crab blobs, star sprites, and a tide brute",m:"salty and small"},
+{n:"Storm Savanna",s:"a grassland under rolling storm clouds",w:"wood",e:"storm sprites, zebra blobs, and a lion brute",m:"wild and electric"},
+{n:"Ghost Manor",s:"a creaking manor of dust sheets and portraits",w:"castle-brick",e:"ghosts, portrait mimics, and a butler brute",m:"creepy and grand"},
+{n:"Zombie Mall",s:"an abandoned mall with flickering lights and shuttered shops",w:"brick",e:"zombie shoppers, mannequin brutes, and a security bot",m:"eerie and funny"},
+{n:"Pumpkin Patch",s:"a moonlit pumpkin field with a crooked barn",w:"wood",e:"pumpkin brutes, scarecrows, and crow flyers",m:"autumn and spooky"},
+{n:"Haunted Carnival",s:"a dead carnival of rusted rides and torn tents",w:"brick",e:"clown brutes, ghost riders, and a ringmaster brute",m:"creepy and loud"},
+{n:"Creepy Dollhouse",s:"a giant dollhouse with tiny rooms and staring dolls",w:"wood",e:"doll blobs, toy soldiers, and a doll queen brute",m:"tiny and unsettling"},
+{n:"Mummy Tomb",s:"a dusty tomb of hieroglyphs and golden traps",w:"cave-rock",e:"mummies, scarab drones, and a pharaoh brute",m:"dusty and ancient"},
+{n:"Werewolf Woods",s:"a dark forest under a full moon",w:"wood",e:"werewolves, wolf blobs, and a hunter brute",m:"wild and moonlit"},
+{n:"Phantom Ship",s:"a ghost ship adrift with tattered sails",w:"wood",e:"ghost sailors, phantom crabs, and a captain brute",m:"foggy and doomed"},
+{n:"Skeleton Crypt",s:"a bone crypt of stacked skulls and dark tunnels",w:"cave-rock",e:"skeletons, bone blobs, and a skeleton king brute",m:"bony and dark"},
+{n:"Witch Market",s:"a night market selling curses, charms, and potions",w:"wood",e:"witches, charm sprites, and a hag brute",m:"haggling and hexed"},
+{n:"Clown Alley",s:"a narrow alley of clown posters and balloon stalls",w:"brick",e:"clown brutes, balloon drones, and a joker brute",m:"painted and unnerving"},
+{n:"Foggy Graveyard",s:"a foggy graveyard of leaning stones and dead trees",w:"castle-brick",e:"ghosts, ghoul blobs, and a gravedigger brute",m:"foggy and still"},
+{n:"Bat Cave",s:"a dripping cave of bats and guano piles",w:"cave-rock",e:"bat swarms, cave blobs, and a bat king brute",m:"dark and fluttery"},
+{n:"Spider Attic",s:"a dusty attic of webs, boxes, and old toys",w:"wood",e:"spider drones, web blobs, and a spider queen brute",m:"dusty and crawly"},
+{n:"Demon Diner",s:"a retro diner run by demons with neon signs",w:"brick",e:"demon cooks, burger blobs, and a manager brute",m:"greasy and infernal"},
+{n:"Haunted Hospital",s:"an empty hospital of flickering lights and wheelchairs",w:"brick",e:"ghost patients, nurse sprites, and a doctor brute",m:"sterile and scary"},
+{n:"Scarecrow Farm",s:"a dead cornfield of scarecrows and crows",w:"wood",e:"scarecrows, crow flyers, and a farmer brute",m:"dry and watchful"},
+{n:"Ghoul Grotto",s:"a slime grotto of glowing fungus and bones",w:"cave-rock",e:"ghouls, fungus blobs, and a grotto brute",m:"slimy and glowing"},
+{n:"Curse Museum",s:"a museum of cursed objects behind velvet ropes",w:"brick",e:"cursed dolls, armor mimics, and a curator brute",m:"hushed and hexed"},
+{n:"Midnight Metro",s:"an empty subway at midnight with one last train",w:"brick",e:"shadow blobs, rat drones, and a conductor brute",m:"echoing and dark"},
+{n:"Neon Grid",s:"a glowing grid city of light streets and data towers",w:"neon-grid",e:"grid sprites, light drones, and a grid brute",m:"bright and digital"},
+{n:"Data Fortress",s:"a fortress of servers and laser gates",w:"tech-panel",e:"data bots, laser turrets, and a firewall brute",m:"locked and humming"},
+{n:"Chrome Alley",s:"a rain-slick alley of chrome shops and neon signs",w:"neon-grid",e:"chrome brutes, street drones, and a dealer brute",m:"slick and rainy"},
+{n:"Hacker's Den",s:"a basement den of screens, cables, and energy drinks",w:"tech-panel",e:"hacker bots, cable blobs, and a hack boss brute",m:"buzzing and secret"},
+{n:"Drone Depot",s:"a depot of parked drones and charging racks",w:"tech-panel",e:"drone flyers, depot bots, and a dispatcher brute",m:"humming and orderly"},
+{n:"Laser Lab",s:"a lab of laser grids and mirrored rooms",w:"neon-grid",e:"laser sprites, mirror blobs, and a scientist brute",m:"sharp and bright"},
+{n:"Pixel Plaza",s:"a plaza where everything is chunky pixels",w:"neon-grid",e:"pixel blobs, pixel drones, and a pixel brute",m:"chunky and cheerful"},
+{n:"Circuit City",s:"a city built on a giant circuit board",w:"tech-panel",e:"circuit sprites, current blobs, and a motherboard brute",m:"electric and neat"},
+{n:"VR Arcade",s:"an arcade of VR pods and glowing headsets",w:"neon-grid",e:"VR bots, headset drones, and an arcade brute",m:"glowing and playful"},
+{n:"Mech Garage",s:"a garage of half-built mechs and tool walls",w:"tech-panel",e:"mech brutes, tool drones, and a mechanic brute",m:"greasy and huge"},
+{n:"Cyber Bazaar",s:"a market of cyberware stalls and hologram ads",w:"neon-grid",e:"vendor bots, holo sprites, and a market brute",m:"loud and holographic"},
+{n:"Nano Farm",s:"a farm of nanobots growing tiny crops",w:"tech-panel",e:"nano sprites, crop blobs, and a farmer bot",m:"tiny and busy"},
+{n:"Hologram Harbor",s:"a harbor of hologram ships and light docks",w:"neon-grid",e:"holo sailors, light blobs, and a harbor brute",m:"shimmering and wet"},
+{n:"Code Castle",s:"a castle of code blocks and glowing brackets",w:"tech-panel",e:"code sprites, bug blobs, and a compiler brute",m:"logical and glowing"},
+{n:"Glitch Garden",s:"a garden where reality glitches and stutters",w:"neon-grid",e:"glitch blobs, static sprites, and a glitch brute",m:"flickering and odd"},
+{n:"Server Stacks",s:"towering stacks of servers with blinking lights",w:"tech-panel",e:"server bots, fan drones, and an admin brute",m:"humming and tall"},
+{n:"Synth Streets",s:"streets of synthwave sunsets and chrome cars",w:"neon-grid",e:"synth sprites, car bots, and a cruiser brute",m:"retro and glowing"},
+{n:"Robot Racetrack",s:"a racetrack for robots with pit stops and grandstands",w:"tech-panel",e:"racer bots, pit drones, and a champion brute",m:"fast and loud"},
+{n:"AI Academy",s:"a school for AIs with classrooms and a mainframe",w:"tech-panel",e:"student bots, teacher drones, and a principal brute",m:"smart and orderly"},
+{n:"Quantum Quarter",s:"a quarter where things exist in two places at once",w:"neon-grid",e:"quantum sprites, split blobs, and a paradox brute",m:"strange and shimmering"},
+{n:"Dusty Saloon",s:"a saloon of swinging doors, poker tables, and a piano",w:"wood",e:"cowboy brutes, card sprites, and a sheriff brute",m:"dusty and rowdy"},
+{n:"Gold Rush Mine",s:"a gold mine of carts, lanterns, and paydirt",w:"cave-rock",e:"miner bots, gold sprites, and a prospector brute",m:"golden and gritty"},
+{n:"Cactus Town",s:"a desert town of adobe, cacti, and a water tower",w:"brick",e:"cactus blobs, town sprites, and a mayor brute",m:"dry and sleepy"},
+{n:"Cowboy Canyon",s:"a red rock canyon with a winding trail",w:"cave-rock",e:"cowboy brutes, vulture flyers, and a bandit brute",m:"rugged and open"},
+{n:"Pirate Cove",s:"a hidden cove of beached ships and buried chests",w:"wood",e:"pirate brutes, parrot flyers, and a captain brute",m:"salty and secret"},
+{n:"Treasure Island",s:"an island of palm trees, X marks, and traps",w:"wood",e:"pirate blobs, crab drones, and a treasure brute",m:"sunny and trap-filled"},
+{n:"Ghost Ship",s:"a derelict ship of tattered sails and ghost crew",w:"wood",e:"ghost pirates, phantom rats, and a ghost captain brute",m:"foggy and cursed"},
+{n:"Mermaid Lagoon",s:"a turquoise lagoon of coral and singing mermaids",w:"cave-rock",e:"mermaid sprites, fish flyers, and a siren brute",m:"dreamy and blue"},
+{n:"Anchor Alley",s:"a dock alley of anchors, nets, and fish stalls",w:"wood",e:"sailor blobs, gull flyers, and a dockmaster brute",m:"salty and busy"},
+{n:"Rum Runner's Hideout",s:"a smuggler hideout of barrels and secret tunnels",w:"wood",e:"smuggler brutes, barrel blobs, and a runner brute",m:"sneaky and sweet"},
+{n:"Coral Corsair Bay",s:"a bay of coral reefs and corsair ships",w:"cave-rock",e:"corsair brutes, coral sprites, and a reef brute",m:"bright and bold"},
+{n:"Cannon Beach",s:"a beach of old cannons and fort walls",w:"brick",e:"cannon bots, beach blobs, and a gunner brute",m:"sandy and loud"},
+{n:"Map Room",s:"a captain's map room of charts, compasses, and globes",w:"wood",e:"map sprites, compass drones, and a navigator brute",m:"papery and curious"},
+{n:"Kraken Deep",s:"deep water where a kraken sleeps among wrecks",w:"cave-rock",e:"kraken tentacles, deep blobs, and a kraken brute",m:"dark and huge"},
+{n:"Sailor's Market",s:"a port market of fish, rope, and sailcloth",w:"wood",e:"sailor blobs, market sprites, and a fishmonger brute",m:"loud and fishy"},
+{n:"Frontier Fort",s:"a wooden fort on the frontier with watchtowers",w:"wood",e:"soldier brutes, scout drones, and a commander brute",m:"sturdy and watchful"},
+{n:"Bandit Bluff",s:"a cliff hideout of bandits and stolen goods",w:"cave-rock",e:"bandit brutes, lookout drones, and a bandit king brute",m:"high and hidden"},
+{n:"Stagecoach Stop",s:"a dusty stop with coaches, horses, and a stable",w:"wood",e:"horse blobs, driver sprites, and a station brute",m:"dusty and waiting"},
+{n:"Desert Depot",s:"a depot of water tanks and rail tracks in the desert",w:"brick",e:"depot bots, sand sprites, and a conductor brute",m:"dry and iron"},
+{n:"Outlaw Oasis",s:"a hidden oasis where outlaws rest and plot",w:"wood",e:"outlaw brutes, palm sprites, and a boss brute",m:"shady and cool"},
+{n:"Mall Madness",s:"a mall after closing with dark shops and food courts",w:"brick",e:"mannequin brutes, shop bots, and a security brute",m:"echoing and weird"},
+{n:"School After Dark",s:"a school at night with empty halls and lockers",w:"brick",e:"ghost students, locker mimics, and a principal brute",m:"quiet and spooky"},
+{n:"Library Labyrinth",s:"a library of endless shelves and secret reading nooks",w:"wood",e:"book blobs, shelf drones, and a librarian brute",m:"quiet and maze-like"},
+{n:"Subway Station",s:"a tiled subway station with trains and tunnels",w:"brick",e:"rat drones, commuter ghosts, and a conductor brute",m:"echoing and tiled"},
+{n:"Rooftop Run",s:"city rooftops with water towers and clotheslines",w:"brick",e:"pigeon flyers, rooftop blobs, and a runner brute",m:"windy and high"},
+{n:"Food Court Frenzy",s:"a food court of stalls, trays, and spilled drinks",w:"brick",e:"food blobs, tray drones, and a chef brute",m:"greasy and loud"},
+{n:"Toy Store Terror",s:"a toy store at night where toys move",w:"brick",e:"toy brutes, doll drones, and a toy king brute",m:"playful and creepy"},
+{n:"Office After Hours",s:"an office of cubicles, printers, and flickering lights",w:"tech-panel",e:"paper blobs, printer bots, and a manager brute",m:"dull and eerie"},
+{n:"Museum Heist",s:"a museum of art, dinosaurs, and laser alarms",w:"brick",e:"statue brutes, dino skeletons, and a guard brute",m:"grand and guarded"},
+{n:"Park at Night",s:"a park after dark with a pond and playground",w:"wood",e:"duck blobs, firefly drones, and a ranger brute",m:"dark and calm"},
+{n:"Diner Dash",s:"a retro diner of chrome stools and milkshakes",w:"brick",e:"waitress sprites, burger blobs, and a cook brute",m:"chrome and cozy"},
+{n:"Cinema Chaos",s:"a cinema of velvet seats and a giant screen",w:"brick",e:"popcorn blobs, usher sprites, and a projectionist brute",m:"dark and buttery"},
+{n:"Gym After Dark",s:"a gym of weights, mats, and echoing halls",w:"brick",e:"weight brutes, mat blobs, and a coach brute",m:"sweaty and echoing"},
+{n:"Hospital Hustle",s:"a busy hospital of wards and wheelchairs",w:"brick",e:"nurse sprites, bed drones, and a doctor brute",m:"clean and hurried"},
+{n:"Airport Aftermath",s:"an airport after the last flight with empty gates",w:"tech-panel",e:"luggage blobs, gate bots, and a pilot brute",m:"vast and empty"},
+{n:"Train Yard",s:"a yard of boxcars, tracks, and signal lights",w:"brick",e:"boxcar brutes, signal drones, and a yardmaster brute",m:"iron and rusty"},
+{n:"Skate Park",s:"a concrete skate park of ramps and rails",w:"brick",e:"skater blobs, board drones, and a pro brute",m:"smooth and loud"},
+{n:"Bowling Alley",s:"an alley of lanes, pins, and neon signs",w:"brick",e:"pin blobs, ball drones, and a bowler brute",m:"polished and fun"},
+{n:"Arcade After Hours",s:"an arcade after closing with humming machines",w:"neon-grid",e:"arcade bots, token sprites, and a machine brute",m:"humming and glowing"},
+{n:"Zoo Escape",s:"a zoo at night with open enclosures",w:"brick",e:"animal blobs, keeper sprites, and a lion brute",m:"wild and loose"},
+{n:"Winter Wonderland",s:"a snowy village of ice sculptures and sleighs",w:"brick",e:"snow blobs, ice sprites, and a snowman brute",m:"cold and magical"},
+{n:"Jack-o-Lantern Jamboree",s:"a Halloween fair of pumpkins and hay bales",w:"wood",e:"pumpkin brutes, hay blobs, and a jack brute",m:"orange and festive"},
+{n:"Easter Egg Hunt",s:"a spring garden hidden with painted eggs",w:"wood",e:"bunny blobs, egg drones, and a chick brute",m:"pastel and springy"},
+{n:"Valentine Vault",s:"a vault of hearts, roses, and love letters",w:"brick",e:"heart sprites, rose blobs, and a cupid brute",m:"pink and romantic"},
+{n:"Fireworks Fiesta",s:"a night fair of fireworks and sparklers",w:"neon-grid",e:"spark sprites, rocket drones, and a firework brute",m:"bright and booming"},
+{n:"Snowball Fort",s:"a fort of snow walls and snowball piles",w:"brick",e:"snow blobs, fort bots, and a snow captain brute",m:"cold and playful"},
+{n:"Gingerbread Village",s:"a village of gingerbread houses and candy streets",w:"brick",e:"gingerbread blobs, candy sprites, and a baker brute",m:"spicy and sweet"},
+{n:"Spooky Harvest",s:"a harvest of corn mazes and haunted barns",w:"wood",e:"corn blobs, barn sprites, and a harvest brute",m:"golden and eerie"},
+{n:"Spring Blossom Path",s:"a path of cherry blossoms and petals",w:"wood",e:"petal sprites, blossom blobs, and a gardener brute",m:"soft and pink"},
+{n:"Summer Beach Bash",s:"a beach party of surfboards and bonfires",w:"brick",e:"surf blobs, crab drones, and a lifeguard brute",m:"sunny and loud"},
+{n:"Autumn Orchard",s:"an orchard of apple trees and falling leaves",w:"wood",e:"apple blobs, leaf sprites, and a farmer brute",m:"crisp and golden"},
+{n:"New Year Neon",s:"a countdown party of neon confetti and clocks",w:"neon-grid",e:"confetti sprites, clock bots, and a party brute",m:"sparkling and loud"},
+{n:"Cherry Blossom Court",s:"a courtyard of blossom trees and stone lanterns",w:"wood",e:"blossom sprites, lantern drones, and a courtier brute",m:"calm and pink"},
+{n:"Rainy Day Rooftops",s:"rooftops in the rain with puddles and gutters",w:"brick",e:"rain sprites, puddle blobs, and a gutter brute",m:"grey and drizzly"},
+{n:"Harvest Fair",s:"a fair of prize pumpkins, pies, and rides",w:"wood",e:"pie blobs, prize sprites, and a fair brute",m:"warm and tasty"},
+{n:"Ice Sculpture Hall",s:"a hall of carved ice statues and frozen fountains",w:"castle-brick",e:"ice sprites, statue blobs, and a sculptor brute",m:"cold and elegant"},
+{n:"Mistletoe Maze",s:"a maze of mistletoe and winter greens",w:"wood",e:"mistletoe vines, holly blobs, and a maze brute",m:"festive and tangled"},
+{n:"Firefly Summer Night",s:"a summer night field of fireflies and crickets",w:"wood",e:"firefly drones, cricket sprites, and a night brute",m:"warm and glowing"},
+{n:"Maple Leaf Trail",s:"a trail of red maples and covered bridges",w:"wood",e:"leaf sprites, maple blobs, and a hiker brute",m:"red and crisp"},
+{n:"Starlight Festival",s:"a festival of lanterns and stars over a lake",w:"neon-grid",e:"lantern sprites, star blobs, and a festival brute",m:"glowing and joyful"},
+{n:"Upside-Down Library",s:"a library where shelves hang from the ceiling",w:"wood",e:"book bats, shelf sprites, and a librarian brute",m:"topsy-turvy and quiet"},
+{n:"Clockwork City",s:"a city of gears, clocks, and steam pipes",w:"tech-panel",e:"gear bots, clock drones, and a clockmaker brute",m:"ticking and brass"},
+{n:"Bubble Kingdom",s:"a kingdom of soap bubbles and foam castles",w:"neon-grid",e:"bubble blobs, foam sprites, and a bubble king brute",m:"floaty and shiny"},
+{n:"Cloud Castle",s:"a castle on a cloud with rain staircases",w:"castle-brick",e:"cloud sprites, rain drones, and a storm brute",m:"soft and high"},
+{n:"Mirror Maze",s:"a maze of mirrors that reflect the wrong way",w:"neon-grid",e:"mirror mimics, reflection blobs, and a maze brute",m:"shiny and confusing"},
+{n:"Time Machine Shop",s:"a shop of time machines, hourglasses, and paradoxes",w:"tech-panel",e:"time bots, hourglass drones, and a shopkeeper brute",m:"ticking and strange"},
+{n:"Dream Bakery",s:"a bakery that bakes dreams into pastries",w:"brick",e:"dream blobs, pastry sprites, and a baker brute",m:"sleepy and sweet"},
+{n:"Invisible Island",s:"an island that flickers in and out of sight",w:"cave-rock",e:"flicker sprites, sand blobs, and an island brute",m:"shimmering and hidden"},
+{n:"Gravity Garden",s:"a garden where plants grow sideways and up",w:"wood",e:"gravity vines, floating blobs, and a gardener brute",m:"floaty and green"},
+{n:"Talking Forest",s:"a forest where trees talk and paths move",w:"wood",e:"tree sprites, path blobs, and an elder brute",m:"chatty and ancient"},
+{n:"Miniature Metropolis",s:"a tiny city on a tabletop with tiny cars",w:"brick",e:"tiny bots, car drones, and a mayor brute",m:"tiny and busy"},
+{n:"Giant's Kitchen",s:"a kitchen built for a giant with huge pots",w:"wood",e:"pot blobs, utensil drones, and a giant brute",m:"huge and homey"},
+{n:"Ant Farm",s:"a glass ant farm of tunnels and chambers",w:"cave-rock",e:"ant drones, tunnel blobs, and a queen brute",m:"tiny and tunneling"},
+{n:"Button Factory",s:"a factory that makes buttons of every color",w:"tech-panel",e:"button bots, thread sprites, and a foreman brute",m:"colorful and clacking"},
+{n:"Origami Oasis",s:"an oasis of folded paper cranes and rivers",w:"brick",e:"crane flyers, paper blobs, and a folder brute",m:"crisp and delicate"},
+{n:"Puzzle Palace",s:"a palace where every room is a puzzle",w:"brick",e:"puzzle sprites, lock blobs, and a puzzle master brute",m:"clever and locked"},
+{n:"Sound Wave Studio",s:"a studio of visible sound waves and instruments",w:"neon-grid",e:"wave sprites, note blobs, and a conductor brute",m:"loud and visible"},
+{n:"Paint Splatter Park",s:"a park splattered with paint and color pools",w:"brick",e:"paint blobs, splatter sprites, and an artist brute",m:"messy and bright"},
+{n:"Shadow Theater",s:"a theater of shadows and silhouettes",w:"castle-brick",e:"shadow blobs, silhouette sprites, and a director brute",m:"dark and dramatic"},
+{n:"Memory Museum",s:"a museum of memories in glass jars",w:"brick",e:"memory sprites, jar blobs, and a curator brute",m:"nostalgic and quiet"}
+];
+function themePrompt(th) { return "Theme: " + th.n + ". Setting: " + th.s + ". Mood: " + th.m + ". Wall texture: " + th.w + ". Monsters: " + th.e + ". Build the layout to feel like this place — rooms, corridors, and arenas that belong in this world — with a title, quest intro, and victory line to match."; }
+var lastThemeIdx = -1;
+document.getElementById("themeShuffleBtn").addEventListener("click", function () {
+  var i = Math.floor(Math.random() * THEME_POOL.length);
+  if (THEME_POOL.length > 1) { while (i === lastThemeIdx) i = Math.floor(Math.random() * THEME_POOL.length); }
+  lastThemeIdx = i;
+  var th = THEME_POOL[i];
+  document.getElementById("promptInput").value = themePrompt(th);
+  document.getElementById("status").textContent = "Theme: " + th.n + ". Hit Generate game.";
 });
 function randPick(a) { return a[Math.floor(Math.random() * a.length)]; }
 function instantLevel(type) {
