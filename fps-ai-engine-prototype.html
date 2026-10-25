@@ -29,6 +29,10 @@
   #touchNote { display: none; background: #40200a; border: 1px solid #e08a2e; padding: 8px 10px; border-radius: 6px; margin: 10px 0; }
   .feed-card { background: #12121e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin: 10px 0; }
   .feed-card canvas { width: auto; max-width: 100%; border: 2px solid #444; }
+  .tex-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+  .tex-card { width: 140px; background: #12121e; border: 1px solid #333; border-radius: 8px; padding: 8px; cursor: pointer; text-align: center; }
+  .tex-card img { width: 124px; height: 124px; object-fit: cover; border: 1px solid #444; }
+  .tex-card div { font-size: 12px; margin-top: 4px; }
   .small { font-size: 13px; color: #aaa; }
 </style>
 </head>
@@ -68,6 +72,7 @@
     <button id="saveFeedBtn">Save to feed</button>
     <button id="feedBtn">Feed</button>
     <button id="copyLinkBtn">Copy link</button>
+    <button id="texBtn">Textures</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -133,7 +138,15 @@
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix.</div>
+  <div id="texBox" style="display:none">
+    <div class="bar"><button id="texBackBtn">Back to game</button><span class="small">Free CC0 textures from Poly Haven (public domain, no attribution). Click one to put it on this level's walls. It rides in the level's shared link, feed save, and export. Painted textures below are the built-in free ones.</span></div>
+    <div class="bar" id="texCats"></div>
+    <div id="texGrid" class="tex-grid"></div>
+    <div class="bar"><span class="small">Painted (built-in, always free):</span><span id="texPainted"></span></div>
+    <div class="bar"><input type="text" id="texUrlInput" placeholder="Or paste any image link"><button id="texUrlBtn">Use link as wall</button></div>
+    <div id="texInfo" class="small"></div>
+  </div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -283,7 +296,7 @@ function validateSpec(spec) {
   if ((spec.enemies || []).length > CAPS.enemiesMax) errors.push("too many enemies");
   if ((spec.weapons || []).length > CAPS.weaponsMax) errors.push("too many weapons");
   if ((spec.pickups || []).length > CAPS.pickupsMax) errors.push("too many pickups");
-  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom") errors.push("unknown wall texture");
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom" && spec.wallTexture !== "picked") errors.push("unknown wall texture");
   if (GOAL_TYPES.indexOf((spec.goal || {}).type) < 0) errors.push("unknown goal");
   if (errors.length === 0 && spec.map[ps.y] && spec.gameType !== "sidescroll") {
     var seen = [], stack = [[ps.x, ps.y]], count = 0, open = 0;
@@ -345,7 +358,7 @@ function repairSpec(spec) {
   if (!Array.isArray(spec.weapons)) spec.weapons = [];
   spec.weapons = spec.weapons.filter(function (wp) { return wp && WEAPON_TYPES[wp.type]; }).slice(0, CAPS.weaponsMax);
   if (spec.weapons.length === 0) spec.weapons = [{ type: "pistol", damage: 20, ammo: 12 }];
-  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom") spec.wallTexture = "brick";
+  if (WALL_TEXTURES.indexOf(spec.wallTexture) < 0 && spec.wallTexture !== "custom" && spec.wallTexture !== "picked") spec.wallTexture = "brick";
   if (!spec.goal || GOAL_TYPES.indexOf(spec.goal.type) < 0) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
   if (spec.goal.type !== "eliminate-all" && (!spec.map[spec.goal.exitY] || spec.map[spec.goal.exitY][spec.goal.exitX] !== 0)) spec.goal = { type: "eliminate-all", keys: 0, exitX: spec.playerStart.x, exitY: spec.playerStart.y };
   return spec;
@@ -373,6 +386,8 @@ function buildLevel(spec, sourceLabel, art) {
     Object.keys(art.sprites || {}).forEach(function (k) { if (art.sprites[k] && art.sprites[k].width) sprites[k] = art.sprites[k]; });
     if ((art.wallTex && art.wallTex.width) || Object.keys(sprites).length) S.art = { wallTex: (art.wallTex && art.wallTex.width) ? art.wallTex : null, sprites: sprites };
   }
+  if (S.wallOverride && S.art) S.art.wallTex = null;
+  if (S.wallTexture === "picked" && S.wallTextureUrl) { (function (url) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["picked"] = c; }; wi.onerror = function () { document.getElementById("status").textContent = "That texture did not load, keeping the last wall."; }; wi.src = url; })(S.wallTextureUrl); }
   S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true };
   if (S.gameType === "sidescroll") { S.player.vx = 0; S.player.vy = 0; S.player.facing = 1; S.player.grounded = false; }
   var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
@@ -1265,6 +1280,112 @@ document.getElementById("feedBox").addEventListener("click", function (ev) {
   else if (act === "export") { exportHTML(item.spec); document.getElementById("status").textContent = "Exported " + (item.spec.title || "level") + " as a playable file. Upload it to any host, including GitHub Pages."; }
   else if (act === "delete") { list.splice(idx, 1); saveFeed(list); renderFeed(); }
   else if (act === "save") { var mine = loadFeed(); mine.unshift({ title: item.spec.title || "Untitled", theme: item.spec.theme || "", spec: JSON.parse(JSON.stringify(item.spec)), savedAt: Date.now() }); saveFeed(mine.slice(0, 50)); renderFeed(); document.getElementById("status").textContent = "Saved to your feed: " + (item.spec.title || "Untitled") + "."; }
+});
+
+/* ============ Texture picker: free CC0 starter pack (Poly Haven) ============ */
+function polyJpg(slug) { return "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/" + slug + "/" + slug + "_diff_1k.jpg"; }
+function polyThumb(slug, v) { return "https://cdn.polyhaven.com/asset_img/thumbs/" + slug + ".png?width=256&height=256&format=webp" + (v ? "&v=" + v : ""); }
+var TEXTURE_PACK = [
+  { slug: "brick_wall_001", name: "Brick Wall 001", cat: "Brick", v: "99965586" },
+  { slug: "brick_4", name: "Brick 4", cat: "Brick", v: "c9dcb19e" },
+  { slug: "brick_wall_003", name: "Brick Wall 003", cat: "Brick", v: "1d3ae57c" },
+  { slug: "brick_wall_005", name: "Brick Wall 005", cat: "Brick", v: "88b0a6bd" },
+  { slug: "brick_wall_006", name: "Brick Wall 006", cat: "Brick", v: "3dc7d736" },
+  { slug: "brick_wall_02", name: "Brick Wall 02", cat: "Brick", v: "8eaefc7c" },
+  { slug: "brown_planks_03", name: "Brown Planks 03", cat: "Wood", v: "381b1765" },
+  { slug: "brown_planks_05", name: "Brown Planks 05", cat: "Wood", v: "09e3d5b3" },
+  { slug: "brown_planks_04", name: "Brown Planks 04", cat: "Wood", v: "c29a2c23" },
+  { slug: "blue_painted_planks", name: "Blue Painted Planks", cat: "Wood", v: "063cb6b4" },
+  { slug: "beam_wall_01", name: "Beam Wall 01", cat: "Wood", v: "6d81b893" },
+  { slug: "bamboo_wall_02", name: "Bamboo Wall 02", cat: "Wood", v: "17e3595a" },
+  { slug: "broken_wall", name: "Broken Wall", cat: "Stone", v: "c672132c" },
+  { slug: "castle_wall_varriation", name: "Castle Wall", cat: "Stone", v: "3d6e26b0" },
+  { slug: "aerial_rocks_02", name: "Aerial Rocks 02", cat: "Stone", v: "8146a458" },
+  { slug: "coast_sand_rocks_02", name: "Coast Sand Rocks 02", cat: "Stone", v: "63f92b86" },
+  { slug: "coral_stone_wall", name: "Coral Stone Wall", cat: "Stone", v: "50639400" },
+  { slug: "coral_fort_wall_03", name: "Coral Fort Wall 03", cat: "Stone", v: "e0cc6108" },
+  { slug: "concrete_wall_009", name: "Concrete Wall 009", cat: "Concrete", v: "" },
+  { slug: "brushed_concrete_04", name: "Brushed Concrete 04", cat: "Concrete", v: "" },
+  { slug: "cracked_concrete_02", name: "Cracked Concrete 02", cat: "Concrete", v: "" },
+  { slug: "painted_plaster_wall", name: "Painted Plaster Wall", cat: "Concrete", v: "" },
+  { slug: "plastered_wall_05", name: "Plastered Wall 05", cat: "Concrete", v: "" },
+  { slug: "damaged_plaster", name: "Damaged Plaster", cat: "Concrete", v: "" },
+  { slug: "blue_metal_plate", name: "Blue Metal Plate", cat: "Metal", v: "0e02b3a2" },
+  { slug: "green_metal_rust", name: "Green Metal Rust", cat: "Metal", v: "0587b388" },
+  { slug: "metal_plate", name: "Metal Plate", cat: "Metal", v: "23925522" },
+  { slug: "rust_coarse_01", name: "Rust Coarse 01", cat: "Metal", v: "023d6939" },
+  { slug: "rusty_metal_02", name: "Rusty Metal 02", cat: "Metal", v: "d9ab12e4" },
+  { slug: "corrugated_iron_02", name: "Corrugated Iron 02", cat: "Metal", v: "c83cb6ae" },
+  { slug: "aerial_beach_02", name: "Aerial Beach 02", cat: "Ground", v: "e9df1cb6" },
+  { slug: "brown_mud_leaves_01", name: "Brown Mud Leaves 01", cat: "Ground", v: "ce084bc9" },
+  { slug: "brown_mud_dry", name: "Brown Mud Dry", cat: "Ground", v: "c3462380" },
+  { slug: "coast_sand_01", name: "Coast Sand 01", cat: "Ground", v: "411180bf" },
+  { slug: "floor_tiles_08", name: "Floor Tiles 08", cat: "Tile", v: "7689d679" },
+  { slug: "brown_floor_tiles", name: "Brown Floor Tiles", cat: "Tile", v: "7f8b0617" },
+  { slug: "patio_tiles", name: "Patio Tiles", cat: "Tile", v: "5e88c82a" },
+  { slug: "denim_fabric", name: "Denim Fabric", cat: "Fabric", v: "08bc7cb7" },
+  { slug: "fabric_pattern_07", name: "Fabric Pattern 07", cat: "Fabric", v: "8bf5bc82" },
+  { slug: "leather_white", name: "Leather White", cat: "Fabric", v: "818252e6" }
+];
+var TEX_CATS = ["All", "Brick", "Wood", "Stone", "Concrete", "Metal", "Ground", "Tile", "Fabric"];
+var texFilter = "All";
+function renderTexGrid() {
+  var cats = document.getElementById("texCats");
+  cats.innerHTML = TEX_CATS.map(function (c) { return "<button data-cat=\"" + c + "\"" + (c === texFilter ? " disabled" : "") + ">" + c + "</button>"; }).join("");
+  var list = TEXTURE_PACK.filter(function (t) { return texFilter === "All" || t.cat === texFilter; });
+  document.getElementById("texGrid").innerHTML = list.map(function (t) {
+    var jpg = polyJpg(t.slug);
+    return "<div class=\"tex-card\" data-slug=\"" + t.slug + "\"><img loading=\"lazy\" src=\"" + polyThumb(t.slug, t.v) + "\" data-fallback=\"" + jpg + "\" onerror=\"if(!this.dataset.tried){this.dataset.tried=1;this.src=this.dataset.fallback;}else{this.style.opacity=0.3;}\"><div>" + t.name + "</div><div class=\"small\">" + t.cat + " - Poly Haven</div></div>";
+  }).join("");
+  document.getElementById("texPainted").innerHTML = WALL_TEXTURES.map(function (t) { return "<button data-painted=\"" + t + "\">" + t + "</button>"; }).join(" ");
+}
+function applyWallChoice(wallTexture, url, label) {
+  if (!lastSpec) { document.getElementById("status").textContent = "No level loaded yet."; return; }
+  var sp = JSON.parse(JSON.stringify(lastSpec));
+  sp.wallTexture = wallTexture;
+  sp.wallTextureUrl = url || null;
+  sp.customWallImg = null;
+  sp.wallOverride = true;
+  hideTex();
+  buildLevel(sp, "Texture", lastArt);
+  document.getElementById("status").textContent = "Wall texture: " + label + ". Save to feed or copy the link to keep it.";
+}
+function showTex() {
+  document.getElementById("gameBox").style.display = "none";
+  document.getElementById("editorBox").style.display = "none";
+  document.getElementById("feedBox").style.display = "none";
+  document.getElementById("texBox").style.display = "block";
+  renderTexGrid();
+}
+function hideTex() {
+  document.getElementById("texBox").style.display = "none";
+  document.getElementById("gameBox").style.display = "block";
+}
+document.getElementById("texBtn").addEventListener("click", showTex);
+document.getElementById("texBackBtn").addEventListener("click", hideTex);
+document.getElementById("texCats").addEventListener("click", function (ev) {
+  var b = ev.target.closest ? ev.target.closest("button") : null;
+  if (!b || !b.getAttribute("data-cat")) return;
+  texFilter = b.getAttribute("data-cat");
+  renderTexGrid();
+});
+document.getElementById("texGrid").addEventListener("click", function (ev) {
+  var card = ev.target.closest ? ev.target.closest(".tex-card") : null;
+  if (!card) return;
+  var slug = card.getAttribute("data-slug");
+  var entry = null;
+  TEXTURE_PACK.forEach(function (t) { if (t.slug === slug) entry = t; });
+  if (entry) applyWallChoice("picked", polyJpg(slug), entry.name + " (Poly Haven, free)");
+});
+document.getElementById("texPainted").addEventListener("click", function (ev) {
+  var b = ev.target.closest ? ev.target.closest("button") : null;
+  if (!b || !b.getAttribute("data-painted")) return;
+  applyWallChoice(b.getAttribute("data-painted"), null, b.getAttribute("data-painted") + " (painted)");
+});
+document.getElementById("texUrlBtn").addEventListener("click", function () {
+  var url = document.getElementById("texUrlInput").value.trim();
+  if (!url || url.indexOf("http") !== 0) { document.getElementById("texInfo").textContent = "Paste a full image link starting with http."; return; }
+  applyWallChoice("picked", url, "Custom link");
 });
 
 /* ============ 2D generators: top-view + side-scroll ============ */
