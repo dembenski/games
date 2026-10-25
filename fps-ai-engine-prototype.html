@@ -116,6 +116,7 @@
       <button id="edScaleDownBtn">Scale 1/2</button>
       <button id="edTurnBtn">Turn start 90°</button>
       <button id="edPlayBtn">Play edited level</button>
+      <button id="edSaveBtn">Save edited level</button>
       <button id="edCancelBtn">Cancel</button>
     </div>
     <div class="bar">
@@ -147,7 +148,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -783,7 +784,7 @@ function openEditor() {
   document.getElementById("gameBox").style.display = "none";
   document.getElementById("editorBox").style.display = "block";
   drawEditor();
-  document.getElementById("status").textContent = "Editing: click tiles to fix the level, then Play edited level.";
+  document.getElementById("status").textContent = "Editing: click tiles to fix the level, then Save edited level or Play it.";
 }
 function closeEditor() {
   E = null; edSel = null; edSketchStroke = null;
@@ -1157,6 +1158,16 @@ document.getElementById("edPlayBtn").addEventListener("click", function () {
   closeEditor();
   buildLevel(spec, "Edited", lastArt);
   document.getElementById("status").textContent = "Edited level built: " + (spec.title || "Untitled") + ". Click the game to play.";
+});
+document.getElementById("edSaveBtn").addEventListener("click", function () {
+  if (!E) return;
+  var spec = repairSpec(E.spec);
+  var check = validateSpec(spec);
+  if (!check.ok) { document.getElementById("status").textContent = "Edited level still fails checks: " + check.errors.join("; ") + " Fix those first, nothing was saved."; return; }
+  var list = loadFeed();
+  list.unshift({ title: spec.title || "Untitled", theme: spec.theme || "", spec: JSON.parse(JSON.stringify(spec)), savedAt: Date.now() });
+  saveFeed(list.slice(0, 50));
+  document.getElementById("status").textContent = "Edited level saved to your feed: " + (spec.title || "Untitled") + ". Keep editing, or Play it to make it current.";
 });
 document.getElementById("edCancelBtn").addEventListener("click", function () { closeEditor(); document.getElementById("status").textContent = "Edit cancelled, original level kept."; });
 
