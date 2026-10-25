@@ -133,7 +133,7 @@
     <div class="small">Community levels, curated by Michael. Send him your level link to get listed.</div>
     <div id="communityCards"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -510,7 +510,7 @@ function render() {
   var now = Date.now();
   popups = popups.filter(function (pp) { return now - pp.t < 1400; });
   popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
-  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Press R to retry this level, or generate a new one.", W / 2, H / 2 + 30); }
+  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Click to play or press R to play again.", W / 2, H / 2 + 30); }
   if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
   document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
 }
@@ -595,6 +595,14 @@ function shoot() {
 }
 
 /* ============ Input ============ */
+function retryLevel() {
+  if (!S) return;
+  var spec = lastSpec ? JSON.parse(JSON.stringify(lastSpec)) : S;
+  buildLevel(spec, "Retry", lastArt);
+  if (S.gameType === "fps") {
+    try { var p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  } else { document.getElementById("overlay").style.display = "none"; }
+}
 document.addEventListener("keydown", function (e) {
   var tag = (e.target && e.target.tagName) || "";
   if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
@@ -607,14 +615,14 @@ document.addEventListener("keydown", function (e) {
     else { S.player.vz = 5.2; S.player.grounded = false; }
   }
   if (k === "r") {
-    if (gameOver && !winShown && S) { buildLevel(S, "Retry"); return; }
+    if (gameOver && S) { retryLevel(); return; }
     if (S && !gameOver) { var wt = WEAPON_TYPES[S.weapon.type]; S.weapon.ammo = S.weapon.mag || wt.ammo; updateHUD(); }
   }
 });
 document.addEventListener("keyup", function (e) { keysDown[e.key.toLowerCase()] = false; });
 document.addEventListener("mousemove", function (e) { if (locked && S) S.player.angle += e.movementX * 0.0022; });
 canvas.addEventListener("click", function () {
-  if (gameOver) return;
+  if (gameOver) { retryLevel(); return; }
   if (S && S.gameType !== "fps") { shoot2D(); return; }
   if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
   shoot();
@@ -624,7 +632,7 @@ canvas.addEventListener("mousemove", function (e) {
   if (S) { S.mouseX = (e.clientX - r.left) / r.width * W; S.mouseY = (e.clientY - r.top) / r.height * H; }
 });
 document.getElementById("overlay").addEventListener("click", function () {
-  if (gameOver) return;
+  if (gameOver) { retryLevel(); return; }
   if (S && S.gameType !== "fps") { document.getElementById("overlay").style.display = "none"; return; }
   var p = canvas.requestPointerLock && canvas.requestPointerLock();
   if (p && p.catch) p.catch(function (err) { document.getElementById("status").textContent = "Pointer lock blocked: " + (err && err.message ? err.message : err) + ". Try clicking again in a second."; });
@@ -1359,7 +1367,7 @@ function drawEndTail() {
   var now = Date.now();
   popups = popups.filter(function (pp) { return now - pp.t < 1400; });
   popups.forEach(function (pp, i) { ctx.fillStyle = pp.color; ctx.font = "bold 20px Verdana"; ctx.textAlign = "center"; ctx.fillText(pp.text, W / 2, 60 + i * 26); });
-  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Press R to retry this level, or generate a new one.", W / 2, H / 2 + 30); }
+  if (gameOver && !winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#ff5252"; ctx.font = "bold 44px Verdana"; ctx.fillText("YOU DIED", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Click to play or press R to play again.", W / 2, H / 2 + 30); }
   if (winShown) { ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#3ddc54"; ctx.font = "bold 44px Verdana"; ctx.fillText("LEVEL CLEAR!", W / 2, H / 2 - 10); ctx.fillStyle = "#fff"; ctx.font = "20px Verdana"; ctx.fillText("Score " + (S.score + sessionTotal) + ". Generate another level to keep playing.", W / 2, H / 2 + 30); }
   document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
 }
