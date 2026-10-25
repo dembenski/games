@@ -57,6 +57,7 @@
     <label>Art:
       <select id="artSelect">
         <option value="painted">Painted (free)</option>
+        <option value="cfworker">Free AI art (Cloudflare Worker)</option>
         <option value="mixed">Mixed (Meta, 1 image)</option>
         <option value="full">Full AI art (Meta)</option>
       </select>
@@ -72,6 +73,11 @@
     <input type="password" id="keyInput" placeholder="Paste your API key here">
     <button id="saveKeyBtn">Save key</button>
     <span class="small">Key stays in this browser only. Never in the code.</span>
+  </div>
+  <div class="bar" id="cfBox" style="display:none">
+    <label>Cloudflare Worker URL: <input type="text" id="cfWorkerInput" size="48" placeholder="https://your-worker.yourname.workers.dev"></label>
+    <button id="saveCfBtn">Save Worker URL</button>
+    <span class="small">Saved in this browser only. Your Worker holds your Cloudflare token, never this page.</span>
   </div>
   <div class="bar">
     <input type="text" id="promptInput" placeholder='Try: make a haunted castle FPS with skeletons, a shotgun, and a key hunt'>
@@ -190,7 +196,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -766,6 +772,23 @@ async function callImageMeta(prompt) {
   if (!b64) throw new Error("No image returned");
   return b64;
 }
+async function callImageCf(prompt) {
+  var url = (localStorage.getItem("fpsEngine_cfWorker") || "").replace(/\/$/, "");
+  var res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: prompt }) });
+  if (!res.ok) { var err = new Error("Worker error " + res.status); err.status = res.status; throw err; }
+  var data = await res.json();
+  var b64 = data && data.image;
+  if (!b64) throw new Error("No image returned");
+  return b64;
+}
+function syncCfBox() { document.getElementById("cfBox").style.display = document.getElementById("artSelect").value === "cfworker" ? "" : "none"; }
+document.getElementById("artSelect").addEventListener("change", syncCfBox);
+document.getElementById("saveCfBtn").addEventListener("click", function () {
+  localStorage.setItem("fpsEngine_cfWorker", document.getElementById("cfWorkerInput").value.trim().replace(/\/$/, ""));
+  document.getElementById("status").textContent = "Cloudflare Worker URL saved in this browser.";
+});
+document.getElementById("cfWorkerInput").value = localStorage.getItem("fpsEngine_cfWorker") || "";
+syncCfBox();
 function b64ToCanvas(b64, size) {
   return new Promise(function (resolve, reject) {
     var img = new Image();
@@ -776,14 +799,18 @@ function b64ToCanvas(b64, size) {
 }
 async function buildArt(provider, spec, artMode) {
   if (artMode === "painted") return { images: 0, wallTex: null, sprites: {} };
-  if (!keyFor("meta")) return { images: 0, wallTex: null, sprites: {}, needKey: true };
+  var callImage = callImageMeta;
+  if (artMode === "cfworker") {
+    if (!localStorage.getItem("fpsEngine_cfWorker")) return { images: 0, wallTex: null, sprites: {}, needCfWorker: true };
+    callImage = callImageCf;
+  } else if (!keyFor("meta")) return { images: 0, wallTex: null, sprites: {}, needKey: true };
   var ad = spec.artDirection || {};
   var jobs = [];
   var wallPrompt = ad.wallPrompt || ("Seamless repeating game wall texture, " + (spec.theme || "dungeon") + ", " + (spec.wallTexture || "brick") + ", flat front view, no text");
-  jobs.push(callImageMeta(wallPrompt).then(function (b) { return b64ToCanvas(b, 64); }).catch(function () { return null; }).then(function (c) { return { k: "__wall", v: c }; }));
-  if (artMode === "full") (spec.enemyTypes || []).slice(0, 3).forEach(function (t) {
+  jobs.push(callImage(wallPrompt).then(function (b) { return b64ToCanvas(b, 64); }).catch(function () { return null; }).then(function (c) { return { k: "__wall", v: c }; }));
+  if (artMode === "full" || artMode === "cfworker") (spec.enemyTypes || []).slice(0, 3).forEach(function (t) {
     var p = "Retro FPS enemy game sprite, " + (t.name || t.id) + ", " + (t.look || t.shape || "monster") + ", " + (ad.spriteStyle || "bold cartoon style") + ", centered, plain solid black background, no text";
-    jobs.push(callImageMeta(p).then(function (b) { return b64ToCanvas(b, 256); }).catch(function () { return null; }).then(function (c) { return { k: t.id, v: c }; }));
+    jobs.push(callImage(p).then(function (b) { return b64ToCanvas(b, 256); }).catch(function () { return null; }).then(function (c) { return { k: t.id, v: c }; }));
   });
   var parts = await Promise.all(jobs);
   var art = { images: 0, wallTex: null, sprites: {} };
@@ -835,15 +862,15 @@ document.getElementById("generateBtn").addEventListener("click", async function 
     if (!check.ok) { var fb0 = fallbackFor(type); applyWallPref(fb0); applyDifficulty(fb0); applyBoss(fb0); buildLevel(fb0, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
       var artMode = document.getElementById("artSelect").value;
-      document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : "Level checks passed. Painting art with Meta...";
+      document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : artMode === "cfworker" ? "Level checks passed. Painting art with Cloudflare (free)..." : "Level checks passed. Painting art with Meta...";
       var art = await buildArt(provider, spec, artMode);
       applyWallPref(spec);
       applyDifficulty(spec);
       applyBoss(spec);
       buildLevel(spec, "Generated (" + provider + ")", art);
-      var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
+      var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.needCfWorker ? " Cloudflare art needs your Worker URL saved — painted art used instead." : art.images > 0 ? (artMode === "cfworker" ? " Art: " + art.images + " AI images (Cloudflare, free)." : " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ").") : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
       document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + (spec.difficulty && spec.difficulty !== "normal" ? " Difficulty: " + spec.difficulty + "." : "") + " Click the game to play.";
-      if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
+      if (art.images > 0) logFeed("Art: " + art.images + " AI images via " + (artMode === "cfworker" ? "Cloudflare FLUX (free)." : "Meta Muse Image."));
     }
   } catch (err) {
     if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
