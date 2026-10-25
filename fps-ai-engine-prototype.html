@@ -149,7 +149,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -757,6 +757,8 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
     } else if (err.message === "Failed to fetch") {
       document.getElementById("status").textContent = "AI call failed (network — the request never reached the API). Check your connection and try again. The demo castle still plays.";
+    } else if (err.status === 429) {
+      document.getElementById("status").textContent = "AI is rate-limited right now (429: too many requests on the free tier). Wait a minute and try again. Your key is fine — a bad key would say 401, not 429. The demo castle still plays.";
     } else {
       document.getElementById("status").textContent = "AI call failed (" + (err.status || "network") + "). The demo castle still plays. Check your key and try again.";
     }
