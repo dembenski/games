@@ -196,7 +196,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -744,6 +744,14 @@ document.addEventListener("pointerlockchange", function () {
 
 /* ============ AI generation ============ */
 function stripFences(t) { t = t.trim(); if (t.indexOf("```") === 0) { t = t.replace(/^```[a-z]*\n?/i, "").replace(/```$/, "").trim(); } return t; }
+function parseSpecJSON(raw) {
+  if (typeof raw !== "string") return null;
+  var t = stripFences(raw);
+  try { return JSON.parse(t); } catch (e) {}
+  var a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(t.slice(a, b + 1)); } catch (e2) { return null; }
+}
 function keyFor(provider) { return localStorage.getItem("fpsEngine_" + provider + "Key") || ""; }
 document.getElementById("saveKeyBtn").addEventListener("click", function () {
   var prov = document.getElementById("providerSelect").value;
@@ -851,13 +859,23 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   document.getElementById("status").textContent = "Thinking with " + provider + "...";
   try {
     var raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
-    var spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
+    var spec = parseSpecJSON(raw);
+    if (!spec) {
+      document.getElementById("status").textContent = "The AI's answer wasn't clean JSON, asking it to return JSON only...";
+      raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That was not valid JSON. Return valid JSON only, no other text." }]);
+      spec = parseSpecJSON(raw);
+    }
+    if (!spec) {
+      document.getElementById("status").textContent = "The AI's answer wasn't valid JSON, so nothing built. Your key and connection are fine — try again or reword the prompt.";
+    } else {
+    spec.gameType = type; spec = repairSpec(spec);
     var check = validateSpec(spec);
     if (!check.ok) {
       document.getElementById("status").textContent = "First try failed checks, asking the AI to fix it...";
       raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }, { role: "assistant", content: raw }, { role: "user", content: "That JSON failed these checks: " + check.errors.join("; ") + ". Return corrected valid JSON only." }]);
-      spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
-      check = validateSpec(spec);
+      spec = parseSpecJSON(raw);
+      if (!spec) { check = { ok: false, errors: ["the corrected answer was not valid JSON"] }; }
+      else { spec.gameType = type; spec = repairSpec(spec); check = validateSpec(spec); }
     }
     if (!check.ok) { var fb0 = fallbackFor(type); applyWallPref(fb0); applyDifficulty(fb0); applyBoss(fb0); buildLevel(fb0, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
@@ -872,13 +890,15 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + (spec.difficulty && spec.difficulty !== "normal" ? " Difficulty: " + spec.difficulty + "." : "") + " Click the game to play.";
       if (art.images > 0) logFeed("Art: " + art.images + " AI images via " + (artMode === "cfworker" ? "Cloudflare FLUX (free)." : "Meta Muse Image."));
     }
+    }
   } catch (err) {
     if ((err.status === 429 || err.message === "Failed to fetch") && provider === "meta" && keyFor("groq")) {
       document.getElementById("status").textContent = "Meta is busy, retrying with Groq...";
       try {
         var raw2 = await callAI("groq", [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
-        var spec2 = JSON.parse(stripFences(raw2)); spec2.gameType = type; spec2 = repairSpec(spec2);
-        if (validateSpec(spec2).ok) { applyWallPref(spec2); applyDifficulty(spec2); applyBoss(spec2); buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
+        var spec2 = parseSpecJSON(raw2);
+        if (spec2) { spec2.gameType = type; spec2 = repairSpec(spec2); }
+        if (spec2 && validateSpec(spec2).ok) { applyWallPref(spec2); applyDifficulty(spec2); applyBoss(spec2); buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
         else { var fb1 = fallbackFor(type); applyWallPref(fb1); applyDifficulty(fb1); applyBoss(fb1); buildLevel(fb1, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
     } else if (err.status === 404) {
@@ -888,7 +908,7 @@ document.getElementById("generateBtn").addEventListener("click", async function 
     } else if (err.status === 429) {
       document.getElementById("status").textContent = "AI is rate-limited right now (429: too many requests on the free tier). Wait a minute and try again. Your key is fine — a bad key would say 401, not 429. The demo castle still plays.";
     } else {
-      document.getElementById("status").textContent = "AI call failed (" + (err.status || "network") + "). The demo castle still plays. Check your key and try again.";
+      document.getElementById("status").textContent = "AI call failed (" + (err.status || "unexpected error") + "). The demo castle still plays." + (err.status ? " Check your key and try again." : " Try again.");
     }
   }
   btn.disabled = false;
@@ -1195,7 +1215,9 @@ document.getElementById("remixBtn").addEventListener("click", async function () 
   document.getElementById("status").textContent = "Remixing with " + provider + "...";
   try {
     var raw = await callAI(provider, [{ role: "system", content: sysPrompt }, { role: "user", content: "Remix this level: " + inst + ". Keep the same gameType and return a full valid JSON spec. Current level: " + JSON.stringify(lastSpec) }]);
-    var spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
+    var spec = parseSpecJSON(raw);
+    if (!spec) { btn.disabled = false; document.getElementById("status").textContent = "That remix answer wasn't valid JSON, keeping your current level. Try another remix."; return; }
+    spec.gameType = type; spec = repairSpec(spec);
     if (!validateSpec(spec).ok) { btn.disabled = false; document.getElementById("status").textContent = "That remix did not pass checks, keeping your current level. Try another remix."; return; }
     var artMode = document.getElementById("artSelect").value;
     var art = await buildArt(provider, spec, artMode);
