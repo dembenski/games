@@ -144,9 +144,10 @@
     <div id="texGrid" class="tex-grid"></div>
     <div class="bar"><span class="small">Painted (built-in, always free):</span><span id="texPainted"></span></div>
     <div class="bar"><input type="text" id="texUrlInput" placeholder="Or paste any image link"><button id="texUrlBtn">Use link as wall</button></div>
+    <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -730,11 +731,12 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       spec = JSON.parse(stripFences(raw)); spec.gameType = type; spec = repairSpec(spec);
       check = validateSpec(spec);
     }
-    if (!check.ok) { buildLevel(fallbackFor(type), "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
+    if (!check.ok) { var fb0 = fallbackFor(type); applyWallPref(fb0); buildLevel(fb0, "Fallback (" + provider + ")"); document.getElementById("status").textContent = "That generation did not pass checks (" + check.errors.join("; ") + "), so here is a fallback level. Try another prompt."; }
     else {
       var artMode = document.getElementById("artSelect").value;
       document.getElementById("status").textContent = artMode === "painted" ? "Level checks passed. Painting procedural art..." : "Level checks passed. Painting art with Meta...";
       var art = await buildArt(provider, spec, artMode);
+      applyWallPref(spec);
       buildLevel(spec, "Generated (" + provider + ")", art);
       var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable).");
       document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + " Click the game to play.";
@@ -746,8 +748,8 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       try {
         var raw2 = await callAI("groq", [{ role: "system", content: sysPrompt }, { role: "user", content: prompt }]);
         var spec2 = JSON.parse(stripFences(raw2)); spec2.gameType = type; spec2 = repairSpec(spec2);
-        if (validateSpec(spec2).ok) { buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
-        else { buildLevel(fallbackFor(type), "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
+        if (validateSpec(spec2).ok) { applyWallPref(spec2); buildLevel(spec2, "Generated (groq fallback)"); document.getElementById("status").textContent = "Built with Groq fallback: " + (spec2.title || "Untitled") + "."; }
+        else { var fb1 = fallbackFor(type); applyWallPref(fb1); buildLevel(fb1, "Fallback (groq)"); document.getElementById("status").textContent = "Groq generation did not pass checks, fallback level loaded."; }
       } catch (e2) { document.getElementById("status").textContent = "AI is resting, try again in a minute."; }
     } else if (err.status === 404) {
       document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key. The demo castle still plays.";
@@ -1339,8 +1341,28 @@ function renderTexGrid() {
   }).join("");
   document.getElementById("texPainted").innerHTML = WALL_TEXTURES.map(function (t) { return "<button data-painted=\"" + t + "\">" + t + "</button>"; }).join(" ");
 }
+function loadWallPref() { try { var p = JSON.parse(localStorage.getItem("fpsEngine_wallPref") || "null"); return (p && p.wallTexture) ? p : null; } catch (e) { return null; } }
+function saveWallPref(wallTexture, url, label) { try { localStorage.setItem("fpsEngine_wallPref", JSON.stringify({ wallTexture: wallTexture, wallTextureUrl: url || null, label: label })); } catch (e) {} }
+function clearWallPref() { try { localStorage.removeItem("fpsEngine_wallPref"); } catch (e) {} }
+function applyWallPref(spec) {
+  var pref = loadWallPref();
+  if (!pref || !spec) return spec;
+  spec.wallTexture = pref.wallTexture;
+  spec.wallTextureUrl = pref.wallTextureUrl || null;
+  spec.customWallImg = null;
+  spec.wallOverride = true;
+  return spec;
+}
+function renderTexSticky() {
+  var pref = loadWallPref();
+  var el = document.getElementById("texSticky");
+  var btn = document.getElementById("texClearBtn");
+  if (pref) { el.textContent = "Sticking to new levels: " + (pref.label || pref.wallTexture) + ". Generating a new game keeps this texture."; btn.style.display = "inline-block"; }
+  else { el.textContent = "Pick a texture and it sticks to new levels until you clear it."; btn.style.display = "none"; }
+}
 function applyWallChoice(wallTexture, url, label) {
   if (!lastSpec) { document.getElementById("status").textContent = "No level loaded yet."; return; }
+  saveWallPref(wallTexture, url, label);
   var sp = JSON.parse(JSON.stringify(lastSpec));
   sp.wallTexture = wallTexture;
   sp.wallTextureUrl = url || null;
@@ -1348,7 +1370,7 @@ function applyWallChoice(wallTexture, url, label) {
   sp.wallOverride = true;
   hideTex();
   buildLevel(sp, "Texture", lastArt);
-  document.getElementById("status").textContent = "Wall texture: " + label + ". Save to feed or copy the link to keep it.";
+  document.getElementById("status").textContent = "Wall texture: " + label + ". It sticks to new levels until you pick another or clear it.";
 }
 function showTex() {
   document.getElementById("gameBox").style.display = "none";
@@ -1356,6 +1378,7 @@ function showTex() {
   document.getElementById("feedBox").style.display = "none";
   document.getElementById("texBox").style.display = "block";
   renderTexGrid();
+  renderTexSticky();
 }
 function hideTex() {
   document.getElementById("texBox").style.display = "none";
@@ -1381,6 +1404,11 @@ document.getElementById("texPainted").addEventListener("click", function (ev) {
   var b = ev.target.closest ? ev.target.closest("button") : null;
   if (!b || !b.getAttribute("data-painted")) return;
   applyWallChoice(b.getAttribute("data-painted"), null, b.getAttribute("data-painted") + " (painted)");
+});
+document.getElementById("texClearBtn").addEventListener("click", function () {
+  clearWallPref();
+  renderTexSticky();
+  document.getElementById("status").textContent = "Sticky texture cleared. New levels will use the AI's walls again. This level keeps its current walls.";
 });
 document.getElementById("texUrlBtn").addEventListener("click", function () {
   var url = document.getElementById("texUrlInput").value.trim();
