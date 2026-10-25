@@ -73,6 +73,7 @@
     <button id="feedBtn">Feed</button>
     <button id="copyLinkBtn">Copy link</button>
     <button id="texBtn">Textures</button>
+    <button id="stickyBtn">Sticky texture: OFF</button>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -148,7 +149,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -1364,16 +1365,19 @@ function applyWallPref(spec) {
   spec.wallOverride = true;
   return spec;
 }
+function syncStickyBtn() { document.getElementById("stickyBtn").textContent = loadWallPref() ? "Sticky texture: ON" : "Sticky texture: OFF"; }
 function renderTexSticky() {
   var pref = loadWallPref();
   var el = document.getElementById("texSticky");
   var btn = document.getElementById("texClearBtn");
   if (pref) { el.textContent = "Sticking to new levels: " + (pref.label || pref.wallTexture) + ". Generating a new game keeps this texture."; btn.style.display = "inline-block"; }
-  else { el.textContent = "Pick a texture and it sticks to new levels until you clear it."; btn.style.display = "none"; }
+  else { el.textContent = "Pick a texture and it sticks to new levels until you turn the toggle off."; btn.style.display = "none"; }
+  syncStickyBtn();
 }
 function applyWallChoice(wallTexture, url, label) {
   if (!lastSpec) { document.getElementById("status").textContent = "No level loaded yet."; return; }
   saveWallPref(wallTexture, url, label);
+  syncStickyBtn();
   var sp = JSON.parse(JSON.stringify(lastSpec));
   sp.wallTexture = wallTexture;
   sp.wallTextureUrl = url || null;
@@ -1421,6 +1425,16 @@ document.getElementById("texClearBtn").addEventListener("click", function () {
   renderTexSticky();
   document.getElementById("status").textContent = "Sticky texture cleared. New levels will use the AI's walls again. This level keeps its current walls.";
 });
+document.getElementById("stickyBtn").addEventListener("click", function () {
+  if (loadWallPref()) {
+    clearWallPref();
+    renderTexSticky();
+    document.getElementById("status").textContent = "Sticky texture OFF. New levels will use the AI's walls again. This level keeps its walls.";
+  } else {
+    document.getElementById("status").textContent = "Sticky texture is already OFF. Pick a texture to turn it back on.";
+  }
+});
+syncStickyBtn();
 document.getElementById("texUrlBtn").addEventListener("click", function () {
   var url = document.getElementById("texUrlInput").value.trim();
   if (!url || url.indexOf("http") !== 0) { document.getElementById("texInfo").textContent = "Paste a full image link starting with http."; return; }
