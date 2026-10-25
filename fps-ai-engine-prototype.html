@@ -10,6 +10,9 @@
   h1 { margin: 6px 0 2px; font-size: 24px; }
   .proto { background: #3a2a00; border: 1px solid #c9a227; padding: 8px 10px; border-radius: 6px; font-size: 14px; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+  .tabBar { display: flex; gap: 8px; margin: 14px 0 2px; }
+  .tabBar button { background: #26263a; color: #ccc; }
+  .tabBar button.active { background: #7b2ff7; color: #fff; }
   .bar input[type="text"], .bar input[type="password"], .bar select { padding: 8px; font-size: 15px; border-radius: 5px; border: 1px solid #444; background: #1a1a26; color: #eee; }
   #promptInput { flex: 1; min-width: 260px; }
   #keyInput { width: 220px; }
@@ -41,61 +44,71 @@
   <h1>AI Game Engine Prototype</h1>
   <div class="proto">Practice build, NOT the hackathon submission. The real entry gets built fresh Oct 26 to Nov 4, 2026. Type a game wish, the AI designs the level, you play it.</div>
   <div class="bar">
-    <label>Game type:
-      <select id="typeSelect">
-        <option value="fps">FPS (2.5D)</option>
-        <option value="topview">Top-view shooter</option>
-        <option value="sidescroll">Side-scroll shooter</option>
-      </select>
-    </label>
     <label>AI provider:
       <select id="providerSelect">
         <option value="meta">Meta AI (Recommended)</option>
         <option value="groq">Groq (Free backup)</option>
       </select>
     </label>
-    <label>Art:
-      <select id="artSelect">
-        <option value="painted">Painted (free)</option>
-        <option value="mixed">Mixed (Meta, 1 image)</option>
-        <option value="full">Full AI art (Meta)</option>
-      </select>
+    <label>API key:
+      <input type="password" id="keyInput" placeholder="Paste your API key here">
     </label>
-    <label>Difficulty:
-      <select id="diffSelect">
-        <option value="easy">Easy</option>
-        <option value="normal" selected>Normal</option>
-        <option value="hard">Hard</option>
-        <option value="insane">Insane</option>
-      </select>
-    </label>
-    <input type="password" id="keyInput" placeholder="Paste your API key here">
     <button id="saveKeyBtn">Save key</button>
-    <span class="small">Key stays in this browser only. Never in the code.</span>
+    <span class="small">Key stays in this browser only. Never in the code. With Meta selected, this is your Meta API key — it pays for the art (about 4&cent; a full-art level).</span>
   </div>
 
-  <div class="bar">
+  <div class="tabBar">
+    <button id="tabSimpleBtn">Make game</button>
+    <button id="tabAdvancedBtn">Advanced</button>
+  </div>
+  <div class="bar" id="simpleBox">
     <input type="text" id="promptInput" placeholder='Try: make a haunted castle FPS with skeletons, a shotgun, and a key hunt'>
     <button id="generateBtn">Generate game</button>
-    <button id="editBtn">Edit map</button>
-    <button id="saveFeedBtn">Save to feed</button>
-    <button id="feedBtn">Feed</button>
-    <button id="copyLinkBtn">Copy link</button>
-    <button id="texBtn">Textures</button>
-    <button id="stickyBtn">Sticky texture: OFF</button>
-    <button id="instantBtn">Instant level</button>
-    <label><input type="checkbox" id="bossToggle"> Boss level</label>
-    <button id="soundBtn">Sound: ON</button>
-  </div>
-  <div class="bar">
-    <input type="text" id="remixInput" placeholder="Remix this level: make it scarier...">
-    <button id="remixBtn">Remix</button>
-    <button id="copySpecBtn">Copy spec</button>
-    <button id="pasteSpecBtn">Paste spec</button>
-  </div>
-  <div class="bar" id="themeBar">
     <span class="small">Themes (200):</span>
     <button id="themeShuffleBtn">Shuffle theme</button>
+  </div>
+  <div id="advancedBox" style="display:none">
+    <div class="bar">
+      <label>Game type:
+        <select id="typeSelect">
+          <option value="fps">FPS (2.5D)</option>
+          <option value="topview">Top-view shooter</option>
+          <option value="sidescroll">Side-scroll shooter</option>
+        </select>
+      </label>
+      <label>Art:
+        <select id="artSelect">
+          <option value="painted">Painted (free)</option>
+          <option value="mixed">Mixed (Meta, 1 image)</option>
+          <option value="full">Full AI art (Meta)</option>
+        </select>
+      </label>
+      <label>Difficulty:
+        <select id="diffSelect">
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+          <option value="insane">Insane</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="bossToggle"> Boss level</label>
+      <button id="soundBtn">Sound: ON</button>
+    </div>
+    <div class="bar">
+      <button id="editBtn">Edit map</button>
+      <button id="saveFeedBtn">Save to feed</button>
+      <button id="feedBtn">Feed</button>
+      <button id="copyLinkBtn">Copy link</button>
+      <button id="texBtn">Textures</button>
+      <button id="stickyBtn">Sticky texture: OFF</button>
+      <button id="instantBtn">Instant level</button>
+    </div>
+    <div class="bar">
+      <input type="text" id="remixInput" placeholder="Remix this level: make it scarier...">
+      <button id="remixBtn">Remix</button>
+      <button id="copySpecBtn">Copy spec</button>
+      <button id="pasteSpecBtn">Paste spec</button>
+    </div>
   </div>
   <div id="status">Demo castle loaded. Click the game to play, no key needed.</div>
   <div id="hud">
@@ -191,7 +204,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -2319,6 +2332,18 @@ function renderSide() {
   if (Date.now() < flashUntil) { ctx.fillStyle = "rgba(255,220,80,0.25)"; ctx.fillRect(0, 0, W, H); }
   drawEndTail();
 }
+
+/* ============ Tabs: Make game / Advanced ============ */
+function showTab(name) {
+  document.getElementById("simpleBox").style.display = name === "advanced" ? "none" : "";
+  document.getElementById("advancedBox").style.display = name === "advanced" ? "" : "none";
+  document.getElementById("tabSimpleBtn").className = name === "advanced" ? "" : "active";
+  document.getElementById("tabAdvancedBtn").className = name === "advanced" ? "active" : "";
+  try { localStorage.setItem("fpsEngine_tab", name); } catch (e) {}
+}
+document.getElementById("tabSimpleBtn").addEventListener("click", function () { showTab("simple"); });
+document.getElementById("tabAdvancedBtn").addEventListener("click", function () { showTab("advanced"); });
+showTab(localStorage.getItem("fpsEngine_tab") === "advanced" ? "advanced" : "simple");
 
 /* ============ Boot ============ */
 if (("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches) document.getElementById("touchNote").style.display = "block";
