@@ -30,6 +30,14 @@
   #feed { background: #12121e; border: 1px solid #333; border-radius: 6px; padding: 10px; margin-top: 12px; font-size: 14px; max-height: 220px; overflow-y: auto; }
   #feed div { border-bottom: 1px solid #26263a; padding: 5px 0; }
   #touchNote { display: none; background: #40200a; border: 1px solid #e08a2e; padding: 8px 10px; border-radius: 6px; margin: 10px 0; }
+  #gameBox canvas { touch-action: none; }
+  #touchUI { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  #joyZone { position: absolute; left: 14px; bottom: 14px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.35); pointer-events: auto; touch-action: none; }
+  #joyKnob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.45); }
+  .touchBtn { position: absolute; border-radius: 50%; background: rgba(123,47,247,0.75); border: 2px solid rgba(255,255,255,0.5); color: #fff; font-size: 15px; font-weight: bold; pointer-events: auto; touch-action: none; padding: 0; }
+  #fireBtn { right: 16px; bottom: 74px; width: 76px; height: 76px; }
+  #jumpBtn { right: 104px; bottom: 22px; width: 60px; height: 60px; }
+  #reloadBtn { right: 176px; bottom: 22px; width: 56px; height: 56px; font-size: 12px; }
   .feed-card { background: #12121e; border: 1px solid #333; border-radius: 8px; padding: 12px; margin: 10px 0; }
   .feed-card canvas { width: auto; max-width: 100%; border: 2px solid #444; }
   .tex-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
@@ -125,6 +133,12 @@
     <canvas id="game" width="960" height="540"></canvas>
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
+    <div id="touchUI">
+      <div id="joyZone"><div id="joyKnob"></div></div>
+      <button id="fireBtn" class="touchBtn">FIRE</button>
+      <button id="jumpBtn" class="touchBtn">JUMP</button>
+      <button id="reloadBtn" class="touchBtn">RELOAD</button>
+    </div>
   </div>
   <div id="editorBox" style="display:none">
     <div class="bar">
@@ -204,7 +218,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -429,6 +443,8 @@ function repairSpec(spec) {
 var canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 var W = 960, H = 540;
 var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtUntil = 0, popups = [], startTime = 0, sessionTotal = 0, gameOver = false, winShown = false;
+var isTouch = ("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches;
+var touchMove = { x: 0, y: 0 };
 var lastSpec = null, lastArt = null;
 var zbuffer = new Array(W);
 
@@ -478,7 +494,8 @@ function buildLevel(spec, sourceLabel, art) {
   if (S.customWallImg) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["custom"] = c; }; wi.src = S.customWallImg; }
   S.enemies.forEach(function (e, i) { var raw = (spec.enemies || [])[i]; if (raw && raw.imgSrc) { var im = new Image(); im.src = raw.imgSrc; e.img = im; } });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
-  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("overlay").style.display = isTouch ? "none" : "flex";
+  refreshTouchUI();
   document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>" + (S.questIntro ? "<br><span style=\"font-size:18px\">" + esc(S.questIntro) + "</span>" : "");
   updateHUD();
   logFeed(sourceLabel + ": " + (S.title || "Untitled") + " | map " + S.map[0].length + "x" + S.map.length + " | " + S.enemies.length + " enemies | goal " + (S.goal && S.goal.type));
@@ -619,6 +636,7 @@ function update(dt) {
   if (keysDown["s"] || keysDown["arrowdown"]) { fx -= Math.cos(p.angle); fy -= Math.sin(p.angle); }
   if (keysDown["a"] || keysDown["arrowleft"]) { fx += Math.sin(p.angle); fy -= Math.cos(p.angle); }
   if (keysDown["d"] || keysDown["arrowright"]) { fx -= Math.sin(p.angle); fy += Math.cos(p.angle); }
+  if (touchMove.x || touchMove.y) { var tf = -touchMove.y, ts = touchMove.x; fx += Math.cos(p.angle) * tf - Math.sin(p.angle) * ts; fy += Math.sin(p.angle) * tf + Math.cos(p.angle) * ts; }
   if (fx || fy) { var len = Math.sqrt(fx * fx + fy * fy); fx /= len; fy /= len;
     var nx = p.x + fx * speed; if (!isWall(Math.floor(nx), Math.floor(p.y))) p.x = nx;
     var ny = p.y + fy * speed; if (!isWall(Math.floor(p.x), Math.floor(ny))) p.y = ny; }
@@ -681,7 +699,7 @@ function update(dt) {
   updateHUD();
 }
 function shoot() {
-  if (!S || gameOver || !locked) return;
+  if (!S || gameOver || (!locked && !isTouch)) return;
   var now = Date.now();
   if (now - lastShot < S.weapon.rate) return;
   if (S.weapon.ammo <= 0) { addPopup("RELOAD (R)", "#ffd60a"); return; }
@@ -707,7 +725,7 @@ function retryLevel() {
   if (!S) return;
   var spec = lastSpec ? JSON.parse(JSON.stringify(lastSpec)) : S;
   buildLevel(spec, "Retry", lastArt);
-  if (S.gameType === "fps") {
+  if (S.gameType === "fps" && !isTouch) {
     try { var p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
   } else { document.getElementById("overlay").style.display = "none"; }
 }
@@ -732,6 +750,7 @@ document.addEventListener("mousemove", function (e) { if (locked && S) S.player.
 canvas.addEventListener("click", function () {
   if (gameOver) { retryLevel(); return; }
   if (S && S.gameType !== "fps") { shoot2D(); return; }
+  if (isTouch) return;
   if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
   shoot();
 });
@@ -741,14 +760,93 @@ canvas.addEventListener("mousemove", function (e) {
 });
 document.getElementById("overlay").addEventListener("click", function () {
   if (gameOver) { retryLevel(); return; }
+  if (isTouch) { document.getElementById("overlay").style.display = "none"; return; }
   if (S && S.gameType !== "fps") { document.getElementById("overlay").style.display = "none"; return; }
   var p = canvas.requestPointerLock && canvas.requestPointerLock();
   if (p && p.catch) p.catch(function (err) { document.getElementById("status").textContent = "Pointer lock blocked: " + (err && err.message ? err.message : err) + ". Try clicking again in a second."; });
 });
 document.addEventListener("pointerlockchange", function () {
   locked = document.pointerLockElement === canvas;
-  document.getElementById("overlay").style.display = locked ? "none" : "flex";
+  document.getElementById("overlay").style.display = (locked || isTouch) ? "none" : "flex";
 });
+
+/* ============ Touch controls: auto device detect ============ */
+function refreshTouchUI() {
+  if (!isTouch) return;
+  document.getElementById("touchUI").style.display = "block";
+  document.getElementById("jumpBtn").style.display = (S && S.gameType === "topview") ? "none" : "block";
+}
+function touchJump() {
+  if (!S || gameOver) return;
+  if (S.gameType === "sidescroll") { if (S.player.grounded) { S.player.vy = -11; S.player.grounded = false; sfxJump(); } }
+  else if (S.gameType === "topview") { shoot2D(); }
+  else { if (S.player.grounded) { S.player.vz = 5.2; S.player.grounded = false; sfxJump(); } }
+}
+function touchReload() {
+  if (!S || gameOver) return;
+  var wt = WEAPON_TYPES[S.weapon.type]; S.weapon.ammo = S.weapon.mag || wt.ammo; updateHUD();
+}
+function bindTouchBtn(id, fn) {
+  var b = document.getElementById(id);
+  b.addEventListener("touchstart", function (e) { e.preventDefault(); fn(); }, { passive: false });
+}
+if (isTouch) {
+  document.getElementById("touchNote").textContent = "Touch controls: left stick moves, drag the game to look or aim, FIRE to shoot.";
+  bindTouchBtn("fireBtn", function () { if (!S || gameOver) return; if (S.gameType === "fps") shoot(); else shoot2D(); });
+  bindTouchBtn("jumpBtn", touchJump);
+  bindTouchBtn("reloadBtn", touchReload);
+  (function () {
+    var zone = document.getElementById("joyZone"), knob = document.getElementById("joyKnob"), joyId = null;
+    function setKnob(dx, dy) { knob.style.left = (35 + dx * 30) + "px"; knob.style.top = (35 + dy * 30) + "px"; }
+    zone.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      var t = e.changedTouches[0]; joyId = t.identifier;
+      var r = zone.getBoundingClientRect(); zone._cx = r.left + r.width / 2; zone._cy = r.top + r.height / 2;
+    }, { passive: false });
+    zone.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== joyId) continue;
+        var dx = (t.clientX - zone._cx) / 45, dy = (t.clientY - zone._cy) / 45;
+        var len = Math.sqrt(dx * dx + dy * dy); if (len > 1) { dx /= len; dy /= len; }
+        touchMove.x = dx; touchMove.y = dy; setKnob(dx, dy);
+        keysDown["shift"] = len > 0.9;
+      }
+    }, { passive: false });
+    function endJoy(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === joyId) { joyId = null; touchMove.x = 0; touchMove.y = 0; setKnob(0, 0); keysDown["shift"] = false; }
+      }
+    }
+    zone.addEventListener("touchend", endJoy);
+    zone.addEventListener("touchcancel", endJoy);
+  })();
+  (function () {
+    var lookId = null, lastX = 0;
+    canvas.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      var t = e.changedTouches[0]; lookId = t.identifier; lastX = t.clientX;
+      var r = canvas.getBoundingClientRect();
+      if (S) { S.mouseX = (t.clientX - r.left) / r.width * W; S.mouseY = (t.clientY - r.top) / r.height * H; }
+    }, { passive: false });
+    canvas.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lastX; lastX = t.clientX;
+        if (S && S.gameType === "fps") S.player.angle += dx * 0.0045;
+        var r = canvas.getBoundingClientRect();
+        if (S) { S.mouseX = (t.clientX - r.left) / r.width * W; S.mouseY = (t.clientY - r.top) / r.height * H; }
+      }
+    }, { passive: false });
+    function endLook(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) lookId = null;
+      if (gameOver) retryLevel();
+    }
+    canvas.addEventListener("touchend", endLook);
+    canvas.addEventListener("touchcancel", endLook);
+  })();
+}
 
 /* ============ AI generation ============ */
 function stripFences(t) { t = t.trim(); if (t.indexOf("```") === 0) { t = t.replace(/^```[a-z]*\n?/i, "").replace(/```$/, "").trim(); } return t; }
@@ -2132,6 +2230,7 @@ function updateTop(dt) {
   if (keysDown["s"] || keysDown["arrowdown"]) fy += 1;
   if (keysDown["a"] || keysDown["arrowleft"]) fx -= 1;
   if (keysDown["d"] || keysDown["arrowright"]) fx += 1;
+  if (touchMove.x || touchMove.y) { fx += touchMove.x; fy += touchMove.y; }
   if (fx || fy) { var len = Math.sqrt(fx * fx + fy * fy); fx /= len; fy /= len;
     var nx = p.x + fx * speed; if (!blockedAt(nx, p.y, 0.25)) p.x = nx;
     var ny = p.y + fy * speed; if (!blockedAt(p.x, ny, 0.25)) p.y = ny; }
@@ -2254,6 +2353,7 @@ function updateSide(dt) {
   var mv = 0;
   if (keysDown["a"] || keysDown["arrowleft"]) mv -= 1;
   if (keysDown["d"] || keysDown["arrowright"]) mv += 1;
+  if (Math.abs(touchMove.x) > 0.2 && mv === 0) mv = touchMove.x > 0 ? 1 : -1;
   if (mv !== 0) { p.facing = mv; moveAxis(p, mv * 4.2 * dt, 0); }
   p.vy += 26 * dt; if (p.vy > 16) p.vy = 16;
   var res = moveAxis(p, 0, p.vy * dt);
