@@ -112,6 +112,17 @@
             <option value="sidescroll-haunted">Side-scroll - Haunted mansion</option>
             <option value="sidescroll-sea">Side-scroll - Deep-sea dive</option>
           </optgroup>
+          <optgroup label="True 3D (WebGL)">
+            <option value="3d">3D - Classic shooter</option>
+            <option value="3d-dungeon">3D - Dungeon crawler</option>
+            <option value="3d-arena">3D - Arena deathmatch</option>
+            <option value="3d-horror">3D - Horror / haunted house</option>
+            <option value="3d-scifi">3D - Sci-fi station shooter</option>
+            <option value="3d-castle">3D - Castle siege</option>
+            <option value="3d-zombie">3D - Zombie survival</option>
+            <option value="3d-western">3D - Western shootout</option>
+            <option value="3d-cyber">3D - Cyberpunk street shooter</option>
+          </optgroup>
         </select>
       </label>
       <label>Art:
@@ -161,6 +172,7 @@
   <div id="touchNote">Built for PC: keyboard and mouse recommended. Touch controls are not part of this prototype.</div>
   <div id="gameBox">
     <canvas id="game" width="960" height="540"></canvas>
+    <canvas id="gl" width="960" height="540" style="display:none"></canvas>
     <div id="vignette"></div>
     <div id="overlay">Click to play<br><span style="font-size:16px">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span></div>
     <div id="touchUI">
@@ -248,7 +260,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect + genre dropdown: 27 genres across 3 engines.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect + genre dropdown: 27 genres across 3 engines + true 3D engine: WebGL, 36 genres across 4 engines.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -261,7 +273,8 @@ var CONFIG = {
 var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
 var SYSTEM_PROMPT_TOP = "You are a 2D top-down shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW top-down arena every time: rooms, corridors, arenas, choke points viewed from above, never copy the demo castle. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: 'topview', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
 var SYSTEM_PROMPT_SIDE = "You are a 2D side-scrolling shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW side-scrolling level every time: platforms, gaps, and solid ground viewed from the side, never copy the demo castle. Map tiles: 0 open air, 1 solid ground or platform, 2 locked door. Map 16-24 tiles wide, 10-14 tiles tall. Bottom row all solid. Player start on an open tile standing on solid ground. Enemies stand on platforms or solid ground. Jump height is about 2 tiles, so platforms must be reachable by jumps of 1-2 tiles and gaps of 1-2 tiles. Spec shape: {gameType: 'sidescroll', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
-/* ============ Genre dropdown: every genre maps to one of the 3 real engines ============ */
+var SYSTEM_PROMPT_3D = "You are a true 3D first-person shooter level designer (real-time WebGL 3D, not 2.5D). You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: '3d', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
+/* ============ Genre dropdown: every genre maps to one of the 4 real engines ============ */
 var GENRES = [
   {id:"fps", label:"FPS - Classic shooter", engine:"fps", flavor:""},
   {id:"fps-zombie", label:"FPS - Zombie survival", engine:"fps", flavor:"GENRE: Zombie survival. Enemies are zombies and undead horrors, the goal is usually eliminate-all, and the theme, enemy looks, and quest text should feel like a zombie outbreak."},
@@ -289,10 +302,19 @@ var GENRES = [
   {id:"sidescroll-robot", label:"Side-scroll - Robot factory run", engine:"sidescroll", flavor:"GENRE: Robot factory run. Tech-panel factory floors, conveyor platforms, robot drones and turrets, and a reach-exit goal."},
   {id:"sidescroll-snow", label:"Side-scroll - Snow mountain climb", engine:"sidescroll", flavor:"GENRE: Snow mountain climb. Icy platforms, yeti brutes and ice wisps, and a reach-exit goal up the mountain."},
   {id:"sidescroll-haunted", label:"Side-scroll - Haunted mansion", engine:"sidescroll", flavor:"GENRE: Haunted mansion platformer. Spooky rooms, ghost flyers, and a reach-exit escape goal."},
-  {id:"sidescroll-sea", label:"Side-scroll - Deep-sea dive", engine:"sidescroll", flavor:"GENRE: Deep-sea dive. Underwater platforms as coral and wrecks, sea creature enemies, and a reach-exit goal."}
+  {id:"sidescroll-sea", label:"Side-scroll - Deep-sea dive", engine:"sidescroll", flavor:"GENRE: Deep-sea dive. Underwater platforms as coral and wrecks, sea creature enemies, and a reach-exit goal."},
+  {id:"3d", label:"3D - Classic shooter", engine:"3d", flavor:""},
+  {id:"3d-dungeon", label:"3D - Dungeon crawler", engine:"3d", flavor:"GENRE: True 3D dungeon crawler. A stone dungeon rendered in real 3D, torch-lit halls, locked doors, treasure keys, skeletons, mimics, and a dungeon boss; the goal is usually key-hunt or reach-exit."},
+  {id:"3d-arena", label:"3D - Arena deathmatch", engine:"3d", flavor:"GENRE: True 3D arena deathmatch. One open 3D combat arena with cover pillars, fast monsters that rush the player, and an eliminate-all goal."},
+  {id:"3d-horror", label:"3D - Horror / haunted house", engine:"3d", flavor:"GENRE: True 3D horror. A creepy haunted house or asylum in real 3D, dim rooms, ghosts and jump-scare monsters, and quest text that is spooky but playful, never gory."},
+  {id:"3d-scifi", label:"3D - Sci-fi station shooter", engine:"3d", flavor:"GENRE: True 3D sci-fi station shooter. A high-tech space station in real 3D with tech-panel walls, robots, drones, and alien creatures; weapons feel futuristic."},
+  {id:"3d-castle", label:"3D - Castle siege", engine:"3d", flavor:"GENRE: True 3D castle siege. Castle-brick halls and courtyards in real 3D, knights, archers, and a castle boss; the goal is usually eliminate-all or reach-exit."},
+  {id:"3d-zombie", label:"3D - Zombie survival", engine:"3d", flavor:"GENRE: True 3D zombie survival. Streets or a mall overrun by zombies in real 3D, slow shamblers and fast runners, and an eliminate-all goal."},
+  {id:"3d-western", label:"3D - Western shootout", engine:"3d", flavor:"GENRE: True 3D western shootout. A dusty frontier town in real 3D with wooden walls, bandits, and a showdown feel; the goal is usually eliminate-all."},
+  {id:"3d-cyber", label:"3D - Cyberpunk street shooter", engine:"3d", flavor:"GENRE: True 3D cyberpunk street shooter. Neon-grid streets in real 3D, hacker enemies, security drones, and a rainy neon city feel."}
 ];
 function genreById(id) { for (var i = 0; i < GENRES.length; i++) if (GENRES[i].id === id) return GENRES[i]; return GENRES[0]; }
-function sysPromptForGenre(g) { var base = g.engine === "topview" ? SYSTEM_PROMPT_TOP : g.engine === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT; return g.flavor ? base + "\n" + g.flavor + " Design the level, enemies, theme, and quest text to match this genre while keeping every number inside the stated caps." : base; }
+function sysPromptForGenre(g) { var base = g.engine === "topview" ? SYSTEM_PROMPT_TOP : g.engine === "sidescroll" ? SYSTEM_PROMPT_SIDE : g.engine === "3d" ? SYSTEM_PROMPT_3D : SYSTEM_PROMPT; return g.flavor ? base + "\n" + g.flavor + " Design the level, enemies, theme, and quest text to match this genre while keeping every number inside the stated caps." : base; }
 var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, typesMax: 8, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
 var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
 var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
@@ -454,7 +476,7 @@ function firstOpenTile(map) {
 }
 function repairSpec(spec) {
   var gt = (spec && spec.gameType) || "fps";
-  if (["fps", "topview", "sidescroll"].indexOf(gt) < 0) gt = "fps";
+  if (["fps", "topview", "sidescroll", "3d"].indexOf(gt) < 0) gt = "fps";
   if (spec && typeof spec === "object") spec.gameType = gt;
   if (!spec || typeof spec !== "object" || !Array.isArray(spec.map) || spec.map.length === 0) {
     spec = { gameType: gt, title: "Repaired", theme: "", map: JSON.parse(JSON.stringify(FALLBACK_SPEC.map)), wallTexture: "brick", floorColor: "#1a1a1a", ceilingColor: "#050510", playerStart: { x: 1, y: 1, angle: 0 }, weapons: [{ type: "pistol", damage: 20, ammo: 12 }], enemies: [], pickups: [], goal: { type: "eliminate-all", keys: 0, exitX: 10, exitY: 10 } };
@@ -503,6 +525,7 @@ function repairSpec(spec) {
 
 /* ============ Game state ============ */
 var canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+var glCanvas = document.getElementById("gl");
 var W = 960, H = 540;
 var S = null, keysDown = {}, locked = false, lastShot = 0, flashUntil = 0, hurtUntil = 0, popups = [], startTime = 0, sessionTotal = 0, gameOver = false, winShown = false;
 var isTouch = ("ontouchstart" in window) && !window.matchMedia("(pointer:fine)").matches;
@@ -545,7 +568,7 @@ function buildLevel(spec, sourceLabel, art) {
   }
   if (S.wallOverride && S.art) S.art.wallTex = null;
   if (S.wallTexture === "picked" && S.wallTextureUrl) { (function (url) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["picked"] = c; }; wi.onerror = function () { document.getElementById("status").textContent = "That texture did not load, keeping the last wall."; }; wi.src = url; })(S.wallTextureUrl); }
-  S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true };
+  S.player = { x: S.playerStart.x + 0.5, y: S.playerStart.y + 0.5, angle: (S.playerStart.angle || 0) * Math.PI / 180, hp: 100, armor: 0, z: 0, vz: 0, grounded: true, pitch: 0 };
   if (S.gameType === "sidescroll") { S.player.vx = 0; S.player.vy = 0; S.player.facing = 1; S.player.grounded = false; }
   var w0 = (S.weapons && S.weapons[0]) || { type: "pistol", damage: 20, ammo: 12 };
   var wt = WEAPON_TYPES[w0.type] || WEAPON_TYPES.pistol;
@@ -556,6 +579,11 @@ function buildLevel(spec, sourceLabel, art) {
   if (S.customWallImg) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["custom"] = c; }; wi.src = S.customWallImg; }
   S.enemies.forEach(function (e, i) { var raw = (spec.enemies || [])[i]; if (raw && raw.imgSrc) { var im = new Image(); im.src = raw.imgSrc; e.img = im; } });
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
+  var wantGL = (S.gameType === "3d");
+  S.useGL = wantGL && initGL();
+  if (S.useGL) buildGLLevel();
+  document.getElementById("game").style.display = S.useGL ? "none" : "block";
+  glCanvas.style.display = S.useGL ? "block" : "none";
   document.getElementById("overlay").style.display = isTouch ? "none" : "flex";
   refreshTouchUI();
   document.getElementById("overlay").innerHTML = "Click to play<br><span style=\"font-size:16px\">WASD move &nbsp; Mouse look &nbsp; Click shoot &nbsp; Space jump &nbsp; R reload &nbsp; Shift run</span>" + (S.questIntro ? "<br><span style=\"font-size:18px\">" + esc(S.questIntro) + "</span>" : "");
@@ -688,6 +716,201 @@ function render() {
   document.getElementById("vignette").style.boxShadow = Date.now() < hurtUntil ? "inset 0 0 90px 30px rgba(255,0,0,0.55)" : "inset 0 0 90px 30px rgba(255,0,0,0)";
 }
 
+/* ============ True 3D engine: raw WebGL, zero libraries ============ */
+function lockCanvas() { return (S && S.gameType === "3d" && S.useGL) ? glCanvas : canvas; }
+var GL = { ok: false, gl: null, prog: null, aPos: 0, aTex: 0, uMVP: null, uTex: null, uTint: null, wallBuf: null, wallCount: 0, doorBuf: null, doorCount: 0, floorBuf: null, ceilBuf: null, wallTex: null, floorTex: null, ceilTex: null, whiteTex: null, boxBuf: null, quadBuf: null, spriteCache: {}, spriteTexCache: {} };
+var glFrames = 0;
+var VS3D = "attribute vec3 aPos; attribute vec2 aTex; uniform mat4 uMVP; varying vec2 vTex; void main(){ vTex = aTex; gl_Position = uMVP * vec4(aPos, 1.0); }";
+var FS3D = "precision mediump float; varying vec2 vTex; uniform sampler2D uTex; uniform vec4 uTint; void main(){ vec4 c = texture2D(uTex, vTex); if (c.a < 0.5) discard; gl_FragColor = c * uTint; }";
+function m4Identity() { return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]; }
+function m4Multiply(a, b) { var o = new Array(16); for (var c = 0; c < 4; c++) for (var r = 0; r < 4; r++) { var s = 0; for (var k = 0; k < 4; k++) s += a[k*4+r] * b[c*4+k]; o[c*4+r] = s; } return o; }
+function m4Perspective(fov, aspect, near, far) { var f = 1 / Math.tan(fov / 2); var nf = 1 / (near - far); return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]; }
+function m4LookAt(ex, ey, ez, tx, ty, tz) {
+  var fx = tx - ex, fy = ty - ey, fz = tz - ez; var fl = Math.sqrt(fx*fx + fy*fy + fz*fz) || 1; fx /= fl; fy /= fl; fz /= fl;
+  var rx = -fz, ry = 0, rz = fx; var rl = Math.sqrt(rx*rx + ry*ry + rz*rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+  var ux = ry * fz - rz * fy, uy = rz * fx - rx * fz, uz = rx * fy - ry * fx;
+  return [rx, ux, -fx, 0, ry, uy, -fy, 0, rz, uz, -fz, 0, -(rx*ex + ry*ey + rz*ez), -(ux*ex + uy*ey + uz*ez), fx*ex + fy*ey + fz*ez, 1];
+}
+function m4Translate(x, y, z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }
+function m4RotateY(a) { var c = Math.cos(a), s = Math.sin(a); return [c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]; }
+function m4Scale(x, y, z) { return [x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1]; }
+function glBuf(data) { var b = GL.gl.createBuffer(); GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, b); GL.gl.bufferData(GL.gl.ARRAY_BUFFER, new Float32Array(data), GL.gl.STATIC_DRAW); return b; }
+function quadPush(out, ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, u0, v0, u1, v1) {
+  out.push(ax, ay, az, u0, v0, bx, by, bz, u1, v0, cx, cy, cz, u1, v1, ax, ay, az, u0, v0, cx, cy, cz, u1, v1, dx, dy, dz, u0, v1);
+}
+function boxVerts(ox, oy, oz) {
+  var v = [];
+  quadPush(v, ox, oy, oz + 1, ox + 1, oy, oz + 1, ox + 1, oy + 1, oz + 1, ox, oy + 1, oz + 1, 0, 0, 1, 1);
+  quadPush(v, ox + 1, oy, oz, ox, oy, oz, ox, oy + 1, oz, ox + 1, oy + 1, oz, 0, 0, 1, 1);
+  quadPush(v, ox, oy, oz, ox + 1, oy, oz, ox + 1, oy, oz + 1, ox, oy, oz + 1, 0, 0, 1, 1);
+  quadPush(v, ox, oy + 1, oz + 1, ox + 1, oy + 1, oz + 1, ox + 1, oy + 1, oz, ox, oy + 1, oz, 0, 0, 1, 1);
+  quadPush(v, ox, oy, oz, ox, oy, oz + 1, ox, oy + 1, oz + 1, ox, oy + 1, oz, 0, 0, 1, 1);
+  quadPush(v, ox + 1, oy, oz + 1, ox + 1, oy, oz, ox + 1, oy + 1, oz, ox + 1, oy + 1, oz + 1, 0, 0, 1, 1);
+  return v;
+}
+function floorQuadVerts(y, w, h) {
+  var v = [];
+  quadPush(v, 0, y, 0, w, y, 0, w, y, h, 0, y, h, 0, 0, w, h);
+  return v;
+}
+function billboardVerts() {
+  var v = [];
+  quadPush(v, -0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0, 0, 0, 1, 1);
+  return v;
+}
+function glTexFromSource(src, repeat) {
+  try {
+    var gl = GL.gl, t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return t;
+  } catch (e) { return null; }
+}
+function shadeHex(hex, f) {
+  var n = parseInt(String(hex || "#333").replace("#", ""), 16);
+  if (isNaN(n)) n = 0x333333;
+  var r = Math.min(255, Math.floor(((n >> 16) & 255) * f)), g = Math.min(255, Math.floor(((n >> 8) & 255) * f)), b = Math.min(255, Math.floor((n & 255) * f));
+  return "rgb(" + r + "," + g + "," + b + ")";
+}
+function floorCanvas(color) {
+  var c = document.createElement("canvas"); c.width = 64; c.height = 64;
+  var g = c.getContext("2d");
+  g.fillStyle = color; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = shadeHex(color, 0.65);
+  g.fillRect(0, 0, 32, 32); g.fillRect(32, 32, 32, 32);
+  return c;
+}
+function parseHex01(hex) {
+  var n = parseInt(String(hex || "#000").replace("#", ""), 16);
+  if (isNaN(n)) n = 0;
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+function initGL() {
+  if (GL.ok) return true;
+  if (!glCanvas) return false;
+  var gl = null;
+  try { gl = glCanvas.getContext("webgl", { antialias: true }) || glCanvas.getContext("experimental-webgl"); } catch (e) {}
+  if (!gl) return false;
+  GL.gl = gl;
+  function compile(type, src) { var sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh); return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null; }
+  var vs = compile(gl.VERTEX_SHADER, VS3D), fs = compile(gl.FRAGMENT_SHADER, FS3D);
+  if (!vs || !fs) return false;
+  var prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+  gl.useProgram(prog);
+  GL.prog = prog;
+  GL.aPos = gl.getAttribLocation(prog, "aPos"); GL.aTex = gl.getAttribLocation(prog, "aTex");
+  GL.uMVP = gl.getUniformLocation(prog, "uMVP"); GL.uTex = gl.getUniformLocation(prog, "uTex"); GL.uTint = gl.getUniformLocation(prog, "uTint");
+  gl.enableVertexAttribArray(GL.aPos); gl.enableVertexAttribArray(GL.aTex);
+  gl.disable(gl.CULL_FACE); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+  GL.boxBuf = glBuf(boxVerts(0, 0, 0));
+  GL.quadBuf = glBuf(billboardVerts());
+  var white = document.createElement("canvas"); white.width = 1; white.height = 1;
+  white.getContext("2d").fillStyle = "#fff"; white.getContext("2d").fillRect(0, 0, 1, 1);
+  GL.whiteTex = glTexFromSource(white, false);
+  GL.ok = true; return true;
+}
+function buildGLLevel() {
+  if (!GL.ok || !S) return;
+  var map = S.map, mh = map.length, mw = map[0].length, wall = [], door = [];
+  for (var y = 0; y < mh; y++) for (var x = 0; x < mw; x++) {
+    if (map[y][x] === 1) wall.push.apply(wall, boxVerts(x, 0, y));
+    else if (map[y][x] === 2) door.push.apply(door, boxVerts(x, 0, y));
+  }
+  GL.wallBuf = glBuf(wall); GL.wallCount = wall.length / 5;
+  GL.doorBuf = glBuf(door); GL.doorCount = door.length / 5;
+  GL.floorBuf = glBuf(floorQuadVerts(0, mw, mh));
+  GL.ceilBuf = glBuf(floorQuadVerts(1, mw, mh));
+  var wt = (S.art && S.art.wallTex) || TEXTURES[S.wallTexture] || TEXTURES.brick;
+  GL.wallTex = glTexFromSource(wt, false) || glTexFromSource(TEXTURES.brick, false);
+  GL.floorTex = glTexFromSource(floorCanvas(S.floorColor || "#2a1a12"), true);
+  GL.ceilTex = glTexFromSource(floorCanvas(S.ceilingColor || "#0a0a18"), true);
+  GL.spriteCache = {}; GL.spriteTexCache = {};
+}
+function enemySpriteCanvas(e) {
+  var key = (e.type || "?") + "|" + (e.color || "");
+  if (GL.spriteCache[key]) return GL.spriteCache[key];
+  var c = document.createElement("canvas"); c.width = 64; c.height = 64;
+  var g = c.getContext("2d"), cx = 32, cy = 34, r = 20;
+  g.fillStyle = e.color || "#ff00ff";
+  if (e.shape === "brute") g.fillRect(cx - r, cy - r, r * 2, r * 2);
+  else if (e.shape === "flyer") { g.beginPath(); g.ellipse(cx, cy, r * 1.1, r * 0.7, 0, 0, Math.PI * 2); g.fill(); }
+  else if (e.shape === "spiky") { g.beginPath(); for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2, rr = i % 2 === 0 ? r * 1.3 : r * 0.7, px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py); } g.closePath(); g.fill(); }
+  else if (e.shape === "turret") { g.fillRect(cx - r, cy - r * 0.6, r * 2, r * 1.2); g.fillRect(cx - r * 0.3, cy - r * 1.3, r * 0.6, r * 0.8); }
+  else { g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = "#000";
+  g.beginPath(); g.arc(cx - 7, cy - 4, 3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(cx + 7, cy - 4, 3, 0, Math.PI * 2); g.fill();
+  GL.spriteCache[key] = c; return c;
+}
+function spriteTexFor(e) {
+  var key = e.type || "?";
+  if (GL.spriteTexCache[key]) return GL.spriteTexCache[key];
+  var tex = null;
+  if (e.img && e.img.width) { try { tex = glTexFromSource(e.img, false); } catch (err) { tex = null; } }
+  if (!tex) tex = glTexFromSource(enemySpriteCanvas(e), false);
+  GL.spriteTexCache[key] = tex; return tex;
+}
+function glDraw(buf, count, tex, tint, mvp) {
+  var gl = GL.gl;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.vertexAttribPointer(GL.aPos, 3, gl.FLOAT, false, 20, 0);
+  gl.vertexAttribPointer(GL.aTex, 2, gl.FLOAT, false, 20, 12);
+  gl.uniformMatrix4fv(GL.uMVP, false, mvp);
+  gl.uniform4fv(GL.uTint, tint);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.uniform1i(GL.uTex, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, count);
+}
+function render3D() {
+  if (!S) return;
+  if (!S.useGL || !GL.ok) {
+    render();
+    ctx.fillStyle = "#fff"; ctx.font = "16px sans-serif";
+    ctx.fillText("WebGL unavailable in this browser — showing 2.5D view", 12, 24);
+    return;
+  }
+  var gl = GL.gl, p = S.player;
+  gl.viewport(0, 0, W, H);
+  var cc = parseHex01(S.ceilingColor || "#0a0a18");
+  gl.clearColor(cc[0], cc[1], cc[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  var pitch = p.pitch || 0;
+  var fx = Math.cos(pitch) * Math.cos(p.angle), fy = Math.sin(pitch), fz = Math.cos(pitch) * Math.sin(p.angle);
+  var eyeY = 0.5 + (p.z || 0) * 0.35;
+  var view = m4LookAt(p.x, eyeY, p.y, p.x + fx, eyeY + fy, p.y + fz);
+  var proj = m4Perspective(70 * Math.PI / 180, W / H, 0.05, 60);
+  var vp = m4Multiply(proj, view);
+  glDraw(GL.floorBuf, 6, GL.floorTex, [1, 1, 1, 1], vp);
+  glDraw(GL.ceilBuf, 6, GL.ceilTex, [1, 1, 1, 1], vp);
+  if (GL.wallCount) glDraw(GL.wallBuf, GL.wallCount, GL.wallTex, [1, 1, 1, 1], vp);
+  if (GL.doorCount) glDraw(GL.doorBuf, GL.doorCount, GL.wallTex, [1, 0.8, 0.4, 1], vp);
+  if (S.goal && S.goal.type !== "eliminate-all") {
+    var yawE = Math.atan2(p.x - (S.goal.exitX + 0.5), p.y - (S.goal.exitY + 0.5));
+    var em = m4Multiply(m4Translate(S.goal.exitX + 0.5, 0.5, S.goal.exitY + 0.5), m4Multiply(m4RotateY(yawE), m4Scale(0.9, 1, 1)));
+    glDraw(GL.quadBuf, 6, GL.whiteTex, [0.2, 1, 0.4, 1], m4Multiply(vp, em));
+  }
+  var t = Date.now() / 1000;
+  S.pickups.forEach(function (pk) {
+    var col = pk.type === "health" ? [0.2, 1, 0.4, 1] : pk.type === "ammo" ? [1, 0.85, 0.1, 1] : pk.type === "armor" ? [0.25, 0.5, 1, 1] : [1, 0.8, 0.1, 1];
+    var bob = 0.35 + Math.sin(t * 3 + pk.x) * 0.05;
+    var m = m4Multiply(m4Translate(pk.x - 0.15, bob, pk.y - 0.15), m4Scale(0.3, 0.3, 0.3));
+    glDraw(GL.boxBuf, 36, GL.whiteTex, col, m4Multiply(vp, m));
+  });
+  S.enemies.forEach(function (e) {
+    var yaw = Math.atan2(p.x - e.x, p.y - e.y);
+    var m = m4Multiply(m4Translate(e.x, 0.45, e.y), m4Multiply(m4RotateY(yaw), m4Scale(0.7, 0.9, 1)));
+    glDraw(GL.quadBuf, 6, spriteTexFor(e), [1, 1, 1, 1], m4Multiply(vp, m));
+  });
+  glFrames++;
+}
+
 /* ============ Update ============ */
 function tryMove(nx, ny) { if (!isWall(Math.floor(nx), Math.floor(ny))) { S.player.x = nx; S.player.y = ny; return true; } return false; }
 function update(dt) {
@@ -787,8 +1010,8 @@ function retryLevel() {
   if (!S) return;
   var spec = lastSpec ? JSON.parse(JSON.stringify(lastSpec)) : S;
   buildLevel(spec, "Retry", lastArt);
-  if (S.gameType === "fps" && !isTouch) {
-    try { var p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  if ((S.gameType === "fps" || S.gameType === "3d") && !isTouch) {
+    try { var lc0 = lockCanvas(); var p = lc0.requestPointerLock && lc0.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
   } else { document.getElementById("overlay").style.display = "none"; }
 }
 document.addEventListener("keydown", function (e) {
@@ -808,12 +1031,20 @@ document.addEventListener("keydown", function (e) {
   }
 });
 document.addEventListener("keyup", function (e) { keysDown[e.key.toLowerCase()] = false; });
-document.addEventListener("mousemove", function (e) { if (locked && S) S.player.angle += e.movementX * 0.0022; });
+document.addEventListener("mousemove", function (e) { if (locked && S) { S.player.angle += e.movementX * 0.0022; if (S.gameType === "3d") S.player.pitch = clamp((S.player.pitch || 0) - e.movementY * 0.0022, -1.2, 1.2); } });
 canvas.addEventListener("click", function () {
   if (gameOver) { retryLevel(); return; }
-  if (S && S.gameType !== "fps") { shoot2D(); return; }
+  if (S && S.gameType !== "fps" && S.gameType !== "3d") { shoot2D(); return; }
   if (isTouch) return;
-  if (!locked) { canvas.requestPointerLock && canvas.requestPointerLock(); return; }
+  var lc = lockCanvas();
+  if (!locked) { lc.requestPointerLock && lc.requestPointerLock(); return; }
+  shoot();
+});
+glCanvas.addEventListener("click", function () {
+  if (gameOver) { retryLevel(); return; }
+  if (isTouch) return;
+  var lc = lockCanvas();
+  if (!locked) { lc.requestPointerLock && lc.requestPointerLock(); return; }
   shoot();
 });
 canvas.addEventListener("mousemove", function (e) {
@@ -823,12 +1054,13 @@ canvas.addEventListener("mousemove", function (e) {
 document.getElementById("overlay").addEventListener("click", function () {
   if (gameOver) { retryLevel(); return; }
   if (isTouch) { document.getElementById("overlay").style.display = "none"; return; }
-  if (S && S.gameType !== "fps") { document.getElementById("overlay").style.display = "none"; return; }
-  var p = canvas.requestPointerLock && canvas.requestPointerLock();
+  if (S && S.gameType !== "fps" && S.gameType !== "3d") { document.getElementById("overlay").style.display = "none"; return; }
+  var lc2 = lockCanvas();
+  var p = lc2.requestPointerLock && lc2.requestPointerLock();
   if (p && p.catch) p.catch(function (err) { document.getElementById("status").textContent = "Pointer lock blocked: " + (err && err.message ? err.message : err) + ". Try clicking again in a second."; });
 });
 document.addEventListener("pointerlockchange", function () {
-  locked = document.pointerLockElement === canvas;
+  locked = document.pointerLockElement === canvas || document.pointerLockElement === glCanvas;
   document.getElementById("overlay").style.display = (locked || isTouch) ? "none" : "flex";
 });
 
@@ -854,7 +1086,7 @@ function bindTouchBtn(id, fn) {
 }
 if (isTouch) {
   document.getElementById("touchNote").textContent = "Touch controls: left stick moves, drag the game to look or aim, FIRE to shoot.";
-  bindTouchBtn("fireBtn", function () { if (!S || gameOver) return; if (S.gameType === "fps") shoot(); else shoot2D(); });
+  bindTouchBtn("fireBtn", function () { if (!S || gameOver) return; if (S.gameType === "fps" || S.gameType === "3d") shoot(); else shoot2D(); });
   bindTouchBtn("jumpBtn", touchJump);
   bindTouchBtn("reloadBtn", touchReload);
   (function () {
@@ -884,10 +1116,10 @@ if (isTouch) {
     zone.addEventListener("touchcancel", endJoy);
   })();
   (function () {
-    var lookId = null, lastX = 0;
+    var lookId = null, lastX = 0, lastY = 0;
     canvas.addEventListener("touchstart", function (e) {
       e.preventDefault();
-      var t = e.changedTouches[0]; lookId = t.identifier; lastX = t.clientX;
+      var t = e.changedTouches[0]; lookId = t.identifier; lastX = t.clientX; lastY = t.clientY;
       var r = canvas.getBoundingClientRect();
       if (S) { S.mouseX = (t.clientX - r.left) / r.width * W; S.mouseY = (t.clientY - r.top) / r.height * H; }
     }, { passive: false });
@@ -895,8 +1127,8 @@ if (isTouch) {
       e.preventDefault();
       for (var i = 0; i < e.changedTouches.length; i++) {
         var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
-        var dx = t.clientX - lastX; lastX = t.clientX;
-        if (S && S.gameType === "fps") S.player.angle += dx * 0.0045;
+        var dx = t.clientX - lastX, dy = t.clientY - lastY; lastX = t.clientX; lastY = t.clientY;
+        if (S && (S.gameType === "fps" || S.gameType === "3d")) { S.player.angle += dx * 0.0045; if (S.gameType === "3d") S.player.pitch = clamp((S.player.pitch || 0) - dy * 0.0045, -1.2, 1.2); }
         var r = canvas.getBoundingClientRect();
         if (S) { S.mouseX = (t.clientX - r.left) / r.width * W; S.mouseY = (t.clientY - r.top) / r.height * H; }
       }
@@ -907,6 +1139,27 @@ if (isTouch) {
     }
     canvas.addEventListener("touchend", endLook);
     canvas.addEventListener("touchcancel", endLook);
+  })();
+  (function () {
+    var lookId = null, lastX = 0, lastY = 0;
+    glCanvas.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      var t = e.changedTouches[0]; lookId = t.identifier; lastX = t.clientX; lastY = t.clientY;
+    }, { passive: false });
+    glCanvas.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i]; if (t.identifier !== lookId) continue;
+        var dx = t.clientX - lastX, dy = t.clientY - lastY; lastX = t.clientX; lastY = t.clientY;
+        if (S && S.gameType === "3d") { S.player.angle += dx * 0.0045; S.player.pitch = clamp((S.player.pitch || 0) - dy * 0.0045, -1.2, 1.2); }
+      }
+    }, { passive: false });
+    function endLookGL(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === lookId) lookId = null;
+      if (gameOver) retryLevel();
+    }
+    glCanvas.addEventListener("touchend", endLookGL);
+    glCanvas.addEventListener("touchcancel", endLookGL);
   })();
 }
 
@@ -2527,6 +2780,7 @@ function loop(now) {
   if (S) {
     if (S.gameType === "topview") { updateTop(dt); renderTop(); }
     else if (S.gameType === "sidescroll") { updateSide(dt); renderSide(); }
+    else if (S.gameType === "3d") { update(dt); render3D(); }
     else { update(dt); render(); }
   }
   requestAnimationFrame(loop);
