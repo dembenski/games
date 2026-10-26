@@ -77,11 +77,41 @@
   </div>
   <div id="advancedBox" style="display:none">
     <div class="bar">
-      <label>Game type:
+      <label>Genre:
         <select id="typeSelect">
-          <option value="fps">FPS (2.5D)</option>
-          <option value="topview">Top-view shooter</option>
-          <option value="sidescroll">Side-scroll shooter</option>
+          <optgroup label="First-person (2.5D raycast)">
+            <option value="fps">FPS - Classic shooter</option>
+            <option value="fps-zombie">FPS - Zombie survival</option>
+            <option value="fps-dungeon">FPS - Dungeon crawler</option>
+            <option value="fps-horror">FPS - Horror / haunted house</option>
+            <option value="fps-arena">FPS - Arena deathmatch</option>
+            <option value="fps-scifi">FPS - Sci-fi station shooter</option>
+            <option value="fps-western">FPS - Western shootout</option>
+            <option value="fps-cyber">FPS - Cyberpunk street shooter</option>
+            <option value="fps-pirate">FPS - Pirate ship raid</option>
+          </optgroup>
+          <optgroup label="Top-down">
+            <option value="topview">Top-down - Classic shooter</option>
+            <option value="topview-twinstick">Top-down - Twin-stick arena</option>
+            <option value="topview-dungeon">Top-down - Dungeon crawler</option>
+            <option value="topview-zombie">Top-down - Zombie survival</option>
+            <option value="topview-stealth">Top-down - Stealth infiltrator</option>
+            <option value="topview-tank">Top-down - Tank battle</option>
+            <option value="topview-survival">Top-down - Wilderness survival</option>
+            <option value="topview-heist">Top-down - Heist crew</option>
+            <option value="topview-alien">Top-down - Alien invasion</option>
+          </optgroup>
+          <optgroup label="Side view">
+            <option value="sidescroll">Side-scroll - Classic shooter</option>
+            <option value="sidescroll-run">Side-scroll - Run-and-gun</option>
+            <option value="sidescroll-space">Side-scroll - Space shooter</option>
+            <option value="sidescroll-jungle">Side-scroll - Jungle adventure</option>
+            <option value="sidescroll-castle">Side-scroll - Castle platformer</option>
+            <option value="sidescroll-robot">Side-scroll - Robot factory run</option>
+            <option value="sidescroll-snow">Side-scroll - Snow mountain climb</option>
+            <option value="sidescroll-haunted">Side-scroll - Haunted mansion</option>
+            <option value="sidescroll-sea">Side-scroll - Deep-sea dive</option>
+          </optgroup>
         </select>
       </label>
       <label>Art:
@@ -218,7 +248,7 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect + genre dropdown: 27 genres across 3 engines.</div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -231,6 +261,38 @@ var CONFIG = {
 var SYSTEM_PROMPT = "You are a 2.5D FPS level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW level every time: a new layout (rooms, corridors, arenas, plazas, choke points — never copy the demo castle), 2-5 brand-new enemy types, and matching art direction. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
 var SYSTEM_PROMPT_TOP = "You are a 2D top-down shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW top-down arena every time: rooms, corridors, arenas, choke points viewed from above, never copy the demo castle. Map tiles: 0 open, 1 wall, 2 locked door. Map 12-24 tiles each side, all border tiles walls. Player start on an open tile. Spec shape: {gameType: 'topview', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
 var SYSTEM_PROMPT_SIDE = "You are a 2D side-scrolling shooter level designer. You ALWAYS answer with valid JSON only, no prose, no markdown fences. Design a BRAND-NEW side-scrolling level every time: platforms, gaps, and solid ground viewed from the side, never copy the demo castle. Map tiles: 0 open air, 1 solid ground or platform, 2 locked door. Map 16-24 tiles wide, 10-14 tiles tall. Bottom row all solid. Player start on an open tile standing on solid ground. Enemies stand on platforms or solid ground. Jump height is about 2 tiles, so platforms must be reachable by jumps of 1-2 tiles and gaps of 1-2 tiles. Spec shape: {gameType: 'sidescroll', title, theme, map, wallTexture, floorColor, ceilingColor, playerStart, weapons, enemyTypes, enemies, pickups, goal, artDirection}. enemyTypes: up to 8 entries {id, name, color (hex), hp 10-200, speed 0-3, damage 1-50, behavior: chase, wander, turret or patrol, shape: brute, flyer, blob or spiky, look: one short visual description}. Enemies: max 20, each {type: an enemyTypes id, x, y, health, speed, damage}. Weapons only from: pistol, shotgun, blaster, rifle (max 4). Pickups only from: health, ammo, armor, key (max 30). Wall texture only from: brick, castle-brick, neon-grid, cave-rock, tech-panel, wood. Goal only from: eliminate-all, key-hunt, reach-exit. artDirection: {style: one line, wallPrompt: one short image prompt for the wall texture, spriteStyle: one line}. Patrol enemies carry a path array of waypoint tiles, like {type, x, y, health, speed, damage, path: [{x, y}]}; waypoints must be open tiles. Also include questIntro: one lively sentence setting up the mission, and questWin: one celebratory sentence for victory. Keep every number inside the stated caps.";
+/* ============ Genre dropdown: every genre maps to one of the 3 real engines ============ */
+var GENRES = [
+  {id:"fps", label:"FPS - Classic shooter", engine:"fps", flavor:""},
+  {id:"fps-zombie", label:"FPS - Zombie survival", engine:"fps", flavor:"GENRE: Zombie survival. Enemies are zombies and undead horrors, the goal is usually eliminate-all, and the theme, enemy looks, and quest text should feel like a zombie outbreak."},
+  {id:"fps-dungeon", label:"FPS - Dungeon crawler", engine:"fps", flavor:"GENRE: First-person dungeon crawler. Stone halls, torches, locked doors, treasure keys, and monsters like skeletons, mimics, and a dungeon boss; the goal is usually key-hunt or reach-exit."},
+  {id:"fps-horror", label:"FPS - Horror / haunted house", engine:"fps", flavor:"GENRE: First-person horror. A creepy haunted house or asylum, dim rooms, ghosts and jump-scare monsters, and quest text that is spooky but playful, never gory."},
+  {id:"fps-arena", label:"FPS - Arena deathmatch", engine:"fps", flavor:"GENRE: Arena deathmatch. One open combat arena with cover pillars, fast monsters that rush the player, and an eliminate-all goal."},
+  {id:"fps-scifi", label:"FPS - Sci-fi station shooter", engine:"fps", flavor:"GENRE: Sci-fi station shooter. A high-tech space station with tech-panel walls, robots, drones, and alien creatures; weapons feel futuristic."},
+  {id:"fps-western", label:"FPS - Western shootout", engine:"fps", flavor:"GENRE: Western shootout. A dusty frontier town with wooden walls, bandits, and a showdown feel; the goal is usually eliminate-all."},
+  {id:"fps-cyber", label:"FPS - Cyberpunk street shooter", engine:"fps", flavor:"GENRE: Cyberpunk street shooter. Neon-grid streets, hacker enemies, security drones, and a rainy neon city feel."},
+  {id:"fps-pirate", label:"FPS - Pirate ship raid", engine:"fps", flavor:"GENRE: Pirate ship raid. Wooden ship decks and cabins, pirate skeletons and cutthroat crew, treasure keys, and a reach-exit escape goal."},
+  {id:"topview", label:"Top-down - Classic shooter", engine:"topview", flavor:""},
+  {id:"topview-twinstick", label:"Top-down - Twin-stick arena", engine:"topview", flavor:"GENRE: Twin-stick arena. A wide open arena with scattered cover, waves of fast chasers, and an eliminate-all goal."},
+  {id:"topview-dungeon", label:"Top-down - Dungeon crawler", engine:"topview", flavor:"GENRE: Top-down dungeon crawler. Stone rooms and corridors seen from above, skeletons and slimes, keys and locked doors, and a key-hunt or reach-exit goal."},
+  {id:"topview-zombie", label:"Top-down - Zombie survival", engine:"topview", flavor:"GENRE: Top-down zombie survival. Streets or a mall overrun by zombies, slow shamblers and fast runners, and an eliminate-all goal."},
+  {id:"topview-stealth", label:"Top-down - Stealth infiltrator", engine:"topview", flavor:"GENRE: Top-down stealth infiltrator. Guard patrols with patrol paths, cameras as turrets, keys to steal, and a reach-exit goal; favor patrol and turret behaviors."},
+  {id:"topview-tank", label:"Top-down - Tank battle", engine:"topview", flavor:"GENRE: Top-down tank battle. An open battlefield, armored enemy vehicles as brutes, turret bunkers, and an eliminate-all goal."},
+  {id:"topview-survival", label:"Top-down - Wilderness survival", engine:"topview", flavor:"GENRE: Top-down wilderness survival. A forest or island clearing, wild beasts and hunters, health and ammo caches, and an eliminate-all or reach-exit goal."},
+  {id:"topview-heist", label:"Top-down - Heist crew", engine:"topview", flavor:"GENRE: Top-down heist. A bank or vault floor plan, guard patrols, locked doors, keys to grab, and a reach-exit getaway goal."},
+  {id:"topview-alien", label:"Top-down - Alien invasion", engine:"topview", flavor:"GENRE: Top-down alien invasion. A crashed saucer site or colony, alien flyers and blobs, tech-panel walls, and an eliminate-all goal."},
+  {id:"sidescroll", label:"Side-scroll - Classic shooter", engine:"sidescroll", flavor:""},
+  {id:"sidescroll-run", label:"Side-scroll - Run-and-gun", engine:"sidescroll", flavor:"GENRE: Run-and-gun platformer. A fast left-to-right gauntlet of platforms, gaps of 1-2 tiles, gun-toting enemies on platforms, and a reach-exit goal."},
+  {id:"sidescroll-space", label:"Side-scroll - Space shooter", engine:"sidescroll", flavor:"GENRE: Side-view space shooter. Platforms as asteroids and ship hulls, alien flyers, and a reach-exit goal across the level."},
+  {id:"sidescroll-jungle", label:"Side-scroll - Jungle adventure", engine:"sidescroll", flavor:"GENRE: Jungle adventure platformer. Vine platforms, temple stone, snakes and beast enemies, and a reach-exit goal."},
+  {id:"sidescroll-castle", label:"Side-scroll - Castle platformer", engine:"sidescroll", flavor:"GENRE: Castle platformer. Castle-brick towers and bridges, skeleton and bat enemies, and a reach-exit climb to the summit."},
+  {id:"sidescroll-robot", label:"Side-scroll - Robot factory run", engine:"sidescroll", flavor:"GENRE: Robot factory run. Tech-panel factory floors, conveyor platforms, robot drones and turrets, and a reach-exit goal."},
+  {id:"sidescroll-snow", label:"Side-scroll - Snow mountain climb", engine:"sidescroll", flavor:"GENRE: Snow mountain climb. Icy platforms, yeti brutes and ice wisps, and a reach-exit goal up the mountain."},
+  {id:"sidescroll-haunted", label:"Side-scroll - Haunted mansion", engine:"sidescroll", flavor:"GENRE: Haunted mansion platformer. Spooky rooms, ghost flyers, and a reach-exit escape goal."},
+  {id:"sidescroll-sea", label:"Side-scroll - Deep-sea dive", engine:"sidescroll", flavor:"GENRE: Deep-sea dive. Underwater platforms as coral and wrecks, sea creature enemies, and a reach-exit goal."}
+];
+function genreById(id) { for (var i = 0; i < GENRES.length; i++) if (GENRES[i].id === id) return GENRES[i]; return GENRES[0]; }
+function sysPromptForGenre(g) { var base = g.engine === "topview" ? SYSTEM_PROMPT_TOP : g.engine === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT; return g.flavor ? base + "\n" + g.flavor + " Design the level, enemies, theme, and quest text to match this genre while keeping every number inside the stated caps." : base; }
 var CAPS = { mapMax: 24, enemiesMax: 20, weaponsMax: 4, pickupsMax: 30, typesMax: 8, hpMin: 10, hpMax: 200, spdMin: 0.5, spdMax: 3, dmgMin: 1, dmgMax: 50 };
 var ENEMY_TYPES = { skeleton: { color: "#e8e8e8", hp: 30, speed: 1.1, damage: 10 }, zombie: { color: "#5fbf3f", hp: 50, speed: 0.7, damage: 14 }, ghost: { color: "#cfd8ff", hp: 25, speed: 1.6, damage: 8 }, goblin: { color: "#ff8c2e", hp: 35, speed: 1.3, damage: 12 }, bat: { color: "#b26ae5", hp: 15, speed: 2.0, damage: 6 }, turret: { color: "#9aa0a6", hp: 60, speed: 0, damage: 16 } };
 var WEAPON_TYPES = { pistol: { damage: 20, ammo: 12, range: 8, rate: 300 }, shotgun: { damage: 34, ammo: 8, range: 7, rate: 550 }, blaster: { damage: 28, ammo: 20, range: 9, rate: 220 }, rifle: { damage: 45, ammo: 10, range: 12, rate: 450 } };
@@ -940,8 +1002,9 @@ document.getElementById("generateBtn").addEventListener("click", async function 
   var prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
   var provider = document.getElementById("providerSelect").value;
-  var type = document.getElementById("typeSelect").value;
-  var sysPrompt = type === "topview" ? SYSTEM_PROMPT_TOP : type === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT;
+  var genre = genreById(document.getElementById("typeSelect").value);
+  var type = genre.engine;
+  var sysPrompt = sysPromptForGenre(genre);
   if (!keyFor(provider)) { document.getElementById("status").textContent = "Enter your API key first (Saved in this browser only). The demo castle still plays without one."; return; }
   var btn = document.getElementById("generateBtn"); btn.disabled = true;
   document.getElementById("status").textContent = "Thinking with " + provider + "...";
@@ -973,9 +1036,10 @@ document.getElementById("generateBtn").addEventListener("click", async function 
       applyWallPref(spec);
       applyDifficulty(spec);
       applyBoss(spec);
+      spec.genre = genre.id;
       buildLevel(spec, "Generated (" + provider + ")", art);
       var artNote = art.needKey ? " AI art needs a saved Meta key — painted art used instead." : art.images > 0 ? " Art: " + art.images + " AI images (Meta, about $" + (art.images * 0.01).toFixed(2) + ")." : (artMode === "painted" ? " Art: painted (free)." : " Art: procedural (image generation unavailable" + (art.artFail ? "; Meta art failed: " + art.artFail : "") + ").");
-      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + type + ") with " + provider + "." + artNote + (spec.difficulty && spec.difficulty !== "normal" ? " Difficulty: " + spec.difficulty + "." : "") + " Click the game to play.";
+      document.getElementById("status").textContent = "Built: " + (spec.title || "Untitled") + " (" + genre.label + ") with " + provider + "." + artNote + (spec.difficulty && spec.difficulty !== "normal" ? " Difficulty: " + spec.difficulty + "." : "") + " Click the game to play.";
       if (art.images > 0) logFeed("Art: " + art.images + " AI images via Meta Muse Image.");
     }
     }
@@ -1284,7 +1348,8 @@ function instantLevel(type) {
   return spec;
 }
 document.getElementById("instantBtn").addEventListener("click", function () {
-  var type = document.getElementById("typeSelect").value;
+  var genre = genreById(document.getElementById("typeSelect").value);
+  var type = genre.engine;
   var spec = repairSpec(instantLevel(type));
   if (!validateSpec(spec).ok) spec = fallbackFor(type);
   applyWallPref(spec); applyDifficulty(spec); applyBoss(spec);
@@ -1296,8 +1361,9 @@ document.getElementById("remixBtn").addEventListener("click", async function () 
   if (!inst) { document.getElementById("status").textContent = "Type a remix wish first (like: make it scarier)."; return; }
   if (!lastSpec) { document.getElementById("status").textContent = "No level to remix yet."; return; }
   var provider = document.getElementById("providerSelect").value;
-  var type = document.getElementById("typeSelect").value;
-  var sysPrompt = type === "topview" ? SYSTEM_PROMPT_TOP : type === "sidescroll" ? SYSTEM_PROMPT_SIDE : SYSTEM_PROMPT;
+  var genre = genreById(document.getElementById("typeSelect").value);
+  var type = genre.engine;
+  var sysPrompt = sysPromptForGenre(genre);
   if (!keyFor(provider)) { document.getElementById("status").textContent = "Enter your API key first (Saved in this browser only). The demo castle still plays without one."; return; }
   var btn = document.getElementById("remixBtn"); btn.disabled = true;
   document.getElementById("status").textContent = "Remixing with " + provider + "...";
@@ -1310,8 +1376,9 @@ document.getElementById("remixBtn").addEventListener("click", async function () 
     var artMode = document.getElementById("artSelect").value;
     var art = await buildArt(provider, spec, artMode);
     applyWallPref(spec); applyDifficulty(spec); applyBoss(spec);
+    spec.genre = genre.id;
     buildLevel(spec, "Remixed (" + provider + ")", art);
-    document.getElementById("status").textContent = "Remixed: " + (spec.title || "Untitled") + " (" + type + "). Click the game to play.";
+    document.getElementById("status").textContent = "Remixed: " + (spec.title || "Untitled") + " (" + genre.label + "). Click the game to play.";
   } catch (err) {
     if (err.status === 429) document.getElementById("status").textContent = "AI is rate-limited right now (429: too many requests on the free tier). Wait a minute and try again. Your key is fine.";
     else if (err.status === 404) document.getElementById("status").textContent = "AI call failed (404: model not found). That means the model name is outdated, not your key.";
