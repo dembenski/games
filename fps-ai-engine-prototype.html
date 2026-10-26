@@ -62,6 +62,8 @@
       <input type="password" id="keyInput" placeholder="Paste your API key here">
     </label>
     <button id="saveKeyBtn">Save key</button>
+    <label><input type="checkbox" id="offlineToggle"> Offline mode</label>
+    <span class="small">No AI, no key, no internet. Builds locally from stored themes, painted textures, and the sprite sheet.</span>
     <span class="small">Key stays in this browser only. Never in the code. With Meta selected, this is your Meta API key — it pays for the art (about 4&cent; a full-art level).</span>
   </div>
 
@@ -150,6 +152,7 @@
       <button id="copyLinkBtn">Copy link</button>
       <button id="texBtn">Textures</button>
       <button id="stickyBtn">Sticky texture: OFF</button>
+      <button id="sheetBtn">Sprite sheet</button>
       <button id="instantBtn">Instant level</button>
     </div>
     <div class="bar">
@@ -260,7 +263,12 @@
     <div class="bar"><span id="texSticky" class="small"></span><button id="texClearBtn" style="display:none">Clear sticky texture</button></div>
     <div id="texInfo" class="small"></div>
   </div>
-  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect + genre dropdown: 27 genres across 3 engines + true 3D engine: WebGL, 36 genres across 4 engines.</div>
+  <div class="small">How it works: your prompt plus a strict rules template goes to the AI. The AI answers with a level spec. The engine checks the spec, then builds and runs it. The AI designs, the engine executes. Prototype build: v2 + art dropdown + hand editor + share feed + 3 generators + AI Game Engine + editor v2 + death-click fix + texture picker + sticky textures + editor save + sticky toggle + honest 429 + mega build: instant levels, difficulty, boss mode, remix, theme buttons, sound, local bests, quest text, patrol monsters, editor undo/redo, title/theme edit, fill, copy/paste rooms, drag to move, patrol routes, spec copy/paste + theme shuffle: one button, 200 themes + free Cloudflare Worker art + groq JSON parse fix + art failure reason + worker url fix + cloudflare art removed + tabs: make game / advanced + mobile controls: auto device detect + genre dropdown: 27 genres across 3 engines + true 3D engine: WebGL, 36 genres across 4 engines + offline mode: stored textures + sprite sheet.</div>
+  <div id="sheetBox" style="display:none">
+    <div class="bar"><button id="sheetBackBtn">Back to game</button><span class="small">Offline sprite sheet: 12 sprites cut from one sheet. The sheet is drawn on a magenta background, then the magenta is removed to transparent. Enemies in Offline mode use these slices.</span></div>
+    <canvas id="sheetCanvas" width="256" height="192" style="border:1px solid #555; background:#222"></canvas>
+    <div id="sheetInfo" class="small"></div>
+  </div>
   <div id="feed"><b>Generation feed</b><div>Demo castle loaded (built-in, no AI needed).</div></div>
 </div>
 <script>
@@ -359,6 +367,99 @@ function makeTexture(name) {
 }
 var TEXTURES = {};
 WALL_TEXTURES.forEach(function (t) { TEXTURES[t] = makeTexture(t); });
+
+/* ============ Offline mode: sprite sheet, cut slices, background removal ============ */
+var OFFLINE_SPRITES = [
+  { name: "Mochi Blob", shape: "blob", color: "#ff8fb3" },
+  { name: "Berry Brute", shape: "brute", color: "#b26ae5" },
+  { name: "Mint Flyer", shape: "flyer", color: "#3ddc8a" },
+  { name: "Lemon Spiker", shape: "spiky", color: "#ffd60a" },
+  { name: "Cocoa Brute", shape: "brute", color: "#8a5a3b" },
+  { name: "Sky Wisp", shape: "flyer", color: "#7ec8ff" },
+  { name: "Grape Blob", shape: "blob", color: "#9b6bff" },
+  { name: "Chili Spiker", shape: "spiky", color: "#ff5252" },
+  { name: "Honey Flyer", shape: "flyer", color: "#ffb020" },
+  { name: "Sea Blob", shape: "blob", color: "#00c8c8" },
+  { name: "Rose Brute", shape: "brute", color: "#ff5da2" },
+  { name: "Moss Spiker", shape: "spiky", color: "#5fbf3f" }
+];
+var OFFLINE_SHEET = { cols: 4, rows: 3, cell: 64, canvas: null, slices: [], bgRemoved: false };
+function drawOfflineSprite(g, def, x, y, size) {
+  var cx = x + size / 2, cy = y + size / 2 + 2, r = size * 0.30;
+  g.fillStyle = def.color;
+  if (def.shape === "brute") {
+    g.fillRect(cx - r, cy - r * 0.9, r * 2, r * 1.8);
+    g.fillRect(cx - r * 1.25, cy - r * 0.4, r * 0.5, r * 0.9);
+    g.fillRect(cx + r * 0.75, cy - r * 0.4, r * 0.5, r * 0.9);
+    g.fillRect(cx - r * 0.7, cy + r * 0.9, r * 0.6, r * 0.35);
+    g.fillRect(cx + r * 0.1, cy + r * 0.9, r * 0.6, r * 0.35);
+  } else if (def.shape === "flyer") {
+    g.beginPath(); g.ellipse(cx, cy, r * 1.1, r * 0.7, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(cx - r * 1.1, cy - r * 0.4, r * 0.7, r * 0.35, -0.5, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(cx + r * 1.1, cy - r * 0.4, r * 0.7, r * 0.35, 0.5, 0, Math.PI * 2); g.fill();
+  } else if (def.shape === "spiky") {
+    g.beginPath();
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2, rr = i % 2 === 0 ? r * 1.3 : r * 0.7, px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; if (i === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+    g.closePath(); g.fill();
+  } else {
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = "#000";
+  g.beginPath(); g.arc(cx - r * 0.35, cy - r * 0.2, Math.max(2, r * 0.16), 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(cx + r * 0.35, cy - r * 0.2, Math.max(2, r * 0.16), 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#fff";
+  g.beginPath(); g.arc(cx - r * 0.35 + 1, cy - r * 0.2 - 1, Math.max(1, r * 0.06), 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(cx + r * 0.35 + 1, cy - r * 0.2 - 1, Math.max(1, r * 0.06), 0, Math.PI * 2); g.fill();
+}
+function stripSheetBackground(c) {
+  var g = c.getContext("2d");
+  var img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+  var br = d[0], bg = d[1], bb = d[2];
+  for (var i = 0; i < d.length; i += 4) {
+    if (Math.abs(d[i] - br) < 48 && Math.abs(d[i + 1] - bg) < 48 && Math.abs(d[i + 2] - bb) < 48) d[i + 3] = 0;
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+function buildOfflineSheet() {
+  if (OFFLINE_SHEET.canvas) return OFFLINE_SHEET.canvas;
+  var c = document.createElement("canvas"); c.width = 256; c.height = 192;
+  var g = c.getContext("2d");
+  g.fillStyle = "#ff00ff"; g.fillRect(0, 0, 256, 192);
+  OFFLINE_SPRITES.forEach(function (def, i) { drawOfflineSprite(g, def, (i % 4) * 64, Math.floor(i / 4) * 64, 64); });
+  stripSheetBackground(c);
+  OFFLINE_SHEET.canvas = c; OFFLINE_SHEET.bgRemoved = true; OFFLINE_SHEET.slices = [];
+  for (var j = 0; j < 12; j++) {
+    var s = document.createElement("canvas"); s.width = 64; s.height = 64;
+    s.getContext("2d").drawImage(c, (j % 4) * 64, Math.floor(j / 4) * 64, 64, 64, 0, 0, 64, 64);
+    OFFLINE_SHEET.slices.push(s);
+  }
+  return c;
+}
+function offlineSpriteIndexFor(e) {
+  var str = String((e && e.type) || "");
+  var h = 0;
+  for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 997;
+  return h % 12;
+}
+function offlineSpriteSlice(e) { buildOfflineSheet(); return OFFLINE_SHEET.slices[offlineSpriteIndexFor(e)]; }
+function isOfflineMode() { var el = document.getElementById("offlineToggle"); return !!(el && el.checked); }
+function syncOfflineToggle() { try { var v = localStorage.getItem("fpsEngine_offline"); var el = document.getElementById("offlineToggle"); if (el) el.checked = (v === "on"); } catch (err) {} }
+function offlineSpecFromPrompt(prompt, genre) {
+  var spec = instantLevel(genre.engine);
+  spec.offline = true; spec.genre = genre.id;
+  var words = String(prompt || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length > 2; });
+  var best = null, bestScore = 0;
+  THEME_POOL.forEach(function (th) {
+    var hay = (th.n + " " + th.s + " " + th.e + " " + th.m).toLowerCase(), sc = 0;
+    words.forEach(function (w) { if (hay.indexOf(w) >= 0) sc++; });
+    if (sc > bestScore) { bestScore = sc; best = th; }
+  });
+  if (best) { spec.title = "Offline: " + best.n; spec.theme = best.s; if (WALL_TEXTURES.indexOf(best.w) >= 0) spec.wallTexture = best.w; }
+  else spec.title = "Offline: " + (spec.title || "Level");
+  spec.questIntro = "Offline mode: built on this device, no AI, no key, no internet. " + (spec.questIntro || "");
+  return spec;
+}
 
 /* ============ Demo map (16x16, pillars only, all open tiles connected) ============ */
 var DEMO_SPEC = {
@@ -578,6 +679,11 @@ function buildLevel(spec, sourceLabel, art) {
   S.pickups = (S.pickups || []).map(function (p) { return { type: p.type, x: p.x + 0.5, y: p.y + 0.5, amount: p.amount || 25 }; });
   if (S.customWallImg) { var wi = new Image(); wi.onload = function () { var c = document.createElement("canvas"); c.width = 64; c.height = 64; c.getContext("2d").drawImage(wi, 0, 0, 64, 64); TEXTURES["custom"] = c; }; wi.src = S.customWallImg; }
   S.enemies.forEach(function (e, i) { var raw = (spec.enemies || [])[i]; if (raw && raw.imgSrc) { var im = new Image(); im.src = raw.imgSrc; e.img = im; } });
+  if (spec.offline) {
+    S.offline = true;
+    if (S.wallTexture === "picked") { S.wallTexture = "brick"; S.wallTextureUrl = null; }
+    S.enemies.forEach(function (e) { e.img = offlineSpriteSlice(e); });
+  }
   S.keys = 0; S.score = 0; S.kills = 0; startTime = Date.now(); gameOver = false; winShown = false; popups = [];
   var wantGL = (S.gameType === "3d");
   S.useGL = wantGL && initGL();
@@ -849,7 +955,7 @@ function enemySpriteCanvas(e) {
   GL.spriteCache[key] = c; return c;
 }
 function spriteTexFor(e) {
-  var key = e.type || "?";
+  var key = (S && S.offline ? "offline|" : "") + (e.type || "?");
   if (GL.spriteTexCache[key]) return GL.spriteTexCache[key];
   var tex = null;
   if (e.img && e.img.width) { try { tex = glTexFromSource(e.img, false); } catch (err) { tex = null; } }
@@ -1183,6 +1289,19 @@ document.getElementById("providerSelect").addEventListener("change", function ()
   document.getElementById("keyInput").value = keyFor(document.getElementById("providerSelect").value);
 });
 document.getElementById("keyInput").value = keyFor("meta");
+syncOfflineToggle();
+document.getElementById("offlineToggle").addEventListener("change", function () {
+  try { localStorage.setItem("fpsEngine_offline", this.checked ? "on" : "off"); } catch (err) {}
+  document.getElementById("status").textContent = this.checked ? "Offline mode ON: Generate builds locally, no AI, no key, no internet." : "Offline mode OFF: Generate uses the selected AI provider again.";
+});
+document.getElementById("sheetBtn").addEventListener("click", function () {
+  var sheet = buildOfflineSheet();
+  var sc = document.getElementById("sheetCanvas"); sc.getContext("2d").drawImage(sheet, 0, 0);
+  document.getElementById("sheetInfo").textContent = OFFLINE_SPRITES.map(function (d, i) { return (i + 1) + ". " + d.name + " (" + d.shape + ")"; }).join("  |  ");
+  document.getElementById("sheetBox").style.display = "block";
+});
+document.getElementById("sheetBackBtn").addEventListener("click", function () { document.getElementById("sheetBox").style.display = "none"; });
+window.__offline = { sprites: OFFLINE_SPRITES, buildSheet: buildOfflineSheet, sliceFor: offlineSpriteSlice, isOffline: isOfflineMode, specFromPrompt: offlineSpecFromPrompt };
 async function callAI(provider, messages) {
   var cfg = CONFIG[provider], key = keyFor(provider);
   var res = await fetch(cfg.baseUrl, { method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
@@ -1254,6 +1373,17 @@ function applyBoss(spec) {
 document.getElementById("generateBtn").addEventListener("click", async function () {
   var prompt = document.getElementById("promptInput").value.trim();
   if (!prompt) { document.getElementById("status").textContent = "Type a game wish first."; return; }
+  if (isOfflineMode()) {
+    var genreOff = genreById(document.getElementById("typeSelect").value);
+    var specOff = offlineSpecFromPrompt(prompt, genreOff);
+    var prefOff = loadWallPref();
+    if (prefOff && WALL_TEXTURES.indexOf(prefOff.wallTexture) >= 0) { specOff.wallTexture = prefOff.wallTexture; specOff.wallTextureUrl = null; }
+    applyDifficulty(specOff); applyBoss(specOff);
+    buildLevel(specOff, "Offline", { images: 0, wallTex: null, sprites: {} });
+    document.getElementById("status").textContent = "Built offline: " + (specOff.title || "Untitled") + " (" + genreOff.label + "). No AI, no key, no internet. Sprites cut from the stored sheet. Click the game to play.";
+    logFeed("Offline: " + (specOff.title || "Untitled") + " | sprite sheet, painted walls, no network.");
+    return;
+  }
   var provider = document.getElementById("providerSelect").value;
   var genre = genreById(document.getElementById("typeSelect").value);
   var type = genre.engine;
@@ -1604,6 +1734,7 @@ document.getElementById("instantBtn").addEventListener("click", function () {
   var genre = genreById(document.getElementById("typeSelect").value);
   var type = genre.engine;
   var spec = repairSpec(instantLevel(type));
+  if (isOfflineMode()) spec.offline = true;
   if (!validateSpec(spec).ok) spec = fallbackFor(type);
   applyWallPref(spec); applyDifficulty(spec); applyBoss(spec);
   buildLevel(spec, "Instant", null);
