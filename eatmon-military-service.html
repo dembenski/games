@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<title>Eatmon Military Service — Remembrance Day</title>
+<style>
+  :root{
+    --bg:#f7f5f0; --surface:#ffffff; --surface2:#efece6; --ink:#1c1917; --muted:#5c564e; --faint:#8a8378;
+    --line:#ddd8ce; --red:#a61c1c; --red-ink:#7f1515; --red-soft:#fbeeee; --gold:#8a6d1b; --gold-soft:#f7f0d9;
+    --green:#2f5541; --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#121110; --surface:#1d1b19; --surface2:#262320; --ink:#ede9e3; --muted:#b8b0a4; --faint:#8f887d;
+      --line:#38332e; --red:#e06a5f; --red-ink:#f0958a; --red-soft:#2e1a18; --gold:#d9b45a; --gold-soft:#2b2515; --green:#7fb598; }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.6;font-size:16.5px}
+  h1,h2,h3,.serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+  a{color:var(--red-ink);text-underline-offset:3px}
+  a:focus-visible,button:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px 64px}
+  /* Hero */
+  .hero{padding:44px 0 8px;text-align:center}
+  .poppy{width:54px;height:54px;margin:0 auto 14px}
+  .date-line{font-size:.82rem;letter-spacing:.16em;text-transform:uppercase;color:var(--red-ink);font-weight:700;margin:0 0 10px}
+  .hero h1{font-size:clamp(2.3rem,6vw,3.9rem);line-height:1.05;margin:0 0 14px;font-weight:700;letter-spacing:-.01em}
+  .hero h1 em{font-style:italic;color:var(--red-ink)}
+  .hero .lede{max-width:720px;margin:0 auto;font-size:1.13rem;color:var(--muted)}
+  .hero .lede strong{color:var(--ink)}
+  .spell-note{max-width:680px;margin:18px auto 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;text-align:left;font-size:.94rem}
+  .spell-note b{color:var(--red-ink)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0 8px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 12px;text-align:center}
+  .stat .n{font-family:"Iowan Old Style",Georgia,serif;font-size:2rem;line-height:1;font-weight:700}
+  .stat .l{font-size:.8rem;color:var(--muted);margin-top:6px;line-height:1.35}
+  @media(max-width:640px){.stats{grid-template-columns:1fr 1fr}}
+  /* Sections */
+  section{margin-top:44px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:20px}
+  .sec-head h2{font-size:1.65rem;margin:0;line-height:1.15}
+  .sec-head .k{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--red-ink);font-weight:700;white-space:nowrap}
+  .sec-intro{color:var(--muted);max-width:760px;margin:0 0 18px}
+  /* Filter */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+  .filters button{min-height:44px;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.92rem;font-weight:600;cursor:pointer}
+  .filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  /* Roster table -> cards */
+  .roster{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .roster th,.roster td{padding:13px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);font-size:.95rem}
+  .roster th{background:var(--surface2);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .roster tr:last-child td{border-bottom:none}
+  .roster .who{font-weight:700}
+  .badge{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .badge.fallen{background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red)}
+  .badge.survived{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+  .badge.single{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold)}
+  @media(max-width:720px){
+    .roster,.roster tbody,.roster tr,.roster td{display:block;width:100%}
+    .roster thead{display:none}
+    .roster tr{padding:8px 0;border-bottom:1px solid var(--line)}
+    .roster td{border:none;padding:4px 14px}
+    .roster td::before{content:attr(data-l);display:block;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+    .roster td.who::before{content:""}
+  }
+  /* Profile cards */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;margin-bottom:18px}
+  .card.featured{border-top:5px solid var(--red)}
+  .card-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+  .card h3{font-size:1.5rem;margin:0;line-height:1.2}
+  .card .years{color:var(--muted);font-weight:600}
+  .card .unit{font-weight:700;color:var(--red-ink);margin:4px 0 0;font-size:1rem}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:18px 0}
+  .fact{background:var(--surface);padding:11px 14px}
+  .fact dt{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0}
+  .fact dd{margin:3px 0 0;font-weight:600;font-size:.97rem}
+  .card p{margin:0 0 12px}
+  .card p:last-child{margin-bottom:0}
+  blockquote{margin:16px 0;padding:4px 0 4px 18px;border-left:3px solid var(--red);font-family:"Iowan Old Style",Georgia,serif;font-size:1.08rem;font-style:italic}
+  blockquote cite{display:block;font-style:normal;font-family:system-ui,sans-serif;font-size:.85rem;color:var(--muted);margin-top:6px}
+  .caveat{background:var(--gold-soft);border:1px solid var(--gold);border-radius:10px;padding:13px 16px;font-size:.93rem;margin:14px 0}
+  .caveat b{color:var(--gold)}
+  .src{font-size:.86rem;color:var(--muted);margin-top:14px}
+  .src a{font-weight:600}
+  .hidden{display:none !important}
+  /* Two col */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .mini{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .mini h3{margin:0 0 6px;font-size:1.2rem}
+  .mini .unit{color:var(--red-ink);font-weight:700;font-size:.93rem;margin:0 0 10px}
+  .mini p{font-size:.95rem;margin:0 0 10px}
+  /* Not found / chester */
+  .notice{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--ink);border-radius:12px;padding:20px 22px}
+  .notice h3{margin:0 0 8px;font-size:1.25rem}
+  .notice p{margin:0 0 10px}
+  ul.clean{margin:0;padding-left:20px}
+  ul.clean li{margin-bottom:8px}
+  /* Open questions */
+  ol.q{margin:0;padding-left:22px}
+  ol.q li{margin-bottom:10px}
+  ol.q b{color:var(--ink)}
+  /* Sources */
+  .sources{columns:2;column-gap:28px;font-size:.9rem}
+  @media(max-width:700px){.sources{columns:1}}
+  .sources li{margin-bottom:9px;break-inside:avoid}
+  .sources ul{margin:0;padding-left:20px}
+  footer{margin-top:52px;text-align:center;border-top:1px solid var(--line);padding-top:26px}
+  footer .lest{font-family:"Iowan Old Style",Georgia,serif;font-size:1.5rem;font-style:italic;margin:0 0 8px}
+  footer p{color:var(--muted);font-size:.88rem;max-width:640px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <svg class="poppy" viewBox="0 0 64 64" role="img" aria-label="Remembrance poppy">
+      <circle cx="32" cy="20" r="13" fill="#c02727"/><circle cx="20" cy="33" r="13" fill="#a61c1c"/>
+      <circle cx="44" cy="33" r="13" fill="#a61c1c"/><circle cx="32" cy="42" r="12" fill="#8f1717"/>
+      <circle cx="32" cy="32" r="7.5" fill="#1c1917"/>
+      <path d="M32 46 C30 54 26 59 20 62 C28 62 33 57 34 49 Z" fill="#2f5541"/>
+    </svg>
+    <p class="date-line">Remembrance Day · 11 November 2026</p>
+    <h1>The Eatmans<br><em>who served</em></h1>
+    <p class="lede">From Elm Hill and Fredericton, New Brunswick, the sources name at least <strong>eight men</strong> from this Black family who served in the two world wars — a father and son in two different wars, a world-class sprinter who had to cross an ocean to enlist, and two brothers in Canada's Black battalion. <strong>One did not come home.</strong> The evidence is not equal for all eight: five rest on official, archival or index records, Eldridge's on secondary sources (his file was destroyed), Dubert's on two sources, and one brother on a single museum source — each entry below is flagged with its strength.</p>
+    <div class="spell-note"><b>A note on the name:</b> military records consistently spell the family <b>Eatman</b> — Library and Archives Canada, the Canadian Virtual War Memorial, and the No. 2 Construction Battalion nominal roll all use it. <b>Eatmon</b> is the family variant: Chester Eatmon “later changed his last name to Eatmon after marrying Edna” (MyNewBrunswick), and Ancestry indexes one soldier as “Manzer Eatmon [Manzer Eatman].” Eldridge also appears as <b>Eastman</b>. Anyone searching the archives should try all three spellings. <span style="color:var(--muted)">Researched 11 November 2026; every claim below carries its source.</span></div>
+    <div class="stats" aria-label="Summary figures">
+      <div class="stat"><div class="n">8</div><div class="l">Eatman service members named in the sources — strength flagged per entry</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">world wars — father &amp; son served in different ones</div></div>
+      <div class="stat"><div class="n">1</div><div class="l">war death in the Canadian Virtual War Memorial</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">found for Korea or later wars — see “Not found” below</div></div>
+    </div>
+  </header>
+
+  <section aria-labelledby="roster-h">
+    <div class="sec-head"><span class="k">The roll</span><h2 id="roster-h">At a glance</h2></div>
+    <div class="filters" role="group" aria-label="Filter by war">
+      <button type="button" data-filter="all" aria-pressed="true">All eight</button>
+      <button type="button" data-filter="ww1" aria-pressed="false">First World War</button>
+      <button type="button" data-filter="ww2" aria-pressed="false">Second World War</button>
+    </div>
+    <table class="roster">
+      <thead><tr><th scope="col">Name</th><th scope="col">War / service</th><th scope="col">Unit</th><th scope="col">Outcome</th></tr></thead>
+      <tbody>
+        <tr data-war="ww2"><td class="who" data-l="">Sgt Arthur Wallace “Duke” Eatman <span style="color:var(--muted);font-weight:400">(1920–1943)</span></td><td data-l="War">WWII</td><td data-l="Unit">Carleton and York Regiment, R.C.I.C.</td><td data-l="Outcome"><span class="badge fallen">Killed in action</span><br>Sicily, 22 July 1943; buried Agira</td></tr>
+        <tr data-war="ww1"><td class="who" data-l="">Pte James Wallace Eatman <span style="color:var(--muted);font-weight:400">(1882–1956)</span> — Arthur's father</td><td data-l="War">WWI</td><td data-l="Unit">104th → 140th → 25th Battalion, CEF</td><td data-l="Outcome"><span class="badge survived">Survived</span><br>Vimy; wounded at Passchendaele (per NB Museum)</td></tr>
+        <tr data-war="ww1"><td class="who" data-l="">Eldridge “Gus” Eatman <span style="color:var(--muted);font-weight:400">(1880–1960)</span></td><td data-l="War">WWI — British Army</td><td data-l="Unit">Northumberland Fusiliers / 2nd Bn Royal Northumberland Fusiliers</td><td data-l="Outcome"><span class="badge survived">Survived</span><br>Corporal; wounded at Loos. File destroyed in the Blitz — secondary sources only</td></tr>
+        <tr data-war="ww1"><td class="who" data-l="">Pte John Wesley Eatman <span style="color:var(--muted);font-weight:400">(b. 1898)</span></td><td data-l="War">WWI</td><td data-l="Unit">No. 2 Construction Battalion</td><td data-l="Outcome"><span class="badge survived">Reg. 931125</span></td></tr>
+        <tr data-war="ww1"><td class="who" data-l="">Pte Manzer Eatman</td><td data-l="War">WWI</td><td data-l="Unit">No. 2 Construction Battalion</td><td data-l="Outcome"><span class="badge survived">Reg. 931124</span></td></tr>
+        <tr data-war="ww1"><td class="who" data-l="">Pte Joseph Eatmon <span style="color:var(--muted);font-weight:400">(b. 1898)</span></td><td data-l="War">WWI</td><td data-l="Unit">Unit not found — CEF index only</td><td data-l="Outcome"><span class="badge single">Index only</span><br>Reg. 2246174; next of kin, mother Lily McIntyre</td></tr>
+        <tr data-war="ww2"><td class="who" data-l="">Pte Dubert Mansfield Eatman</td><td data-l="War">WWII</td><td data-l="Unit">Canadian Forestry Corps, No. 4</td><td data-l="Outcome"><span class="badge survived">Corroborated</span><br>NB Museum 2026 + 2019 UNB thesis</td></tr>
+        <tr data-war="ww2"><td class="who" data-l="">Pte Harry Ellis Eatman</td><td data-l="War">WWII — US Army</td><td data-l="Unit">304th Bombardment Group, Army Air Forces</td><td data-l="Outcome"><span class="badge single">Single source</span><br>NB Museum 2026 only</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section aria-labelledby="arthur-h">
+    <div class="sec-head"><span class="k">Fallen</span><h2 id="arthur-h">Sergeant Arthur Wallace “Duke” Eatman</h2></div>
+
+    <article class="card featured">
+      <div class="card-head"><h3>Arthur Wallace Eatman <span class="years">1920–1943 · age 23</span></h3><span class="badge fallen">Killed in action — Sicily</span></div>
+      <p class="unit">Carleton and York Regiment, R.C.I.C. · Service number G/18010</p>
+      <dl class="facts">
+        <div class="fact"><dt>Born</dt><dd>15 May 1920, Fredericton, NB</dd></div>
+        <div class="fact"><dt>Parents</dt><dd>James W. &amp; Thursa L. Eatman, Barker's Point, York Co.</dd></div>
+        <div class="fact"><dt>Enlisted</dt><dd>September 1939, Woodstock, NB — see date note below</dd></div>
+        <div class="fact"><dt>Died</dt><dd>22 July 1943, Sicily</dd></div>
+        <div class="fact"><dt>Buried</dt><dd>Agira Canadian War Cemetery, grave C, C, 288</dd></div>
+        <div class="fact"><dt>Commemorated</dt><dd>Page 156, Second World War Book of Remembrance</dd></div>
+      </dl>
+      <p>Arthur Eatman enlisted in Woodstock in September 1939, aged 19, and rose steadily: Private, then Corporal in 1940, then Sergeant by 1942 (New Brunswick Museum). The Carleton and York Regiment went overseas with the 1st Canadian Division in December 1939, and in 1943 took part in the Allied invasion of Sicily — Operation Husky (UNB Art Centre; NB Museum).</p>
+      <p>On <strong>22 July 1943</strong>, during a reconnaissance patrol, twenty-eight men from A Company under Eatman's command were tasked with checking a nearby residence for enemy forces. <strong>The patrol did not return.</strong> The following day, five bodies — including Eatman's — were recovered; another soldier's remains were never found. The remaining twenty-two men were taken prisoner (New Brunswick Museum).</p>
+      <div class="caveat"><b>Two honest hedges.</b> ① The Museum's account does not name where the patrol took place, and a CommunityStories page describes him as “killed in action at Agira” — but Agira is confirmed as his <em>burial</em> place, not necessarily the place of death. ② His enlistment date is disputed: the Canadian Virtual War Memorial gives <strong>7 September 1939</strong>; the NB Museum gives <strong>3 September 1939</strong>. The discrepancy is unresolved — possibly attestation vs. attestation-paper date — and only his service file can settle it.</div>
+      <blockquote>“Amongst the only visible examples of a Black non-commissioned officer serving in a non-segregated unit.”
+        <cite>— UNB Art Centre, Black History Month project, on Arthur “Duke” Eatman</cite>
+      </blockquote>
+      <p>A 2012 York-Sunbury Historical Society talk by Dr. Lee Windsor was titled <em>“A Black Leader of White Men: Sergeant Arthur Eatman with the Carleton and York Regiment at War in Sicily, 1943.”</em> His name — “Arthur W. Eatman” — is inscribed on the Carleton and York Regiment Memorial in Fredericton, dedicated 8 May 1998 (Veterans Affairs Canada). A UNB study, <em>“Making it up as you go: racial policy in the Canadian military during the two world wars,”</em> uses the personnel files of James and Arthur Eatman to examine wartime policy toward Black soldiers.</p>
+      <p><strong>Awards:</strong> no individual gallantry award or honour is recorded for him — the CWGC honours field is blank, and no source consulted lists campaign medals. His WWII service file exists in Library and Archives Canada's <em>WWII Records and Service Files of War Dead, 1939–1947</em> (index: G18010, Volume range 25713–25812); the full digitised file was not opened in this research. The CVWM page carries a portrait of him in uniform and a digital gallery with a newspaper clipping, the Fredericton War Memorial, and Agira cemetery images.</p>
+      <p class="src">Sources: <a href="https://www.veterans.gc.ca/en/remembrance/memorials/canadian-virtual-war-memorial/detail/2202541" target="_blank" rel="noopener">Canadian Virtual War Memorial</a> · <a href="https://www.nbm-mnb.ca/en/2026/02/02/sergeant-arthur-wallace-eatman-a-snapshot-in-time/" target="_blank" rel="noopener">New Brunswick Museum, “A Snapshot in Time” (2 Feb 2026)</a> · <a href="https://www.unb.ca/artcentre/exhibitions/bhm.html" target="_blank" rel="noopener">UNB Art Centre</a> · <a href="https://www.veterans.gc.ca/en/remembrance/memorials/canada/carleton-and-york-regiment-memorial" target="_blank" rel="noopener">VAC — Carleton and York Regiment Memorial</a> · <a href="https://unbscholar.lib.unb.ca/items/2067d705-3626-4eae-905b-9feac4d40971" target="_blank" rel="noopener">UNB Scholar study</a></p>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>His father — Pte James Wallace Eatman <span class="years">1882–1956</span></h3><span class="badge survived">Survived WWI</span></div>
+      <p class="unit">104th Battalion → 140th Overseas Battalion → 25th Battalion, CEF · Regimental number 817469</p>
+      <dl class="facts">
+        <div class="fact"><dt>Born</dt><dd>14 March 1882, Elm Hill, NB</dd></div>
+        <div class="fact"><dt>Son of</dt><dd>Major &amp; Hannah (Holmes) Eatman</dd></div>
+        <div class="fact"><dt>Joined</dt><dd>At Sussex, Kings Co., NB, 1915 (genealogy source)</dd></div>
+        <div class="fact"><dt>Died</dt><dd>16 November 1956; buried Fredericton Rural Cemetery Extension</dd></div>
+      </dl>
+      <p>A generation before his son fell in Sicily, James Wallace Eatman served in France with the 25th Battalion. The New Brunswick Museum records that he <strong>participated in the capture of Vimy Ridge in 1917 and was wounded at the Battle of Passchendaele</strong>. His wife is listed in the service index as Therasa / Thursa Levina Wright.</p>
+      <div class="caveat"><b>Source strength:</b> the Vimy and Passchendaele details rest on the NB Museum article and the UNB thesis that used his personnel file — his LAC file itself was not read in this research, and no LAC box reference was retrieved. Family details such as his parents' names come from a genealogy forum post, a weaker source, and are flagged as such here.</div>
+      <p class="src">Sources: <a href="https://www.nbm-mnb.ca/en/2026/02/02/sergeant-arthur-wallace-eatman-a-snapshot-in-time/" target="_blank" rel="noopener">New Brunswick Museum (2026)</a> · <a href="https://ca.forceswarrecords.com/document/572770477/eatman-james-wallace-page-36-wwi-canadian-soldiers" target="_blank" rel="noopener">Forces War Records index of the LAC WWI collection</a> · <a href="https://www.genealogy.com/forum/regional/countries/topics/canada/newbrunswick/4040/" target="_blank" rel="noopener">Genealogy.com forum (weaker source)</a></p>
+    </article>
+  </section>
+
+  <section aria-labelledby="gus-h">
+    <div class="sec-head"><span class="k">First World War</span><h2 id="gus-h">The sprinter who crossed an ocean to enlist</h2></div>
+    <article class="card">
+      <div class="card-head"><h3>Eldridge “Gus” Eatman <span class="years">1880–1960</span></h3><span class="badge survived">Survived — British Army</span></div>
+      <p class="unit">Northumberland Fusiliers / 2nd Battalion, Royal Northumberland Fusiliers · Corporal</p>
+      <dl class="facts">
+        <div class="fact"><dt>Born</dt><dd>12 March 1880, Zealand Station, NB</dd></div>
+        <div class="fact"><dt>Parents</dt><dd>John L. &amp; Jane (Diamond / Dymond) Eatman</dd></div>
+        <div class="fact"><dt>Enlisted</dt><dd>1915, in England — British Army</dd></div>
+        <div class="fact"><dt>In France</dt><dd>From 8 June 1915</dd></div>
+        <div class="fact"><dt>Wounded</dt><dd>In the leg, Battle of Loos, 1915</dd></div>
+        <div class="fact"><dt>Discharged</dt><dd>26 June 1918</dd></div>
+        <div class="fact"><dt>Died</dt><dd>15 August 1960, Saint John, NB</dd></div>
+      </dl>
+      <p>Before he was a soldier, Gus Eatman was a world-class sprinter — the Canadian Encyclopedia calls him exactly that. When war broke out he was in New Brunswick, but <strong>the Canadian Army was not accepting Black Canadian recruits, so he went to England</strong> and enlisted in the British Army in 1915. A photograph of him in uniform doing rifle drill appeared on the front page of the British <em>Daily Mirror</em> on 6 March 1915. He was promoted to corporal, wounded in the leg at Loos, and — per the secondary accounts — his battalion transferred to Salonika in late October 1915, remaining until June 1918. The NB Black History Society credits him with <strong>785 days in frontline trenches</strong>. He was inducted into the New Brunswick Sports Hall of Fame in 2016, in part through the efforts of his third cousin, Maurice Eatman (Athletics Canada).</p>
+      <div class="caveat"><b>Read this with care:</b> Eatman's British service record was <b>destroyed in a fire during the London Blitz</b> in the Second World War (Canadian Encyclopedia). That means the 785-days figure, the exact battalion, and the Loos / Salonika timeline rest on secondary sources — the Encyclopedia, CommunityStories, the NB Black History Society, the Sports Hall of Fame, and Athletics Canada — and have <em>not</em> been verified against a service record. They are presented here as those sources report them, not as archival fact. The <em>Daily Mirror</em> photograph is a contemporary corroboration, though it was not itself viewed in this research.</div>
+      <p><strong>Not service:</strong> in 1935, as “Eastman,” he campaigned to raise an Ethiopian Foreign Legion against Mussolini's invasion of Ethiopia. No Canadian legion went to Ethiopia — it is part of his story, but it is not military service and is not counted as such here.</p>
+      <p class="src">Sources: <a href="https://development.thecanadianencyclopedia.ca/en/article/eldridge-eatman" target="_blank" rel="noopener">The Canadian Encyclopedia</a> · <a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/world-class-sprinter-eldridge-gus-eatman/" target="_blank" rel="noopener">CommunityStories — Our Black Heritage</a> · <a href="https://nbblackhistorysociety.org/eldridge-eatman/" target="_blank" rel="noopener">NB Black History Society</a> · <a href="https://www.nbsportshalloffame.com/honoured-members/eldridge-eatman-" target="_blank" rel="noopener">NB Sports Hall of Fame</a> · <a href="https://athletics.ca/blog/2023/03/14/track-and-field-pioneer-eldridge-eatman-to-be-honoured-at-canadian-indoor-championships/" target="_blank" rel="noopener">Athletics Canada (2023)</a></p>
+    </article>
+  </section>
+
+  <section aria-labelledby="no2-h">
+    <div class="sec-head"><span class="k">The Black Battalion</span><h2 id="no2-h">No. 2 Construction Battalion</h2></div>
+    <p class="sec-intro">Created 5 July 1916, No. 2 Construction Battalion was a segregated, non-combatant unit — <strong>the first and only all-Black battalion-sized formation in Canadian military history</strong>. Formed in Pictou, Nova Scotia, it boarded SS <em>Southland</em> on 28 March 1917, arrived in Liverpool on 7 April 1917, and served in the Jura region of eastern France from 17 May 1917 with the Canadian Forestry Corps — cutting timber, building and maintaining roads, railways, and camp services. It was disbanded in September 1920. A <strong>National Apology was issued on 9 July 2022</strong>; the battle honour “France and Flanders, 1917–18” was awarded 1 June 2022, and the battalion is perpetuated by 4 Engineer Support Regiment, CFB Gagetown, NB (Canada.ca). Two Eatmans were on its strength.</p>
+    <div class="grid2">
+      <div class="mini">
+        <h3>Pte John Wesley Eatman</h3>
+        <p class="unit">Regimental number 931125 · b. 18 April 1898</p>
+        <p>On the battalion's nominal roll of 28 March 1917: next of kin <strong>William Bateman Eatman, Fredericton, N.B.</strong>; enlisted at Pictou, 14 August 1916. The Fredericton Region Museum lists him as “son of William B. Eatman of Zealand.” His LAC record: CEF, RG 150, Accession 1992-93/166, Box 2812-14.</p>
+        <p class="src">Sources: <a href="https://archives.novascotia.ca/2construction/" target="_blank" rel="noopener">Nova Scotia Archives nominal roll</a> · <a href="https://www.bac-lac.gc.ca/eng/discover/military-heritage/first-world-war/personnel-records/Pages/list.aspx?SurnameSearch=Eatman&amp;RegimentNum=931125" target="_blank" rel="noopener">Library and Archives Canada</a> · <a href="https://www.frederictonregionmuseum.com/2022/07/05/honouring-the-no-2-construction-battalion/" target="_blank" rel="noopener">Fredericton Region Museum (2022)</a></p>
+      </div>
+      <div class="mini">
+        <h3>Pte Manzer Eatman</h3>
+        <p class="unit">Regimental number 931124 · b. 6 April 1882 · consecutive to John's</p>
+        <p>Also on the 28 March 1917 nominal roll: next of kin <strong>William Eatman, Washington, D.C., U.S.A.</strong>; enlisted at Pictou, 14 August 1916 — the same day as John, with the next regimental number. The Fredericton Region Museum lists him as “brother of Eldridge and William B. Eatman of Zealand.” Ancestry's CEF attestation index lists him as “Manzer Eatmon [Manzer Eatman].”</p>
+        <p class="src">Sources: <a href="https://archives.novascotia.ca/2construction/" target="_blank" rel="noopener">Nova Scotia Archives nominal roll</a> · <a href="https://www.canada.ca/en/army/services/events/2-construction-battalion/apology-advisory.html" target="_blank" rel="noopener">National Apology Advisory Committee report</a> · <a href="https://www.frederictonregionmuseum.com/2022/07/05/honouring-the-no-2-construction-battalion/" target="_blank" rel="noopener">Fredericton Region Museum (2022)</a></p>
+      </div>
+    </div>
+    <div class="caveat" style="margin-top:18px"><b>A relationship label that doesn't quite line up:</b> the CommunityStories Tyler page calls John “Eldridge Eatman's cousin,” while the Museum calls Manzer Eldridge's brother and John the son of William B. Eatman. If William B. is Eldridge's brother, John would be Eldridge's nephew, not his cousin. This page does not assert either label without a family-tree source. His attestation paper was read in full at Library and Archives Canada (Item 371828, RG 150, Box 2812-17): born 6 April 1882 in Fredericton; 5 ft 9 in, chest 40 in, Black complexion, eyes and hair, Methodist, married, trade “Farmer” (the handwriting is uncertain). One conflict remains: the paper’s next of kin reads like his wife — the name looks like “Eldridge Eatman” — while the nominal roll names William Eatman of Washington, D.C. Neither is settled without a re-read of the image. All of the York and Sunbury County men travelled overseas with the battalion in March 1917 (Fredericton Region Museum).</div>
+    <div class="mini" style="margin-top:18px">
+      <h3>See it in person — “Forgotten Loyalty”</h3>
+      <p>The Fredericton Region Museum's travelling exhibition <em>“Forgotten Loyalty: New Brunswick's Hidden Connection to the No. 2 Construction Battalion,”</em> curated by Jennifer Dow, is on tour: Government House to 19 April 2026 · Canadian Military Engineers Museum (CFB Gagetown), 1 July 2026 – 17 January 2027 · NB Black History Museum, 1 February – 1 May 2027 · Fredericton Region Museum, 1 June – 8 August 2027 · NB Military History Museum, 1 September 2027 – 1 April 2028. A virtual exhibition is due in 2027.</p>
+      <p class="src">Source: <a href="https://www.frederictonregionmuseum.com/2025/06/17/honouring-no-2-construction-battalion-cef/" target="_blank" rel="noopener">Fredericton Region Museum — travelling exhibition</a> · Battalion history: <a href="https://www.canada.ca/en/army/services/events/2-construction-battalion.html" target="_blank" rel="noopener">Canada.ca</a></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="joseph-h">
+    <div class="sec-head"><span class="k">First World War</span><h2 id="joseph-h">One more name in the index</h2></div>
+    <div class="grid2">
+      <div class="mini">
+        <h3>Pte Joseph Eatmon</h3>
+        <p class="unit">Regimental number 2246174 · b. 19 February 1898, Fredericton</p>
+        <p>Joseph Eatmon appears in the CEF index (Fold3’s LAC-derived “Canada, Soldiers of the First World War”): born 19 February 1898 in Fredericton, next of kin his mother <strong>Lily McIntyre</strong>. His unit, LAC box number, enlistment date and place, occupation and physical description were not obtained — his attestation image was not read — so he is listed here on the strength of the index alone, flagged as such.</p>
+        <p><span class="badge single">Index only — Fold3 / LAC-derived</span></p>
+        <p class="src">Source: <a href="https://www.fold3.com/document/572770610/eatmon-joseph-page-33-wwi-canadian-soldiers" target="_blank" rel="noopener">Fold3 — Joseph Eatmon, Canada, Soldiers of the First World War</a></p>
+      </div>
+      <div class="mini">
+        <h3>And one name still unconfirmed</h3>
+        <p class="unit">Mansfield Eatmon · b. 22 January 1888, Elm Hill</p>
+        <p>Mansfield Eatmon is in the same CEF attestation index, but no regimental number, unit, box number or enlistment detail was found in any record consulted. The strongest lead is his next of kin: the index shows a masked three-token value ending in “Eatmon” whose pattern matches “Mrs Hannah Eatmon” — Hannah (Holmes) Eatman, wife of Major Eatman and mother of James Wallace. That is consistent, not proven, and he is <strong>not</strong> counted among the eight above.</p>
+        <p><span class="badge single">Not confirmed as a serviceman</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="brothers-h">
+    <div class="sec-head"><span class="k">Second World War</span><h2 id="brothers-h">Two more of Arthur's brothers</h2></div>
+    <p class="sec-intro">The New Brunswick Museum's 2026 article states that two more of Arthur's brothers enlisted in the Second World War. No service numbers or enlistment dates were found for either man, and Harry’s entry still rests on a single source — so both entries below are reported exactly as the Museum gives them, and marked as needing follow-up.</p>
+    <div class="grid2">
+      <div class="mini">
+        <h3>Pte Dubert Mansfield Eatman</h3>
+        <p class="unit">Canadian Forestry Corps, No. 4</p>
+        <p>Named by the NB Museum (2026) as Arthur’s brother who served with the Canadian Forestry Corps, No. 4 — and corroborated by the 2019 UNB thesis, which says Dubert “served with the Canadian Forestry Corps for the duration of the war.” The next step is Library and Archives Canada — WWII files for survivors are access-restricted.</p>
+        <p><span class="badge survived">Corroborated — NB Museum 2026 + 2019 UNB thesis</span></p>
+      </div>
+      <div class="mini">
+        <h3>Pte Harry Ellis Eatman</h3>
+        <p class="unit">U.S. Army — 304th Bombardment Group, Army Air Forces</p>
+        <p>Named by the NB Museum (2026) as Arthur's brother who served with the U.S. Army's 304th Bombardment Group, Army Air Forces. The next step is the U.S. National Archives (NARA).</p>
+        <p><span class="badge single">Single source — NB Museum 2026, not independently verified</span></p>
+      </div>
+    </div>
+    <p class="src" style="margin-top:14px">Source for both: <a href="https://www.nbm-mnb.ca/en/2026/02/02/sergeant-arthur-wallace-eatman-a-snapshot-in-time/" target="_blank" rel="noopener">New Brunswick Museum, “Sergeant Arthur Wallace Eatman: A Snapshot in Time” (2 Feb 2026)</a></p>
+  </section>
+
+  <section aria-labelledby="chester-h">
+    <div class="sec-head"><span class="k">Checked &amp; cleared up</span><h2 id="chester-h">Chester Eatmon was not a veteran</h2></div>
+    <div class="notice">
+      <h3>Chester Adolphus Eatmon (1904–1988) — the harness racer</h3>
+      <p>Born in Elm Hill on 7 June 1904 to William Bateman Eatman and Rosella Blanch McIntyre, Chester married Edna McCarty on 10 November 1925 — and, per MyNewBrunswick, changed his surname to <strong>Eatmon</strong> after marrying her. He became a fixture at Fredericton Raceway for 26 years and, at 82, was Canada's oldest licensed harness racing driver. The UNB Art Centre lists him as “Harness racer,” not a soldier — and <strong>no record of military service was found for him in any source consulted</strong>. He died in Fredericton in July 1988 (MyNewBrunswick says 21 July; the WikiTree Sunny Bank Cemetery listing says 25 July — a minor, unresolved discrepancy) and is buried in Sunny Bank Cemetery, Devon.</p>
+      <p style="margin-bottom:0"><strong>Don't confuse him</strong> with a different Chester Eatmon (b. 21 December 1947, U.S. Army, Vietnam era, d. 21 October 1973) who appears in the U.S. VA BIRLS death file. That is a different man.</p>
+      <p class="src">Sources: <a href="https://mynewbrunswick.ca/chester-eatmon/" target="_blank" rel="noopener">MyNewBrunswick — Chester Eatmon</a> · <a href="https://www.unb.ca/artcentre/exhibitions/bhm.html" target="_blank" rel="noopener">UNB Art Centre</a></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="community-h">
+    <div class="sec-head"><span class="k">Wider circle</span><h2 id="community-h">Their neighbours in uniform</h2></div>
+    <p class="sec-intro">Not Eatmans — but men from the same Fredericton and York–Sunbury Black community whose service frames the family's. Included as context, clearly labelled as not kin unless a source says so.</p>
+    <div class="grid2">
+      <div class="mini">
+        <h3>Bugle Sgt Arthur “Seymour” Tyler (1897–1985)</h3>
+        <p>Enlisted in No. 2 Construction Battalion on 14 September 1916 — one of ten Fredericton-region men in the battalion — and later served as a WWII Bugle Sergeant with the Carleton and York Regiment. His leg was broken in seven places in bombing during the Battle of Britain in 1941; he returned to Canada that year and died 17 February 1985, age 88.</p>
+        <div class="caveat"><b>Correction on record:</b> the NB Black History Society repeats a story that Tyler served with the “Canadian Black Devils from Winnipeg” / 8th Battalion. The Black Canadian Veterans site states explicitly that this is <b>false</b> — “Seymour was never a member of the 8th Canadian Infantry Battalion (90th Rifles).”</div>
+        <p class="src">Sources: <a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/an-honoured-member-of-new-brunswicks-black-community-for-the-work-he-did-to-promote-the-pride-unity-and-dignity-of-his-race-through-education-arthur-seymour-tyler/" target="_blank" rel="noopener">CommunityStories</a> · <a href="https://www.blackcanadianveterans.com/post/tyler-arthur-seymour" target="_blank" rel="noopener">Black Canadian Veterans</a></p>
+      </div>
+      <div class="mini">
+        <h3>Sapper Miles Smith Dymond (b. 1882)</h3>
+        <p>Of Fredericton; 1st (Brighton) Field Company, Canadian Engineers. Enlisted at Valcartier 23 September 1914, in France 18 March 1915: 2nd Ypres, the Somme, Vimy Ridge, Hill 70, Passchendaele — buried by shell fire on at least three occasions. Discharged December 1918. His daughter Thea married No. 2 veteran Reuben Johnson.</p>
+        <p><em>Dymond is also Eldridge Eatman's mother's maiden name (Jane Diamond / Dymond) — but no source consulted proves Miles's exact kinship to Eldridge, so none is claimed here.</em></p>
+        <p class="src">Sources: <a href="https://www.robertspublications.com/blog/black-canadian-soldiers-in-buxton" target="_blank" rel="noopener">Roberts Publications</a> · <a href="https://www.veterans.gc.ca/eng//remembrance/people-and-stories/black-canadians" target="_blank" rel="noopener">VAC — Black Canadians in uniform</a></p>
+      </div>
+    </div>
+    <div class="mini" style="margin-top:18px">
+      <h3>More names from the same community</h3>
+      <p><strong>Other York–Sunbury No. 2 Construction Battalion men</strong> (Fredericton Region Museum, 2022): Frederick Oral Lupee, Harold McCarty, A. Seymour Tyler, C. Elijah Tyler, Charles William O'Ree, Frank Morris Claybourn, Harry Timothy Jones, Reuben Johnson, Edward S. Washington, and Albert Carty.</p>
+      <p style="margin-bottom:0"><strong>Brothers-in-arms, not kin:</strong> Robert and Cyril Henry, and Cpl Arthur William McCarthy — Black Carleton and York Regiment soldiers in WWII, described as brothers-in-arms of Arthur Eatman.</p>
+      <p class="src">Sources: <a href="https://www.frederictonregionmuseum.com/2022/07/05/honouring-the-no-2-construction-battalion/" target="_blank" rel="noopener">Fredericton Region Museum (2022)</a> · <a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/robert-1917-1944-and-cyril-henry-1914-1947-lest-we-forget-private-robert-lawrence-henry-and-private-cyril-ernest-henry-commemorated-on-pages-333-and-596-of-the-second-world-w/" target="_blank" rel="noopener">CommunityStories — Robert &amp; Cyril Henry</a></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="notfound-h">
+    <div class="sec-head"><span class="k">Honest gaps</span><h2 id="notfound-h">What was not found</h2></div>
+    <div class="notice">
+      <ul class="clean">
+        <li><strong>Korea and later wars:</strong> searches found no Eatman / Eatmon Korea veteran and no other Eatman / Eatmon war-dead entry — Arthur is the only Eatman in the Canadian Virtual War Memorial. That is an absence in the searches consulted, <em>not</em> proof none served; the CVWM surname search did not function as a filter when tested, and LAC post-1945 files are ATIP-only — it was not checked against LAC post-war personnel records or the Korean War Book of Remembrance.</li>
+        <li><strong>Elm Hill's intermarried families:</strong> intermarriage is documented — Prudence Blanche Radcliffe (b. Nov 1899, Elm Hill, to Ernest Radcliffe and Elizabeth Eatmon) married Marshall Bowles on 24 October 1918 at Amherst, NS, then Thomas Parris on 26 December 1922 (WikiTree, citing census records). But <strong>no military service was found</strong> for Marshall Bowles, Ernest Radcliffe, or James Henry Bowles (1888–1957) — father of wrestler Rocky Johnson and grandfather of Dwayne Johnson. A 2026 genealogical post says the McIntyre, Bowles, Radcliffe, and Eatmon families of Elm Hill “frequently intermarried” — a social-media genealogy claim, not an archival source.</li>
+        <li><strong>The one McIntyre in No. 2:</strong> the nominal roll lists 931102, Pte Charles Theodore McIntyre (next of kin Mrs. Hannah McIntyre, 139 Mecklenburg St., Saint John; enlisted Saint John, 10 August 1916). He is from Saint John, not Elm Hill, and no source connects him to Rosella Blanch McIntyre, Chester's mother, or to the Elm Hill McIntyres. <strong>He is not claimed as family.</strong> (<a href="https://archives.novascotia.ca/2construction/list/?Search=9&amp;Start=1" target="_blank" rel="noopener">Nova Scotia Archives</a>)</li>
+        <li><strong>Maurice Eatman</strong> — Eldridge's third cousin who campaigned for his Sports Hall of Fame induction — has no military service found.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="open-h">
+    <div class="sec-head"><span class="k">Next steps</span><h2 id="open-h">Open questions</h2></div>
+    <ol class="q">
+      <li><b>Arthur's enlistment date</b> — 3 Sept 1939 (NB Museum) vs 7 Sept 1939 (CVWM). His LAC war-dead service file (Vol. 25713–25812) should settle it.</li>
+      <li><b>Arthur's campaign medals</b> — none recorded in CWGC / CVWM; his service file should list them.</li>
+      <li><b>Where Arthur died</b> — the patrol's location is unnamed by the Museum; Agira is confirmed as burial only.</li>
+      <li><b>Dubert Eatman</b> — his service is now corroborated by the 2019 UNB thesis, but no obituary or separate service record was found. <b>Harry Ellis Eatman</b> — still one source only; needs U.S. NARA follow-up.</li>
+      <li><b>Manzer Eatman</b> — date of birth (6 April 1882) and LAC box (2812-17) now known from his attestation paper; the next-of-kin conflict and his post-war life are still untraced.</li>
+      <li><b>Joseph Eatmon</b> — unit, LAC box number, enlistment date and place, occupation and physical description not obtained; his attestation image was not read.</li>
+      <li><b>James Wallace Eatman</b> — LAC box reference not retrieved; Vimy / Passchendaele rest on the Museum article and UNB thesis, not a file read in this research.</li>
+      <li><b>Eldridge Eatman</b> — British file destroyed in the Blitz; the 785 days, exact battalion, and Loos / Salonika details remain secondary-source only.</li>
+      <li><b>Korea / post-1945</b> — no Eatman/Eatmon found, but the CVWM surname search did not work as a filter when tested, and LAC post-1945 files are ATIP-only; the negative is not conclusive.</li>
+      <li><b>Bowles / Radcliffe / McIntyre service</b> — none found for the Elm Hill families.</li>
+      <li><b>Chester's death date</b> — 21 July 1988 (MyNewBrunswick) vs 25 July 1988 (WikiTree cemetery listing). Minor and unresolved.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="sources-h">
+    <div class="sec-head"><span class="k">Provenance</span><h2 id="sources-h">All sources</h2></div>
+    <p class="sec-intro">All read 11 November 2026. The CVWM entry for Arthur Eatman was verified live in the research browser that day, as was Manzer Eatman’s attestation paper; other pages were read via the web index.</p>
+    <div class="sources"><ul>
+      <li><a href="https://www.veterans.gc.ca/en/remembrance/memorials/canadian-virtual-war-memorial/detail/2202541" target="_blank" rel="noopener">Veterans Affairs Canada — CVWM, Arthur Wallace Eatman</a></li>
+      <li><a href="https://www.nbm-mnb.ca/en/2026/02/02/sergeant-arthur-wallace-eatman-a-snapshot-in-time/" target="_blank" rel="noopener">New Brunswick Museum — “Sergeant Arthur Wallace Eatman: A Snapshot in Time” (2026)</a></li>
+      <li><a href="https://archives.novascotia.ca/2construction/" target="_blank" rel="noopener">Nova Scotia Archives — No. 2 Construction Battalion nominal roll</a></li>
+      <li><a href="https://www.bac-lac.gc.ca/eng/discover/military-heritage/first-world-war/personnel-records/Pages/list.aspx?SurnameSearch=Eatman&amp;RegimentNum=931125" target="_blank" rel="noopener">Library and Archives Canada — John W. Eatman, WWI personnel records</a></li>
+      <li><a href="https://recherche-collection-search.bac-lac.gc.ca/eng/Home/Record?app=pffww&amp;IdNumber=371828&amp;ST=STAH" target="_blank" rel="noopener">Library and Archives Canada — Manzer Eatman attestation paper (Item 371828)</a></li>
+      <li><a href="https://www.fold3.com/document/572770610/eatmon-joseph-page-33-wwi-canadian-soldiers" target="_blank" rel="noopener">Fold3 — Joseph Eatmon, Canada, Soldiers of the First World War (LAC-derived index)</a></li>
+      <li><a href="https://www.canada.ca/en/army/services/events/2-construction-battalion.html" target="_blank" rel="noopener">Canada.ca — No. 2 Construction Battalion</a></li>
+      <li><a href="https://www.canada.ca/en/army/services/events/2-construction-battalion/apology-advisory.html" target="_blank" rel="noopener">Canada.ca — National Apology Advisory Committee report</a></li>
+      <li><a href="https://development.thecanadianencyclopedia.ca/en/article/eldridge-eatman" target="_blank" rel="noopener">The Canadian Encyclopedia — Eldridge Eatman</a></li>
+      <li><a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/world-class-sprinter-eldridge-gus-eatman/" target="_blank" rel="noopener">CommunityStories — Eldridge “Gus” Eatman</a></li>
+      <li><a href="https://nbblackhistorysociety.org/eldridge-eatman/" target="_blank" rel="noopener">NB Black History Society — Eldridge Eatman</a></li>
+      <li><a href="https://www.nbsportshalloffame.com/honoured-members/eldridge-eatman-" target="_blank" rel="noopener">NB Sports Hall of Fame — Eldridge Eatman</a></li>
+      <li><a href="https://athletics.ca/blog/2023/03/14/track-and-field-pioneer-eldridge-eatman-to-be-honoured-at-canadian-indoor-championships/" target="_blank" rel="noopener">Athletics Canada — Eldridge Eatman (2023)</a></li>
+      <li><a href="https://www.frederictonregionmuseum.com/2022/07/05/honouring-the-no-2-construction-battalion/" target="_blank" rel="noopener">Fredericton Region Museum — “Honouring the No. 2 Construction Battalion” (2022)</a></li>
+      <li><a href="https://www.frederictonregionmuseum.com/2025/06/17/honouring-no-2-construction-battalion-cef/" target="_blank" rel="noopener">Fredericton Region Museum — “Forgotten Loyalty” travelling exhibition</a></li>
+      <li><a href="https://www.frederictonregionmuseum.com/2012/02/14/a-black-leader-of-white-men-sergeant-arthur-eatman-with-the-carleton-and-york-regiment-at-war-in-sicily-1943/" target="_blank" rel="noopener">Fredericton Region Museum — “A Black Leader of White Men” (2012 talk)</a></li>
+      <li><a href="https://www.veterans.gc.ca/en/remembrance/memorials/canada/carleton-and-york-regiment-memorial" target="_blank" rel="noopener">VAC — Carleton and York Regiment Memorial</a></li>
+      <li><a href="https://www.veterans.gc.ca/eng//remembrance/people-and-stories/black-canadians" target="_blank" rel="noopener">VAC — Black Canadians in uniform</a></li>
+      <li><a href="https://unbscholar.lib.unb.ca/items/2067d705-3626-4eae-905b-9feac4d40971" target="_blank" rel="noopener">UNB Scholar — “Making it up as you go”</a></li>
+      <li><a href="https://ca.forceswarrecords.com/document/572770477/eatman-james-wallace-page-36-wwi-canadian-soldiers" target="_blank" rel="noopener">Forces War Records — James Wallace Eatman, WWI (LAC source)</a></li>
+      <li><a href="https://uk.forceswarrecords.com/document/726147966/eatman-arthur-wallace-page-37-canada-wwii-records-and-service-files-of-war-dead-1939-1947" target="_blank" rel="noopener">Forces War Records — Arthur Wallace Eatman, WWII war-dead file (LAC source)</a></li>
+      <li><a href="https://mynewbrunswick.ca/chester-eatmon/" target="_blank" rel="noopener">MyNewBrunswick — Chester Eatmon</a></li>
+      <li><a href="https://www.unb.ca/artcentre/exhibitions/bhm.html" target="_blank" rel="noopener">UNB Art Centre — Black History Month project</a></li>
+      <li><a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/an-honoured-member-of-new-brunswicks-black-community-for-the-work-he-did-to-promote-the-pride-unity-and-dignity-of-his-race-through-education-arthur-seymour-tyler/" target="_blank" rel="noopener">CommunityStories — Arthur “Seymour” Tyler</a></li>
+      <li><a href="https://www.blackcanadianveterans.com/post/tyler-arthur-seymour" target="_blank" rel="noopener">Black Canadian Veterans — Tyler, Arthur “Seymour”</a></li>
+      <li><a href="https://www.robertspublications.com/blog/black-canadian-soldiers-in-buxton" target="_blank" rel="noopener">Roberts Publications — Black Canadian Soldiers (Miles Dymond)</a></li>
+      <li><a href="https://www.communitystories.ca/v2/black-settlers-york-sunbury_colons-noirs/gallery/robert-1917-1944-and-cyril-henry-1914-1947-lest-we-forget-private-robert-lawrence-henry-and-private-cyril-ernest-henry-commemorated-on-pages-333-and-596-of-the-second-world-w/" target="_blank" rel="noopener">CommunityStories — Robert &amp; Cyril Henry</a></li>
+      <li><a href="https://www.genealogy.com/forum/regional/countries/topics/canada/newbrunswick/4040/" target="_blank" rel="noopener">Genealogy.com forum — Wright / Eatman family (weaker source)</a></li>
+    </ul></div>
+  </section>
+
+  <footer>
+    <p class="lest">Lest we forget.</p>
+    <p>Sgt Arthur Wallace “Duke” Eatman · Pte James Wallace Eatman · Eldridge “Gus” Eatman · Pte John Wesley Eatman · Pte Manzer Eatman · Pte Joseph Eatmon · Pte Dubert Mansfield Eatman · Pte Harry Ellis Eatman — of Elm Hill, Zealand, and Fredericton, New Brunswick. Researched for Remembrance Day, 11 November 2026.</p>
+    <p style="margin-top:10px">Part of the Eatmon family research — see also <a href="eatmons-black-loyalist-research.html">Were the Eatmons Black Loyalists?</a></p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var btns = document.querySelectorAll('.filters button');
+  var rows = document.querySelectorAll('.roster tbody tr');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      btns.forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+      b.setAttribute('aria-pressed','true');
+      var f = b.getAttribute('data-filter');
+      rows.forEach(function(r){
+        r.classList.toggle('hidden', f !== 'all' && r.getAttribute('data-war') !== f);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
