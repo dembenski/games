@@ -125,6 +125,7 @@
   <button class="tool-btn" data-tool="explode">💥 Explode <span class="key">5</span></button>
   <button class="tool-btn" data-tool="implode">🌀 Implode <span class="key">6</span></button>
   <div class="hint">Drag to orbit • Scroll to zoom • Click a block to use the tool • Esc clears selection</div>
+  <div class="hint" style="color:#7dd3fc">Hands: pinch-drag empty sky = spin • two-hand empty pinch = zoom • drag ground = walk Buddy • grab Buddy to carry him</div>
 </div>
 
 <div id="side" class="panel">
@@ -155,7 +156,9 @@
   <div>
     <h3>World</h3>
     <div class="ai-hint" id="worldInfo">Blocks: 0</div>
-    <button class="mini-btn" id="clearBtn">🧹 Clear my blocks (keep ground)</button>
+    <button class="mini-btn" id="newTerrainBtn">🌄 New terrain (fresh mountains)</button>
+    <button class="mini-btn" id="charBtn">🧍 Spawn Character</button>
+    <button class="mini-btn" id="clearBtn">🧹 Clear my blocks (keep terrain)</button>
   </div>
 </div>
 
@@ -198,10 +201,10 @@ scene.background = new THREE.Color(0x87bfe8);
 scene.fog = new THREE.Fog(0x87bfe8, 55, 110);
 
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
-camera.position.set(16, 14, 16);
+camera.position.set(18, 15, 18);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, 0);
+controls.target.set(0, 2, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.maxPolarAngle = Math.PI * 0.495;
@@ -330,25 +333,116 @@ function addBlock(x, y, z, type, opts = {}) {
   const mesh = new THREE.Mesh(boxGeo, MATS[type]);
   mesh.position.set(x, y, z);
   mesh.updateWorldMatrix(true, false); // pickable immediately — matrixWorld is stale until the next render
-  mesh.castShadow = type !== 'glass';
+  mesh.castShadow = type !== 'glass' && !opts.noShadow;
   mesh.receiveShadow = true;
   mesh.userData.entryKey = k;
-  const entry = { mesh, type, ground: !!opts.ground, merged: false, cells: [k], size: [1, 1, 1], center: new THREE.Vector3(x, y, z) };
+  const entry = { mesh, type, ground: !!opts.ground, terrain: !!opts.terrain, merged: false, cells: [k], size: [1, 1, 1], center: new THREE.Vector3(x, y, z) };
   mesh.userData.entry = entry;
   blocksGroup.add(mesh);
   blocks.set(k, entry);
   return entry;
 }
 
-// ground: 24x24 grass, y = 0 (top surface at y = 0.5)
-for (let x = -HALF; x < HALF; x++) for (let z = -HALF; z < HALF; z++) addBlock(x, 0, z, 'grass', { ground: true });
-
-// grid lines on the ground for readability
-const grid = new THREE.GridHelper(GROUND, GROUND, 0xffffff, 0xffffff);
-grid.position.y = 0.51;
-grid.material.transparent = true;
-grid.material.opacity = 0.18;
-worldGroup.add(grid);
+// ---------- procedural terrain (v2) ----------
+// Fresh random terrain on every load: rolling heightmap with mountains and
+// valleys, trees scattered on it. The terrain IS the ground — no more empty grid.
+// (The character lives in `char`, declared here so terrain code can see it.)
+let char = null;
+let terrainSeed = 0;
+let treeCount = 0;
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function makeValueNoise(rand, cells) {
+  // smooth value noise over a (cells+1)x(cells+1) lattice of random values
+  const g = [];
+  for (let i = 0; i < (cells + 1) * (cells + 1); i++) g.push(rand());
+  const at = (ix, iz) => g[Math.min(cells, Math.max(0, iz)) * (cells + 1) + Math.min(cells, Math.max(0, ix))];
+  return (x, z) => {
+    const fx = (x + HALF) / GROUND * cells, fz = (z + HALF) / GROUND * cells;
+    const x0 = Math.floor(fx), z0 = Math.floor(fz);
+    const tx = fx - x0, tz = fz - z0;
+    const sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz);
+    const a = at(x0, z0), b = at(x0 + 1, z0), c = at(x0, z0 + 1), d = at(x0 + 1, z0 + 1);
+    return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+  };
+}
+function terrainHeightAt(noise1, noise2, x, z) {
+  const n1 = noise1(x, z), n2 = noise2(x, z);
+  let h = n1 * 3.0 + n2 * 1.6;
+  if (n1 > 0.62) h += (n1 - 0.62) * 9; // mountain boost where the low octave is high
+  return Math.max(0, Math.min(6, Math.floor(h)));
+}
+// top y of the terrain floor at column (x, z); -1 if there is no terrain there
+function terrainHeight(x, z) {
+  let top = -1;
+  for (let y = 0; y <= MAX_Y; y++) {
+    const e = blocks.get(key(x, y, z));
+    if (e && e.ground) top = y;
+  }
+  return top;
+}
+function terrainSignature() {
+  // cheap fingerprint of the current heightmap (for tests: fresh seed must differ)
+  let s = '';
+  for (const [x, z] of [[-11, -11], [-5, 3], [0, 0], [4, -6], [9, 9], [11, -3], [-8, 8], [2, 10]]) s += terrainHeight(x, z) + ',';
+  return s;
+}
+function generateTerrain(seed) {
+  terrainSeed = seed === undefined ? Math.floor(Math.random() * 1e9) : seed;
+  for (const e of new Set(blocks.values())) removeEntry(e);
+  selectEntry(null);
+  imploding.length = 0;
+  treeCount = 0;
+  const rand = mulberry32(terrainSeed);
+  const noise1 = makeValueNoise(rand, 8);
+  const noise2 = makeValueNoise(rand, 16);
+  for (let x = -HALF; x < HALF; x++) {
+    for (let z = -HALF; z < HALF; z++) {
+      const h = terrainHeightAt(noise1, noise2, x, z);
+      for (let y = 0; y <= h; y++) {
+        const type = y === h ? 'grass' : (y >= h - 2 ? 'dirt' : 'stone');
+        addBlock(x, y, z, type, { ground: true, terrain: true, noShadow: true });
+      }
+    }
+  }
+  // trees: trunks + leaf blobs, placed where the land is gentle
+  const treeSpots = [];
+  let tries = 0;
+  while (treeSpots.length < 12 && tries < 200) {
+    tries++;
+    const x = Math.floor(rand() * (GROUND - 4)) - HALF + 2;
+    const z = Math.floor(rand() * (GROUND - 4)) - HALF + 2;
+    const h = terrainHeight(x, z);
+    if (h < 1 || h > 4) continue;
+    if (Math.abs(x) <= 2 && Math.abs(z) <= 2) continue; // keep the centre clear for Buddy
+    if (treeSpots.some(([tx, tz]) => Math.abs(tx - x) + Math.abs(tz - z) < 4)) continue;
+    treeSpots.push([x, z]);
+  }
+  for (const [x, z] of treeSpots) {
+    const h = terrainHeight(x, z);
+    const trunk = 3;
+    for (let y = 1; y <= trunk; y++) addBlock(x, h + y, z, 'wood', { terrain: true });
+    for (let y = trunk + 1; y <= trunk + 2; y++) {
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+        if (Math.abs(dx) === 1 && Math.abs(dz) === 1 && y === trunk + 2) continue;
+        addBlock(x + dx, h + y, z + dz, 'leaves', { terrain: true });
+      }
+    }
+    addBlock(x, h + trunk + 3, z, 'leaves', { terrain: true });
+    treeCount++;
+  }
+  if (char) snapCharToTerrain();
+  updateWorldInfo();
+  updateStatus();
+}
+// (terrain is generated at the end of the module, after every declaration
+//  it touches has run — see the generateTerrain() call below __bv.)
 
 // selection highlight
 const hlGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.04, 1.04, 1.04));
@@ -398,8 +492,9 @@ function updateStatus() {
   document.getElementById('statusTool').textContent = TOOL_LABELS[state.tool];
   document.getElementById('statusBlock').textContent = TYPE_NAMES[state.type];
   document.getElementById('statusCount').textContent = 'Blocks: ' + countBlocks();
-  document.getElementById('worldInfo').textContent = 'Blocks: ' + countBlocks() + '  •  Ground: 24×24  •  Shapes and AI builds stack on top.';
+  document.getElementById('worldInfo').textContent = 'Blocks: ' + countBlocks() + '  •  Terrain seed #' + terrainSeed + '  •  Trees: ' + treeCount + '  •  Shapes and AI builds sit on the terrain.';
 }
+function updateWorldInfo() { updateStatus(); }
 
 // ---------- state ----------
 const TOOLS = ['spawn', 'delete', 'merge', 'stretch', 'explode', 'implode'];
@@ -408,7 +503,7 @@ const state = { tool: 'spawn', type: 'grass', shape: null, anchor: { x: 0, z: 0 
 
 // ---------- merge ----------
 function tryMerge(entry) {
-  if (entry.ground) { toast('Pick a block you placed — the ground can’t merge.'); return; }
+  if (entry.ground || entry.terrain) { toast('Pick a block you placed — terrain and trees can’t merge.'); return; }
   if (entry.merged) { toast('That block is already merged.'); return; }
   const type = entry.type;
   const seen = new Set(entry.cells);
@@ -419,7 +514,7 @@ function tryMerge(entry) {
       const nk = key(x + dx, y + dy, z + dz);
       if (seen.has(nk)) continue;
       const e = blocks.get(nk);
-      if (e && !e.ground && !e.merged && e.type === type) { seen.add(nk); queue.push(nk); }
+      if (e && !e.ground && !e.terrain && !e.merged && e.type === type) { seen.add(nk); queue.push(nk); }
     }
     if (seen.size > 200) break;
   }
@@ -605,7 +700,8 @@ function shapeCells(name, cx, cy, cz) {
   return cells;
 }
 function spawnShape(name, cx, cz, type) {
-  const cells = shapeCells(name, cx, 1, cz);
+  const baseY = Math.max(0, terrainHeight(cx, cz)) + 1; // shapes sit on the terrain
+  const cells = shapeCells(name, cx, baseY, cz);
   let placed = 0;
   for (const [x, y, z] of cells) if (addBlock(x, y, z, type || state.type)) placed++;
   updateStatus();
@@ -614,14 +710,17 @@ function spawnShape(name, cx, cz, type) {
 }
 
 // ---------- AI builds ----------
-function put(x, y, z, type) { return addBlock(x, y, z, type); }
+// AI builds sit on top of the terrain: put() adds aiBaseY (the terrain height
+// at the build anchor) to every y, so castles and houses land on hillsides.
+let aiBaseY = 0;
+function put(x, y, z, type) { return addBlock(x, y + aiBaseY, z, type); }
 const AI_BUILDERS = {
   castle(ax, az) {
     let n = 0;
     const wall = (x, z, h) => { for (let y = 1; y <= h; y++) if (put(x, y, z, 'stone')) n++; };
     for (let i = -5; i <= 5; i++) { wall(ax + i, az - 5, 4); wall(ax + i, az + 5, 4); wall(ax - 5, az + i, 4); wall(ax + 5, az + i, 4); }
     // gate on the south wall
-    for (let y = 1; y <= 2; y++) { const e = blocks.get(key(ax, y, az + 5)); if (e && !e.ground) { removeEntry(e); n--; } }
+    for (let y = 1; y <= 2; y++) { const e = blocks.get(key(ax, y + aiBaseY, az + 5)); if (e && !e.ground) { removeEntry(e); n--; } }
     // crenellations
     for (let i = -5; i <= 5; i += 2) {
       if (put(ax + i, 5, az - 5, 'stone')) n++;
@@ -714,10 +813,136 @@ function buildAI(word, ax, az) {
   if (!fn) { toast(`I don’t know how to build “${w}” yet — try: castle, house, tower, bridge, pyramid, tree, wall.`); return 0; }
   const cx = ax !== undefined ? ax : state.anchor.x;
   const cz = az !== undefined ? az : state.anchor.z;
+  aiBaseY = Math.max(0, terrainHeight(cx, cz));
   const n = fn(cx, cz);
+  aiBaseY = 0;
   updateStatus();
   toast(n ? `✨ Built a ${w} — ${n} blocks!` : `No room at (${cx}, ${cz}) — try clicking open ground first.`);
   return n;
+}
+
+// ---------- Buddy: the third-person blocky character (v2) ----------
+// One blocky friend who lives in the world. Hands: pinch-drag on the ground
+// near him tells him where to walk; pinch-grab him to pick him up and place
+// him anywhere (he snaps onto the terrain when released). Desktop: click him
+// to select, then click the ground to walk him; drag him to carry him.
+const charGroup = new THREE.Group();
+worldGroup.add(charGroup);
+function charPart(w, h, d, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color }));
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.userData.charPart = true;
+  return m;
+}
+function buildBuddyMesh() {
+  const g = new THREE.Group();
+  const skin = 0xf2c184, shirt = 0x22d3ee, pants = 0x3b4a6b, hair = 0x4a3226, dark = 0x1f2937;
+  // legs (pivot groups at the hip so they swing while walking)
+  const legL = new THREE.Group(); legL.position.set(-0.12, 0.55, 0);
+  legL.add(charPart(0.2, 0.55, 0.2, pants, 0, -0.275, 0));
+  const legR = new THREE.Group(); legR.position.set(0.12, 0.55, 0);
+  legR.add(charPart(0.2, 0.55, 0.2, pants, 0, -0.275, 0));
+  // arms (pivot groups at the shoulder)
+  const armL = new THREE.Group(); armL.position.set(-0.36, 1.15, 0);
+  armL.add(charPart(0.16, 0.55, 0.16, shirt, 0, -0.275, 0));
+  const armR = new THREE.Group(); armR.position.set(0.36, 1.15, 0);
+  armR.add(charPart(0.16, 0.55, 0.16, shirt, 0, -0.275, 0));
+  // body, head, hair, eyes
+  const body = charPart(0.55, 0.65, 0.32, shirt, 0, 0.875, 0);
+  const head = charPart(0.5, 0.5, 0.5, skin, 0, 1.45, 0);
+  const hairTop = charPart(0.52, 0.18, 0.52, hair, 0, 1.74, 0);
+  const hairBack = charPart(0.52, 0.34, 0.12, hair, 0, 1.56, -0.22);
+  const eyeL = charPart(0.07, 0.1, 0.03, dark, -0.11, 1.48, 0.26);
+  const eyeR = charPart(0.07, 0.1, 0.03, dark, 0.11, 1.48, 0.26);
+  g.add(legL, legR, armL, armR, body, head, hairTop, hairBack, eyeL, eyeR);
+  g.userData.parts = { legL, legR, armL, armR };
+  return g;
+}
+function charFeetY(x, z) { return Math.max(0, terrainHeight(Math.round(x), Math.round(z))) + 0.5; }
+function snapCharToTerrain() {
+  if (!char) return;
+  char.pos.y = charFeetY(char.pos.x, char.pos.z);
+  char.group.position.copy(char.pos);
+  if (char.target) char.target.y = charFeetY(char.target.x, char.target.z);
+}
+function spawnCharacter(ax, az) {
+  const x = ax !== undefined ? ax : state.anchor.x;
+  const z = az !== undefined ? az : state.anchor.z;
+  if (char) {
+    char.pos.set(x, charFeetY(x, z), z);
+    char.target = null;
+    char.walking = false;
+    char.group.position.copy(char.pos);
+    char.group.rotation.y = 0;
+    toast('Buddy moved here!');
+    return char;
+  }
+  const group = buildBuddyMesh();
+  charGroup.add(group);
+  char = {
+    group,
+    pos: new THREE.Vector3(x, charFeetY(x, z), z),
+    target: null,
+    walking: false,
+    phase: 0,
+    carried: false,
+    selected: false,
+  };
+  group.position.copy(char.pos);
+  toast('🧍 Buddy spawned! Drag the ground near him to walk him, or grab him to carry him.');
+  return char;
+}
+function removeCharacter() {
+  if (!char) return;
+  charGroup.remove(char.group);
+  char = null;
+}
+function setCharWalkTarget(localPoint) {
+  if (!char || char.carried) return false;
+  const x = THREE.MathUtils.clamp(localPoint.x, -HALF, HALF - 1);
+  const z = THREE.MathUtils.clamp(localPoint.z, -HALF, HALF - 1);
+  char.target = new THREE.Vector3(x, charFeetY(x, z), z);
+  char.walking = true;
+  return true;
+}
+function updateCharacter(dt) {
+  if (!char || char.carried) return;
+  const p = char.group.userData.parts;
+  if (char.walking && char.target) {
+    const dx = char.target.x - char.pos.x, dz = char.target.z - char.pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.12) {
+      char.target = null;
+      char.walking = false;
+    } else {
+      const step = Math.min(dist, 2.2 * dt);
+      char.pos.x += (dx / dist) * step;
+      char.pos.z += (dz / dist) * step;
+      char.pos.y = charFeetY(char.pos.x, char.pos.z);
+      char.group.position.copy(char.pos);
+      char.group.rotation.y = Math.atan2(dx, dz);
+      char.phase += dt * 9;
+      const s = Math.sin(char.phase);
+      p.legL.rotation.x = s * 0.55;
+      p.legR.rotation.x = -s * 0.55;
+      p.armL.rotation.x = -s * 0.4;
+      p.armR.rotation.x = s * 0.4;
+      return;
+    }
+  }
+  // idle: ease limbs back to neutral
+  for (const limb of [p.legL, p.legR, p.armL, p.armR]) limb.rotation.x *= Math.max(0, 1 - dt * 8);
+}
+function charState() {
+  if (!char) return null;
+  return {
+    pos: char.group.position.toArray(),
+    walking: char.walking,
+    carried: char.carried,
+    selected: char.selected,
+    target: char.target ? char.target.toArray() : null,
+  };
 }
 
 // ---------- picking ----------
@@ -727,9 +952,35 @@ function pickAt(clientX, clientY) {
   pointer.x = (clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(blocksGroup.children, false)
+    .filter(h => !h.object.userData.entry?.grabbed);
+  let best = hits.length ? hits[0] : null;
+  if (best) best.kind = 'block';
+  // Buddy is pickable too (nearest of block vs character wins)
+  if (char) {
+    raycaster.far = 100;
+    const ch = raycaster.intersectObjects(char.group.children, true)
+      .filter(h => h.object.userData.charPart);
+    if (ch.length && (!best || ch[0].distance < best.distance)) {
+      best = ch[0];
+      best.kind = 'character';
+    }
+    raycaster.far = Infinity;
+  }
+  return best;
+}
+// local ground point under a screen click (ray vs terrain surface / base plane)
+function groundPointFromScreen(clientX, clientY) {
+  pointer.x = (clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  raycaster.far = 100;
   const hits = raycaster.intersectObjects(blocksGroup.children, false);
-  // skip a block currently being dragged by a hand
-  return hits.find(h => !h.object.userData.entry?.grabbed) || null;
+  if (hits.length) return toLocal(hits[0].point.clone());
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+  const pt = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(plane, pt)) return null;
+  return toLocal(pt);
 }
 function hitCell(hit) {
   const e = hit.object.userData.entry;
@@ -754,6 +1005,22 @@ function adjacentCell(hit) {
 
 function handleClickAt(clientX, clientY) {
   const hit = pickAt(clientX, clientY);
+  // Buddy first: clicking him selects/deselects; while selected, clicks on
+  // the ground walk him there instead of using the tool.
+  if (hit && hit.kind === 'character' && char) {
+    char.selected = !char.selected;
+    toast(char.selected
+      ? 'Buddy selected! Click the ground to walk him there. Click him again to deselect.'
+      : 'Buddy deselected.');
+    return;
+  }
+  if (char && char.selected) {
+    const pt = hit ? toLocal(hit.point.clone()) : groundPointFromScreen(clientX, clientY);
+    if (pt && setCharWalkTarget(pt)) {
+      toast('Buddy’s on his way!');
+      return;
+    }
+  }
   if (!hit) { selectEntry(null); return; }
   const hc = hitCell(hit);
   if (!hc) return;
@@ -766,7 +1033,6 @@ function handleClickAt(clientX, clientY) {
       disarmShape();
       return;
     }
-    if (t.y < 1) { toast('Build upward — the ground layer is the floor!'); return; }
     const e = addBlock(t.x, t.y, t.z, state.type);
     if (!e) toast('That space is taken!');
     else updateStatus();
@@ -776,6 +1042,7 @@ function handleClickAt(clientX, clientY) {
     selectEntry(hc.entry);
     tryMerge(hc.entry);
   } else if (tool === 'stretch') {
+    if (hc.entry.ground || hc.entry.terrain) { toast('Stretch a block you placed — the terrain stays as it is.'); return; }
     selectEntry(hc.entry);
     toast(`Stretching a ${TYPE_NAMES[hc.entry.type]} block — use the sliders (or arrow keys).`);
   } else if (tool === 'explode') {
@@ -785,10 +1052,39 @@ function handleClickAt(clientX, clientY) {
   }
 }
 
-// click vs orbit-drag: only treat short, still presses as clicks
-let downPos = null, downTime = 0;
-renderer.domElement.addEventListener('pointerdown', (e) => { downPos = [e.clientX, e.clientY]; downTime = performance.now(); });
+// click vs orbit-drag: only treat short, still presses as clicks.
+// Dragging Buddy (pointerdown on him) carries him instead of orbiting.
+let downPos = null, downTime = 0, mouseCarry = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  downPos = [e.clientX, e.clientY]; downTime = performance.now();
+  const hit = pickAt(e.clientX, e.clientY);
+  if (hit && hit.kind === 'character' && char) {
+    mouseCarry = true;
+    char.carried = true;
+    char.walking = false;
+    char.target = null;
+    controls.enabled = false;
+  }
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!mouseCarry || !char) return;
+  const pt = groundPointFromScreen(e.clientX, e.clientY);
+  if (!pt) return;
+  char.pos.set(pt.x, charFeetY(pt.x, pt.z) + 0.7, pt.z); // rides a little above the ground
+  char.group.position.copy(char.pos);
+});
 renderer.domElement.addEventListener('pointerup', (e) => {
+  if (mouseCarry) {
+    mouseCarry = false;
+    if (char) {
+      char.carried = false;
+      snapCharToTerrain();
+      toast('Buddy placed!');
+    }
+    controls.enabled = true;
+    downPos = null;
+    return;
+  }
   if (!downPos) return;
   const dx = e.clientX - downPos[0], dy = e.clientY - downPos[1];
   const moved = Math.hypot(dx, dy);
@@ -802,7 +1098,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   const idx = ['1', '2', '3', '4', '5', '6'].indexOf(e.key);
   if (idx >= 0) { setTool(TOOLS[idx]); return; }
-  if (e.key === 'Escape') { selectEntry(null); disarmShape(); return; }
+  if (e.key === 'Escape') { selectEntry(null); disarmShape(); if (char) char.selected = false; return; }
   if (state.tool === 'stretch' && selected) {
     const step = 0.1;
     const bump = (id, d) => {
@@ -886,14 +1182,23 @@ document.getElementById('stretchReset').addEventListener('click', () => {
 
 document.getElementById('clearBtn').addEventListener('click', () => {
   let n = 0;
-  for (const e of new Set(blocks.values())) if (!e.ground) { removeEntry(e); n++; }
+  for (const e of new Set(blocks.values())) if (!e.ground && !e.terrain) { removeEntry(e); n++; }
   selectEntry(null);
   updateStatus();
-  toast(`Cleared ${n} blocks — fresh canvas!`);
+  toast(`Cleared ${n} blocks — terrain and trees stay!`);
+});
+
+document.getElementById('newTerrainBtn').addEventListener('click', () => {
+  generateTerrain();
+  toast('🌄 Fresh terrain! New mountains, valleys and trees — seed #' + terrainSeed);
+});
+document.getElementById('charBtn').addEventListener('click', () => {
+  if (char) { spawnCharacter(state.anchor.x, state.anchor.z); return; }
+  spawnCharacter(2, 2);
 });
 
 document.getElementById('helpBtn').addEventListener('click', () => {
-  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Arrows stretch • Esc clears. Quest hands: pinch = use tool • Pinch-hold + move = grab & drag • Two-hand pinch = stretch • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools.', 8000);
+  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Click Buddy to select him, then click the ground to walk him • Drag Buddy to carry him • 🌄 New terrain makes a fresh world. Quest hands: pinch = use tool • Pinch-hold + move a block = grab & drag • Drag on the ground = walk Buddy (or spin the world if he’s not here yet) • Drag the empty sky = spin the world • Two-hand pinch on a block = stretch, on empty space = zoom • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools.', 9000);
 });
 
 // ---------- AR mode ----------
@@ -951,6 +1256,7 @@ function animate(time, frame) {
   if (!XR.session) controls.update();
   updateParticles(dt);
   updateImploding(dt);
+  updateCharacter(dt);
   if (frame && XR.session) updateXR(time, frame);
   renderer.render(scene, camera);
 }
@@ -961,15 +1267,20 @@ updateStatus();
 // WebXR HAND TRACKING — the MAIN interface (Quest 3).
 // Mouse/keyboard is the desktop fallback; the 📷 Camera AR button
 // is the fallback for phones without WebXR.
-// Gesture map:
+// Gesture map — disambiguated by what the hands are touching:
 //   pinch (thumb tip + index tip) ......... use the current tool
+//   pinch-tap a block ..................... place / delete / merge / stretch / explode / implode
 //   pinch-hold + move on a block ......... grab it and drag it
+//   pinch-drag on the TERRAIN ............. walk Buddy (if he exists) else spin the world
+//   pinch-drag on EMPTY SKY ............... spin the whole world (yaw + a little tilt)
 //   pinch with BOTH hands on a block ..... stretch (pull apart / push together)
+//   pinch with BOTH hands on empty space . zoom the whole world (0.5x–2x)
+//   pinch Buddy ........................... carry him, release to place him
 //   Delete tool + pinch a block .......... remove it
 //   Merge tool + pinch two blocks ........ merge them
 //   Explode tool + pinch + flick outward . blast blocks apart
 //   Implode tool + pinch + pull inward ... suck blocks together
-//   pinch the floating toolbar ........... switch tools
+//   pinch the floating toolbar ........... switch tools / new terrain / spawn Buddy
 // ============================================================
 const PINCH_START = 0.022; // metres, thumb-tip to index-tip: below this = pinching
 const PINCH_END = 0.030;   // above this = released (hysteresis)
@@ -993,7 +1304,14 @@ const XR = {
   lastAction: null,
   explodeHintShown: false,
   implodeHintShown: false,
+  worldYaw: 0,
+  worldTilt: 0,
+  worldScale: 1,
 };
+function setWorldTransform() {
+  worldGroup.rotation.set(XR.worldTilt, XR.worldYaw, 0);
+  worldGroup.scale.setScalar(XR.worldScale);
+}
 
 const xrBtn = document.getElementById('xrBtn');
 if (navigator.xr && navigator.xr.isSessionSupported) {
@@ -1029,7 +1347,7 @@ async function enterAR() {
     createXRToolbar(false);
     xrBtn.classList.add('on');
     xrBtn.textContent = '🥽 In AR — tap to exit';
-    toast('AR session started! Pinch to use the tool, pinch-hold to grab, two-hand pinch to stretch. Pinch the floating toolbar to switch tools.');
+    toast('AR started! Pinch = tool • Hold a block to grab it • Drag the ground = walk Buddy • Drag the sky = spin the world • Two-hand pinch empty space = zoom.');
   } catch (err) {
     toast('Couldn’t start AR (' + (err && err.message ? err.message : 'unknown error') + ') — try 📷 Camera AR instead.');
   }
@@ -1096,8 +1414,10 @@ function createXRToolbar(testMode) {
     XR.toolbarButtons.push(m);
     return m;
   };
-  mkSmall('anchor', '⌂', 'Anchor', '#facc15', -0.19);
-  mkSmall('exit', '✕', 'Exit AR', '#f87171', 0.19);
+  mkSmall('anchor', '⌂', 'Anchor', '#facc15', -0.285);
+  mkSmall('terrain', '🌄', 'Terrain', '#4ade80', -0.095);
+  mkSmall('char', '🧍', 'Buddy', '#f472b6', 0.095);
+  mkSmall('exit', '✕', 'Exit AR', '#f87171', 0.285);
   const hl = new THREE.Mesh(
     new THREE.PlaneGeometry(0.2, 0.093),
     new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
@@ -1201,13 +1521,21 @@ const xrRaycaster = new THREE.Raycaster();
 function xrPick(ray) {
   xrRaycaster.set(ray.origin, ray.direction);
   xrRaycaster.far = 8;
-  // nearest of (blocks, reticle, toolbar) wins
+  // nearest of (blocks, Buddy, reticle, toolbar) wins
   let best = null;
+  const consider = (kind, dist, extra) => {
+    if (dist < (best ? best.dist : Infinity)) best = { kind, dist, ...extra };
+  };
   const hits = xrRaycaster.intersectObjects(blocksGroup.children, false)
     .filter(h => !h.object.userData.entry?.grabbed);
   if (hits.length) {
     const hit = hits[0];
-    best = { kind: 'block', dist: hit.distance, hit, cell: hitCell(hit), entry: hit.object.userData.entry };
+    consider('block', hit.distance, { hit, cell: hitCell(hit), entry: hit.object.userData.entry });
+  }
+  if (char) {
+    const ch = xrRaycaster.intersectObjects(char.group.children, true)
+      .filter(h => h.object.userData.charPart);
+    if (ch.length) consider('character', ch[0].distance, { hit: ch[0] });
   }
   if (XR.reticle && XR.reticle.visible) {
     const c = new THREE.Vector3();
@@ -1216,21 +1544,28 @@ function xrPick(ray) {
     xrRaycaster.ray.closestPointToPoint(c, closest);
     const dAlong = xrRaycaster.ray.origin.distanceTo(closest);
     // forgiving: the reticle is small and hands are imprecise
-    if (closest.distanceTo(c) < 0.15 && dAlong < (best ? best.dist : Infinity)) {
-      best = { kind: 'reticle', dist: dAlong, hit: { point: c } };
-    }
+    if (closest.distanceTo(c) < 0.15) consider('reticle', dAlong, { hit: { point: c } });
   }
   if (XR.toolbar) {
     const th = xrRaycaster.intersectObjects(XR.toolbar.children, false)
       .filter(h => h.object.userData.xrButton);
-    if (th.length && th[0].distance < (best ? best.dist : Infinity)) {
-      best = { kind: 'toolbar', dist: th[0].distance, button: th[0].object.userData.xrButton, hit: th[0] };
-    }
+    if (th.length) consider('toolbar', th[0].distance, { button: th[0].object.userData.xrButton, hit: th[0] });
   }
   return best;
 }
-// where a hand ray meets the build floor (worldGroup-local cell, y = 1)
+// where a hand ray meets the build surface (worldGroup-local cell).
+// Terrain-aware: the nearest block hit gives the cell above its face;
+// if the ray misses every block, fall back to the top of the terrain column.
 function groundPlaneCell(ray) {
+  xrRaycaster.set(ray.origin, ray.direction);
+  xrRaycaster.far = 8;
+  const hits = xrRaycaster.intersectObjects(blocksGroup.children, false)
+    .filter(h => !h.object.userData.entry?.grabbed);
+  if (hits.length) {
+    const cell = adjacentCell(hits[0]);
+    if (inBounds(cell.x, cell.y, cell.z) && !blocks.has(key(cell.x, cell.y, cell.z))) return cell;
+    return null;
+  }
   worldGroup.updateMatrixWorld();
   const inv = worldGroup.matrixWorld.clone().invert();
   const o = ray.origin.clone().applyMatrix4(inv);
@@ -1240,9 +1575,16 @@ function groundPlaneCell(ray) {
   const pt = new THREE.Vector3();
   if (!r.intersectPlane(plane, pt)) return null;
   const x = Math.round(pt.x), z = Math.round(pt.z);
-  if (!inBounds(x, 1, z)) return null;
-  if (blocks.has(key(x, 1, z))) return null;
-  return { x, y: 1, z };
+  if (!inBounds(x, 0, z)) return null;
+  const y = Math.max(0, terrainHeight(x, z)) + 1;
+  if (blocks.has(key(x, y, z))) return null;
+  return { x, y, z };
+}
+// local point on the terrain surface under a ray (for Buddy walk/carry)
+function groundPointFromRay(ray) {
+  const cell = groundPlaneCell(ray);
+  if (!cell) return null;
+  return new THREE.Vector3(cell.x, Math.max(0, terrainHeight(cell.x, cell.z)) + 0.5, cell.z);
 }
 
 // ---------- gesture state machine ----------
@@ -1256,6 +1598,7 @@ function getHand(handedness) {
       hit: null, cell: null, entry: null,
       grabbed: null, grabOrigin: null, grabCells: null, dropCell: null,
       stretchEntry: null, stretchStartDist: 0, stretchStartScale: null,
+      spinLast: null, zoomStartDist: 0, zoomStartScale: 1,
     };
   }
   return XR.hands[handedness];
@@ -1298,16 +1641,29 @@ function onPinchStart(hand, joints, now) {
   hand.vel.set(0, 0, 0);
   hand.headDistStart = tip.distanceTo(XR.headPos);
   hand.grabbed = null;
+  hand.spinLast = tip.clone();
   const ray = getHandRay(joints);
   hand.ray = ray;
   const pick = xrPick(ray);
   hand.pick = pick;
   if (!pick) {
+    // empty space: two-hand pinch = zoom, one-hand drag = spin the world
+    const other = otherHand(hand.handedness);
+    if (other && other.pinching && (other.mode === 'pending-empty' || other.mode === 'tap-ground' || other.mode === 'spin' || other.mode === 'zoom2')) {
+      hand.mode = 'zoom2';
+      other.mode = 'zoom2';
+      const d = hand.lastPos.distanceTo(other.lastPos);
+      hand.zoomStartDist = d; other.zoomStartDist = d;
+      hand.zoomStartScale = XR.worldScale; other.zoomStartScale = XR.worldScale;
+      XR.lastAction = { type: 'zoom-start' };
+      toast('Two-hand zoom! Pull apart to grow the world, push together to shrink it.');
+      return;
+    }
     if (state.tool === 'spawn') {
       const cell = groundPlaneCell(ray);
       if (cell) { hand.mode = 'tap-ground'; hand.cell = cell; }
-      else hand.mode = 'none';
-    } else hand.mode = 'none';
+      else hand.mode = 'pending-empty';
+    } else hand.mode = 'pending-empty';
     return;
   }
   if (pick.kind === 'toolbar') {
@@ -1317,10 +1673,21 @@ function onPinchStart(hand, joints, now) {
       worldGroup.position.set(0, 0, 0);
       XR.lastAction = { type: 'anchor' };
       toast('World anchored back at the origin.');
+    } else if (pick.button === 'terrain') {
+      generateTerrain();
+      XR.lastAction = { type: 'terrain', seed: terrainSeed };
+      toast('🌄 Fresh terrain! Seed #' + terrainSeed);
+    } else if (pick.button === 'char') {
+      spawnCharacter(2, 2);
+      XR.lastAction = { type: 'char' };
     } else if (pick.button) {
       setTool(pick.button);
       XR.lastAction = { type: 'toolbar', tool: pick.button };
     }
+    return;
+  }
+  if (pick.kind === 'character') {
+    hand.mode = 'carry-pending';
     return;
   }
   if (pick.kind === 'reticle') {
@@ -1392,12 +1759,71 @@ function onPinchStart(hand, joints, now) {
 function onPinchHold(hand, joints, now) {
   if (hand.mode === 'pending') {
     const moved = hand.lastPos.distanceTo(hand.startPos);
-    if (moved > GRAB_MOVE || now - hand.startTime > GRAB_HOLD) startGrab(hand);
+    if (moved > GRAB_MOVE || now - hand.startTime > GRAB_HOLD) {
+      if (hand.entry && (hand.entry.ground || hand.entry.terrain)) {
+        // drag on the terrain: walk Buddy if he exists, else spin the world
+        hand.mode = char ? 'walk-drag' : 'spin';
+        hand.spinLast = hand.lastPos.clone();
+      } else startGrab(hand);
+    }
+  } else if (hand.mode === 'pending-empty') {
+    const moved = hand.lastPos.distanceTo(hand.startPos);
+    if (moved > GRAB_MOVE) { hand.mode = 'spin'; hand.spinLast = hand.lastPos.clone(); }
+  } else if (hand.mode === 'tap-ground') {
+    const moved = hand.lastPos.distanceTo(hand.startPos);
+    if (moved > GRAB_MOVE) { hand.mode = char ? 'walk-drag' : 'spin'; hand.spinLast = hand.lastPos.clone(); }
+  } else if (hand.mode === 'spin') {
+    applySpin(hand);
+  } else if (hand.mode === 'walk-drag') {
+    const pt = groundPointFromRay(getHandRay(joints));
+    if (pt) setCharWalkTarget(pt);
   } else if (hand.mode === 'grab') {
     updateGrab(hand, joints);
   } else if (hand.mode === 'stretch2') {
     updateTwoHandStretch(hand);
+  } else if (hand.mode === 'zoom2') {
+    updateZoom(hand);
+  } else if (hand.mode === 'carry-pending') {
+    const moved = hand.lastPos.distanceTo(hand.startPos);
+    if (moved > GRAB_MOVE || now - hand.startTime > GRAB_HOLD) {
+      hand.mode = 'carry';
+      if (char) { char.carried = true; char.walking = false; char.target = null; }
+      toast('Carrying Buddy — move your hand, release to put him down!');
+    }
+  } else if (hand.mode === 'carry') {
+    updateCarry(hand, joints);
   }
+}
+// spin the whole world from a one-hand drag on empty space
+function applySpin(hand) {
+  if (!hand.spinLast) { hand.spinLast = hand.lastPos.clone(); return; }
+  const delta = hand.lastPos.clone().sub(hand.spinLast);
+  hand.spinLast = hand.lastPos.clone();
+  const fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd);
+  const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+  XR.worldYaw -= delta.dot(right) * 2.4;
+  XR.worldTilt = THREE.MathUtils.clamp(XR.worldTilt + delta.dot(up) * 1.2, -0.35, 0.35);
+  setWorldTransform();
+}
+// zoom the whole world from a two-hand pinch on empty space
+function updateZoom(hand) {
+  const other = otherHand(hand.handedness);
+  if (!other || !other.pinching || other.mode !== 'zoom2') return;
+  const d = hand.lastPos.distanceTo(other.lastPos);
+  if (hand.zoomStartDist < 1e-6) return;
+  const f = d / hand.zoomStartDist;
+  XR.worldScale = THREE.MathUtils.clamp(hand.zoomStartScale * f, 0.5, 2);
+  setWorldTransform();
+}
+// carry Buddy with a hand
+function updateCarry(hand, joints) {
+  if (!char) return;
+  const pt = groundPointFromRay(getHandRay(joints));
+  if (!pt) return;
+  char.pos.set(pt.x, charFeetY(pt.x, pt.z) + 0.7, pt.z);
+  char.group.position.copy(char.pos);
 }
 
 function startGrab(hand) {
@@ -1481,6 +1907,27 @@ function onPinchEnd(hand, joints, now) {
       else toast('That space is taken!');
     }
     hand.mode = null;
+  } else if (hand.mode === 'spin') {
+    hand.mode = null;
+    XR.lastAction = { type: 'spin', yaw: XR.worldYaw, tilt: XR.worldTilt };
+  } else if (hand.mode === 'walk-drag') {
+    hand.mode = null;
+    XR.lastAction = { type: 'walk', target: char && char.target ? char.target.toArray() : null };
+  } else if (hand.mode === 'zoom2') {
+    const other = otherHand(hand.handedness);
+    if (other && other.mode === 'zoom2') other.mode = 'pending-empty';
+    hand.mode = null;
+    XR.lastAction = { type: 'zoom-end', scale: XR.worldScale };
+  } else if (hand.mode === 'carry') {
+    if (char) {
+      char.carried = false;
+      snapCharToTerrain();
+      XR.lastAction = { type: 'char-drop', pos: char.group.position.toArray() };
+      toast('Buddy placed!');
+    }
+    hand.mode = null;
+  } else if (hand.mode === 'carry-pending') {
+    hand.mode = null;
   } else if (hand.mode === 'stretch2') {
     const other = otherHand(hand.handedness);
     if (other) { other.mode = 'stretch1'; other.stretchEntry = null; }
@@ -1562,10 +2009,24 @@ function setView(px, py, pz, tx, ty, tz) {
 }
 window.__setView = setView;
 window.__bv = {
-  version: '1.0',
+  version: '2.0',
   ready: true,
   blockCount: () => countBlocks(),
   groundCount: () => { let n = 0; for (const e of new Set(blocks.values())) if (e.ground) n++; return n; },
+  terrainHeight: (x, z) => terrainHeight(x, z),
+  terrainSeed: () => terrainSeed,
+  terrainSignature: () => terrainSignature(),
+  treeCount: () => treeCount,
+  newTerrain: (seed) => { generateTerrain(seed); return terrainSeed; },
+  spawnCharacter: (x, z) => { spawnCharacter(x, z); return charState(); },
+  removeCharacter: () => removeCharacter(),
+  charState: () => charState(),
+  charWalkTo: (x, z) => setCharWalkTarget(new THREE.Vector3(x, 0, z)),
+  charPos: () => char ? char.group.position.toArray() : null,
+  worldRot: () => [XR.worldYaw, XR.worldTilt],
+  worldScale: () => XR.worldScale,
+  setWorldRot: (yaw, tilt) => { XR.worldYaw = yaw; XR.worldTilt = tilt; setWorldTransform(); },
+  setWorldScale: (s) => { XR.worldScale = THREE.MathUtils.clamp(s, 0.5, 2); setWorldTransform(); },
   placeAt: (x, y, z, type) => { const e = addBlock(x, y, z, type || state.type); updateStatus(); return !!e; },
   deleteAt: (x, y, z) => { const ok = deleteAt(x, y, z); updateStatus(); return ok; },
   hasBlock: (x, y, z) => blocks.has(key(x, y, z)),
@@ -1586,6 +2047,44 @@ window.__bv = {
   spawnShape: (name, cx, cz, type) => spawnShape(name, cx, cz, type),
   buildAI: (word, ax, az) => buildAI(word, ax, az),
   setView,
+  stepChar: (dt) => updateCharacter(dt),
+  pickKindAt: (cx, cy) => { const h = pickAt(cx, cy); return h ? h.kind : null; },
+  // find a column near (cx,cz) with NOTHING above the terrain top in the
+  // (2*rad+1)^2 neighbourhood around it (and around (x+dx,z+dz) if given).
+  // Trees overhang their columns, so aiming at a terrain-top block is only
+  // safe when the whole neighbourhood is clear of them. Returns [x,z] or null.
+  clearSpot: (cx, cz, r, rad, dx, dz) => {
+    rad = rad || 0; dx = dx || 0; dz = dz || 0;
+    const colClear = (x, z) => {
+      const th = terrainHeight(x, z);
+      for (const e of blocks.values()) {
+        for (const c of e.cells) {
+          const p = c.split(',');
+          if (+p[0] === x && +p[2] === z && +p[1] > th) return false;
+        }
+      }
+      return true;
+    };
+    const areaClear = (x, z) => {
+      for (let oz = -rad; oz <= rad; oz++) for (let ox = -rad; ox <= rad; ox++) {
+        if (!colClear(x + ox, z + oz)) return false;
+      }
+      return true;
+    };
+    for (let d = 0; d <= r; d++) {
+      for (let oz = -d; oz <= d; oz++) for (let ox = -d; ox <= d; ox++) {
+        if (Math.max(Math.abs(ox), Math.abs(oz)) !== d) continue;
+        const x = cx + ox, z = cz + oz;
+        if (x < -HALF + 2 || x > HALF - 2 || z < -HALF + 2 || z > HALF - 2) continue;
+        if (areaClear(x, z) && areaClear(x + dx, z + dz)) return [x, z];
+      }
+    }
+    return null;
+  },
+  screenXY: (x, y, z) => {
+    const v = new THREE.Vector3(x, y, z).project(camera);
+    return [(v.x * 0.5 + 0.5) * window.innerWidth, (-v.y * 0.5 + 0.5) * window.innerHeight];
+  },
   state: () => ({ tool: state.tool, type: state.type, count: countBlocks(), selected: selected ? selected.type : null, particles: particles.length, arOn }),
   isMerged: (x, y, z) => { const e = blocks.get(key(x, y, z)); return e ? !!e.merged : false; },
   scaleAt: (x, y, z) => { const e = blocks.get(key(x, y, z)); return e ? [e.mesh.scale.x, e.mesh.scale.y, e.mesh.scale.z] : null; },
@@ -1642,6 +2141,8 @@ window.__bv = {
       },
       handState: hand => { const h = XR.hands[hand]; return h ? { pinching: h.pinching, mode: h.mode } : null; },
       toolbar: () => { createXRToolbar(true); return XR.toolbarButtons.length; },
+      worldRot: () => [XR.worldYaw, XR.worldTilt],
+      worldScale: () => XR.worldScale,
       toolbarButtonPos: id => {
         const b = XR.toolbarButtons.find(b => b.userData.xrButton === id);
         if (!b) return null;
@@ -1654,6 +2155,9 @@ window.__bv = {
     },
   },
 };
+// terrain on load — every start is a fresh random world (called last so every
+// declaration above has run: generateTerrain touches imploding/char/UI).
+generateTerrain();
 </script>
 </body>
 </html>
