@@ -510,6 +510,12 @@ function deleteAt(x, y, z) {
 }
 
 // ---------- UI helpers (function declarations hoist) ----------
+// In-AR feedback lives in 3D, not the DOM: DOM toasts/status are invisible
+// inside an immersive-ar session (no dom-overlay), so the XR toolbar carries
+// its own status strip. These two are declared early because updateStatus()
+// runs during module evaluation, before the XR const exists.
+let xrLastMessage = '';
+let xrStatusStrip = null; // { mesh, canvas, tex } — created with the XR toolbar
 let toastTimer = null;
 function toast(msg, ms = 2600) {
   const t = document.getElementById('toast');
@@ -517,6 +523,9 @@ function toast(msg, ms = 2600) {
   t.style.display = 'block';
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms);
+  // mirror the message onto the in-AR status strip (when a session is live)
+  xrLastMessage = msg;
+  if (typeof drawXRStatus === 'function') drawXRStatus();
 }
 
 // ---------- How to play — one source of truth for the desktop panel + the in-AR 3D panel ----------
@@ -529,7 +538,8 @@ const HOWTO_SECTIONS = [
     ['Two-hand pinch, empty space', 'zoom AND rotate the world together'],
     ['Pinch-drag the ground', 'walk Buddy (or spin the world if he’s not here)'],
     ['Pinch Buddy', 'carry him — release to put him down'],
-    ['Floating toolbar', 'switch tools • new terrain • reset view • change mode'],
+    ['☰ Menu (floating toolbar)', 'tools • blocks • shapes • AI builds • world • mode'],
+    ['🖥️ Back to PC (in the menu)', 'leave AR and go back to the desktop view'],
   ] },
   { title: '🦍 Move mode (Gorilla Tag style)', lines: [
     ['Pinch empty space / ground + pull', 'drag yourself through the world'],
@@ -563,6 +573,7 @@ function updateStatus() {
   document.getElementById('statusMode').textContent = state.mode === 'move' ? 'Move 🦍' : 'Build 🔨';
   document.getElementById('statusCount').textContent = 'Blocks: ' + countBlocks();
   document.getElementById('worldInfo').textContent = 'Blocks: ' + countBlocks() + '  •  Terrain seed #' + terrainSeed + '  •  Trees: ' + treeCount + '  •  Shapes and AI builds sit on the terrain.';
+  if (typeof drawXRStatus === 'function') drawXRStatus();
 }
 function updateWorldInfo() { updateStatus(); }
 
@@ -1207,6 +1218,7 @@ function setTool(id) {
   updateStretchPanel();
   updateStatus();
   if (typeof refreshXRToolbar === 'function') refreshXRToolbar();
+  if (typeof refreshXRMenu === 'function') refreshXRMenu();
 }
 document.querySelectorAll('.tool-btn').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
 
@@ -1214,6 +1226,7 @@ function setType(t) {
   state.type = t;
   document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.type === t));
   updateStatus();
+  if (typeof refreshXRMenu === 'function') refreshXRMenu();
 }
 const paletteEl = document.getElementById('palette');
 for (const t of BLOCK_TYPES) {
@@ -1236,12 +1249,18 @@ for (const [name, label] of SHAPES) {
   b.textContent = label;
   b.addEventListener('click', () => {
     if (state.shape === name) { disarmShape(); return; }
-    state.shape = name;
-    setTool('spawn');
-    document.querySelectorAll('.shape-btn').forEach(x => x.classList.toggle('armed', x.dataset.shape === name));
-    toast(`${label} armed — click the ground to place it!`);
+    armShape(name);
   });
   shapesEl.appendChild(b);
+}
+// shared by the PC panel and the in-AR menu: arm a shape, then the next
+// ground tap places it (desktop click and XR pinch both honour state.shape)
+function armShape(name) {
+  const label = (SHAPES.find(s => s[0] === name) || [name, name])[1];
+  state.shape = name;
+  setTool('spawn');
+  document.querySelectorAll('.shape-btn').forEach(x => x.classList.toggle('armed', x.dataset.shape === name));
+  toast(`${label} armed — click the ground to place it!`);
 }
 function disarmShape() {
   state.shape = null;
@@ -1264,13 +1283,16 @@ document.getElementById('stretchReset').addEventListener('click', () => {
   toast('Size reset.');
 });
 
-document.getElementById('clearBtn').addEventListener('click', () => {
+// shared by the PC panel and the in-AR menu
+function clearMyBlocks() {
   let n = 0;
   for (const e of new Set(blocks.values())) if (!e.ground && !e.terrain) { removeEntry(e); n++; }
   selectEntry(null);
   updateStatus();
   toast(`Cleared ${n} blocks — terrain and trees stay!`);
-});
+  return n;
+}
+document.getElementById('clearBtn').addEventListener('click', clearMyBlocks);
 
 document.getElementById('newTerrainBtn').addEventListener('click', () => {
   generateTerrain();
@@ -1401,6 +1423,15 @@ const XR = {
   lastAction: null,
   explodeHintShown: false,
   implodeHintShown: false,
+  menu: null,
+  menuButtons: [],
+  menuOpen: false,
+  menuHighlights: null,
+  coach: null,
+  coachButtons: [],
+  coachPending: false,
+  needsSnap: false,
+  lastStatusText: null,
   worldYaw: 0,
   worldTilt: 0,
   worldScale: 1,
@@ -1556,6 +1587,7 @@ function setMode(m) {
   if (mv) mv.classList.toggle('active', m === 'move');
   updateStatus();
   refreshModeButton();
+  if (typeof refreshXRMenu === 'function') refreshXRMenu();
   toast(m === 'move'
     ? '🦍 Move mode — pull to walk, push down to jump, grab blocks to climb.'
     : '🔨 Build mode — pinch to place, grab to move blocks.');
@@ -1601,9 +1633,14 @@ async function enterAR() {
       XR.hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
     } catch (e) { XR.hitTestSource = null; }
     createXRToolbar(false);
+    // The toolbar is parked by camera pose here — but the camera is still the
+    // desktop orbit camera until the first XR frame. updateXR snaps every
+    // panel in front of the headset on that first frame (see needsSnap).
+    XR.coachPending = true;
+    XR.needsSnap = true;
     xrBtn.classList.add('on');
     xrBtn.textContent = '🥽 In AR — tap to exit';
-    toast('AR started! Pinch = tool • Hold a block to grab it • Drag the ground = walk Buddy • Drag the sky = spin the world • Two-hand pinch empty space = zoom + rotate • 🔄 Reset view + 🦍 Move mode + ❓ How to play on the toolbar.');
+    toast('AR started! Pinch = place a block • Tap ☰ Menu on the toolbar for tools, blocks, shapes and more • 🦍 Move mode and ❓ How to play are in the menu.');
   } catch (err) {
     toast('Couldn’t start AR (' + (err && err.message ? err.message : 'unknown error') + ') — try 📷 Camera AR instead.');
   }
@@ -1615,6 +1652,10 @@ function onXRSessionEnd() {
   XR.mergeCandidate = null;
   if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; XR.toolbarHighlight = null; XR.modeButton = null; }
   if (XR.howtoPanel) { scene.remove(XR.howtoPanel); XR.howtoPanel = null; }
+  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null; }
+  if (XR.coach) { scene.remove(XR.coach); XR.coach = null; XR.coachButtons = []; }
+  xrStatusStrip = null; // part of the toolbar group, removed with it
+  XR.coachPending = false; XR.needsSnap = false;
   if (XR.reticle) XR.reticle.visible = false;
   for (const h of Object.values(XR.handVisuals)) h.group.visible = false;
   XR.hands = {};
@@ -1659,6 +1700,7 @@ function createXRToolbar(testMode) {
     );
     m.position.set(-0.5375 + i * 0.215, 0.075, 0);
     m.userData.xrButton = id;
+    m.userData.ui = { kind: 'toolbar', action: id };
     m.userData.w = 0.21; m.userData.h = 0.10;
     group.add(m);
     XR.toolbarButtons.push(m);
@@ -1670,6 +1712,7 @@ function createXRToolbar(testMode) {
     );
     m.position.set(x, -0.06, 0);
     m.userData.xrButton = id;
+    m.userData.ui = { kind: 'toolbar', action: id };
     m.userData.w = 0.17; m.userData.h = 0.088;
     group.add(m);
     XR.toolbarButtons.push(m);
@@ -1681,7 +1724,7 @@ function createXRToolbar(testMode) {
   mkSmall('reset', '🔄', 'Reset', '#38bdf8', 0);
   const modeBtn = mkSmall('mode', '🦍', 'Move', '#4ade80', 0.175);
   XR.modeButton = modeBtn;
-  mkSmall('howto', '❓', 'How to', '#a78bfa', 0.35);
+  mkSmall('menu', '☰', 'Menu', '#facc15', 0.35);
   mkSmall('exit', '✕', 'Exit AR', '#f87171', 0.525);
   const hl = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
@@ -1691,6 +1734,21 @@ function createXRToolbar(testMode) {
   hl.userData.xrButton = null;
   group.add(hl);
   XR.toolbarHighlight = hl;
+  // in-AR status strip (DOM toasts/status are invisible in immersive AR):
+  // line 1 = current mode • tool • block, line 2 = last message. It rides
+  // with the toolbar, so it is always in view while the toolbar is.
+  const stripCanvas = document.createElement('canvas');
+  stripCanvas.width = 1024; stripCanvas.height = 128;
+  const stripTex = new THREE.CanvasTexture(stripCanvas);
+  stripTex.colorSpace = THREE.SRGBColorSpace;
+  const strip = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.1, 0.14),
+    new THREE.MeshBasicMaterial({ map: stripTex, transparent: true, side: THREE.DoubleSide })
+  );
+  strip.position.set(0, -0.185, 0);
+  group.add(strip);
+  xrStatusStrip = { mesh: strip, canvas: stripCanvas, tex: stripTex };
+  drawXRStatus();
   // park it in front of the user, facing them — a little closer than before
   // (0.6 m in AR) so the bigger buttons are easy to tap with a hand ray
   const pos = new THREE.Vector3();
@@ -1770,13 +1828,18 @@ function makeHowtoTexture() {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-function toggleXRHowto() {
-  if (XR.howtoPanel) {
-    scene.remove(XR.howtoPanel);
-    XR.howtoPanel = null;
+function toggleXRHowto(open) {
+  // no arg = toggle (v3 behaviour); true/false = force open/close (menu Help)
+  const show = open !== undefined ? open : !XR.howtoPanel;
+  if (!show) {
+    if (XR.howtoPanel) {
+      scene.remove(XR.howtoPanel);
+      XR.howtoPanel = null;
+    }
     XR.lastAction = { type: 'howto', open: false };
     return false;
   }
+  if (XR.howtoPanel) return true;
   const panel = new THREE.Mesh(
     new THREE.PlaneGeometry(0.95, 0.74),
     new THREE.MeshBasicMaterial({ map: makeHowtoTexture(), transparent: true, side: THREE.DoubleSide })
@@ -1791,12 +1854,434 @@ function toggleXRHowto() {
   if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
   dir.normalize();
   group.position.copy(pos).addScaledVector(dir, 0.85);
-  group.position.y = pos.y - 0.05;
+  group.position.y = pos.y + 0.28; // reading panels sit above the toolbar
+  // strip, so the whole panel stays tappable (the strip sits ~14° below eye level)
   group.lookAt(pos.x, group.position.y, pos.z);
   scene.add(group);
   XR.howtoPanel = group;
   XR.lastAction = { type: 'howto', open: true };
   return true;
+}
+
+// ---------- in-AR status strip (v4) ----------
+// DOM toasts and the status bar are invisible inside immersive-ar (no
+// dom-overlay feature). The XR toolbar carries its own strip: line 1 =
+// mode • tool • block, line 2 = last message. It rides with the toolbar,
+// so it follows the user and is always in view.
+function drawXRStatus() {
+  if (!xrStatusStrip) return;
+  const g = xrStatusStrip.canvas.getContext('2d');
+  g.clearRect(0, 0, 1024, 128);
+  g.fillStyle = 'rgba(10,14,30,0.92)';
+  g.beginPath(); g.roundRect(4, 4, 1016, 120, 16); g.fill();
+  g.strokeStyle = '#22d3ee'; g.lineWidth = 3; g.stroke();
+  g.fillStyle = '#ffffff'; g.textAlign = 'center';
+  g.font = 'bold 34px system-ui, sans-serif';
+  const modeLabel = state.mode === 'move' ? '🦍 Move' : '🔨 Build';
+  const line1 = `${modeLabel}  •  ${TOOL_LABELS[state.tool]}  •  ${TYPE_NAMES[state.type]}`;
+  g.fillText(line1, 512, 50);
+  g.fillStyle = '#9fd8ff'; g.font = '28px system-ui, sans-serif';
+  const msg = (xrLastMessage || 'Pinch ☰ Menu to see everything you can do.').slice(0, 62);
+  g.fillText(msg, 512, 100);
+  xrStatusStrip.tex.needsUpdate = true;
+  if (typeof XR !== 'undefined' && XR) XR.lastStatusText = line1 + ' | ' + xrLastMessage;
+}
+
+// ---------- in-AR menu (v4) ----------
+// The menu mirrors the PC side panels, one source of truth: its buttons call
+// the same setTool / setType / setMode / buildAI / generateTerrain /
+// spawnCharacter / clearMyBlocks / resetView / toggleXRHowto / exitAR as the
+// desktop buttons, so the PC panels and the XR toolbar stay in sync.
+const TOOL_EMOJI = { spawn: '🧱', delete: '⛏️', merge: '🔗', stretch: '↔️', explode: '💥', implode: '🌀' };
+const AI_PRESETS = [['castle', '🏰', 'Castle'], ['house', '🏠', 'House'], ['tower', '🗼', 'Tower'], ['bridge', '🌉', 'Bridge'], ['pyramid', '🔺', 'Pyramid'], ['tree', '🌳', 'Tree'], ['wall', '🧱', 'Wall']];
+
+function makeMenuButtonTexture(emoji, label, accent, aspect, singleLine) {
+  const H = 144;
+  const W = Math.max(160, Math.round(H * (aspect || 1.7)));
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,14,30,0.92)';
+  g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 18); g.fill();
+  g.strokeStyle = accent || '#22d3ee'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#ffffff'; g.textAlign = 'center';
+  if (singleLine) {
+    g.font = 'bold 44px system-ui, sans-serif';
+    g.fillText(emoji + '  ' + label, W / 2, H / 2 + 16);
+  } else {
+    g.font = '46px system-ui, sans-serif';
+    g.fillText(emoji, W / 2, 60);
+    let fs = 26;
+    g.font = `bold ${fs}px system-ui, sans-serif`;
+    while (g.measureText(label).width > W - 18 && fs > 14) { fs -= 2; g.font = `bold ${fs}px system-ui, sans-serif`; }
+    g.fillText(label, W / 2, 120);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function makeSwatchTexture(type) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 112;
+  const g = c.getContext('2d');
+  g.fillStyle = SWATCH_CSS[type];
+  g.beginPath(); g.roundRect(4, 4, 120, 104, 16); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 3; g.stroke();
+  g.fillStyle = '#ffffff'; g.textAlign = 'center';
+  g.font = 'bold 22px system-ui, sans-serif';
+  g.shadowColor = 'rgba(0,0,0,0.9)'; g.shadowBlur = 6;
+  g.fillText(TYPE_NAMES[type], 64, 98);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function makeLabelTexture(text) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = '#8b98c4'; g.textAlign = 'center';
+  g.font = 'bold 30px system-ui, sans-serif';
+  g.fillText(text, 128, 60);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function makeTitleTexture(text) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 72;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.textAlign = 'left';
+  g.font = 'bold 40px system-ui, sans-serif';
+  g.fillText(text, 8, 52);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function makeMenuBackgroundTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1200; c.height = 1000;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(8,12,28,0.94)';
+  g.beginPath(); g.roundRect(0, 0, 1200, 1000, 28); g.fill();
+  g.strokeStyle = '#22d3ee'; g.lineWidth = 5; g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function createXRMenu() {
+  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuHighlights = null; }
+  const group = new THREE.Group();
+  const bg = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.2, 1.0),
+    new THREE.MeshBasicMaterial({ map: makeMenuBackgroundTexture(), transparent: true, side: THREE.DoubleSide })
+  );
+  bg.userData.ui = { kind: 'menu', action: 'noop' }; // an open panel occludes the world behind it
+  group.add(bg);
+  // the menu IS the control surface while it is open: hide the toolbar strip
+  // behind it, so the two panels never overlap and a tap can never land on
+  // the wrong one (the toolbar is closer, so it would win every pick)
+  if (XR.toolbar) XR.toolbar.visible = false;
+  XR.menuButtons = [];
+  const addBtn = (action, emoji, label, accent, x, y, w, h, tex) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
+    );
+    m.position.set(x, y, 0.001);
+    m.userData.ui = { kind: 'menu', action };
+    m.userData.w = w; m.userData.h = h;
+    group.add(m);
+    XR.menuButtons.push(m);
+    return m;
+  };
+  const rowX = (i, n) => 0.06 - 0.5 + (i + 0.5) * (1.0 / n);
+  // header: title + close
+  const title = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.077),
+    new THREE.MeshBasicMaterial({ map: makeTitleTexture('☰ VoxelHaven Menu'), transparent: true, side: THREE.DoubleSide })
+  );
+  title.position.set(-0.29, 0.45, 0.001);
+  group.add(title);
+  addBtn('close', '✕', '', '#f87171', 0.52, 0.45, 0.09, 0.09, makeMenuButtonTexture('✕', '', '#f87171', 1));
+  const rows = [
+    { label: 'TOOLS', y: 0.335, defs: TOOLS.map(id => ({ action: 'tool:' + id, emoji: TOOL_EMOJI[id], label: TOOL_LABELS[id], accent: '#22d3ee' })) },
+    { label: 'BLOCKS', y: 0.22, defs: BLOCK_TYPES.map(t => ({ action: 'block:' + t, swatch: t })) },
+    { label: 'SHAPES', y: 0.105, defs: SHAPES.map(([name, label]) => ({ action: 'shape:' + name, emoji: label.split(' ')[0], label: label.split(' ').slice(1).join(' ') || name, accent: '#a78bfa' })) },
+    { label: 'AI BUILD', y: -0.01, defs: AI_PRESETS.map(([key, emoji, label]) => ({ action: 'ai:' + key, emoji, label, accent: '#facc15' })) },
+    { label: 'WORLD', y: -0.125, defs: [
+      { action: 'world:terrain', emoji: '🌄', label: 'New terrain', accent: '#4ade80' },
+      { action: 'world:buddy', emoji: '🧍', label: 'Buddy', accent: '#f472b6' },
+      { action: 'world:clear', emoji: '🧹', label: 'Clear blocks', accent: '#38bdf8' },
+      { action: 'world:reset', emoji: '🔄', label: 'Reset view', accent: '#38bdf8' },
+    ] },
+    { label: 'MODE', y: -0.24, defs: [
+      { action: 'mode:build', emoji: '🔨', label: 'Build', accent: '#facc15' },
+      { action: 'mode:move', emoji: '🦍', label: 'Move', accent: '#4ade80' },
+      { action: 'help', emoji: '❓', label: 'How to play', accent: '#a78bfa' },
+    ] },
+  ];
+  for (const row of rows) {
+    const lab = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.12, 0.045),
+      new THREE.MeshBasicMaterial({ map: makeLabelTexture(row.label), transparent: true, side: THREE.DoubleSide })
+    );
+    lab.position.set(-0.52, row.y, 0.001);
+    group.add(lab);
+    const n = row.defs.length;
+    row.defs.forEach((d, i) => {
+      const w = 1.0 / n - 0.01;
+      const tex = d.swatch
+        ? makeSwatchTexture(d.swatch)
+        : makeMenuButtonTexture(d.emoji, d.label, d.accent, w / 0.095);
+      addBtn(d.action, d.emoji, d.label, d.accent, rowX(i, n), row.y, w, 0.095, tex);
+    });
+  }
+  // unmissable exit: full-width red button at the bottom of the menu
+  addBtn('back-pc', '🖥️', 'Back to PC', '#f87171', 0, -0.39, 1.08, 0.11,
+    makeMenuButtonTexture('🖥️', 'Back to PC', '#f87171', 1.08 / 0.11, true));
+  // translucent highlight planes, one per stateful section
+  const mkHl = (color) => {
+    const hl = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+    );
+    hl.position.z = 0.002;
+    group.add(hl);
+    return hl;
+  };
+  XR.menuHighlights = { tool: mkHl(0x22d3ee), block: mkHl(0x4ade80), shape: mkHl(0xa78bfa), mode: mkHl(0xfacc15) };
+  const pos = new THREE.Vector3();
+  camera.getWorldPosition(pos);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  dir.y = 0;
+  if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+  dir.normalize();
+  group.position.copy(pos).addScaledVector(dir, 0.9);
+  group.position.y = pos.y - 0.05;
+  group.lookAt(pos.x, group.position.y, pos.z);
+  scene.add(group);
+  XR.menu = group;
+  XR.menuOpen = true;
+  refreshXRMenu();
+  XR.lastAction = { type: 'menu', open: true };
+  return group;
+}
+function toggleXRMenu(open) {
+  const show = open !== undefined ? open : !XR.menu;
+  if (show) {
+    if (!XR.menu) createXRMenu();
+  } else if (XR.menu) {
+    scene.remove(XR.menu);
+    XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null;
+    if (XR.toolbar) XR.toolbar.visible = true; // the strip comes back with the menu closed
+    XR.lastAction = { type: 'menu', open: false };
+  }
+  return show;
+}
+// move the highlight planes onto the button matching the current state
+function refreshXRMenu() {
+  if (!XR.menu || !XR.menuHighlights) return;
+  const place = (hl, matchFn) => {
+    const b = XR.menuButtons.find(x => x.userData.ui.kind === 'menu' && matchFn(x.userData.ui.action));
+    if (!b) { hl.visible = false; return; }
+    hl.visible = true;
+    hl.position.x = b.position.x; hl.position.y = b.position.y; hl.position.z = 0.002;
+    hl.scale.set(b.userData.w + 0.012, b.userData.h + 0.012, 1);
+  };
+  place(XR.menuHighlights.tool, a => a === 'tool:' + state.tool);
+  place(XR.menuHighlights.block, a => a === 'block:' + state.type);
+  place(XR.menuHighlights.shape, a => state.shape && a === 'shape:' + state.shape);
+  place(XR.menuHighlights.mode, a => a === 'mode:' + state.mode);
+}
+// AI presets and Buddy need somewhere to build/spawn: the hit-test reticle
+// if it is visible, else a point 3.5 m in front of the headset, else the
+// desktop anchor (clamped to the world bounds).
+function aiBuildAnchor() {
+  let x, z;
+  if (XR.reticle && XR.reticle.visible) {
+    x = XR.reticle.position.x; z = XR.reticle.position.z;
+  } else {
+    const head = new THREE.Vector3();
+    camera.getWorldPosition(head);
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y = 0;
+    if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+    dir.normalize();
+    x = head.x + dir.x * 3.5; z = head.z + dir.z * 3.5;
+  }
+  x = Math.max(-HALF + 2, Math.min(HALF - 2, Math.round(x)));
+  z = Math.max(-HALF + 2, Math.min(HALF - 2, Math.round(z)));
+  return { x, z };
+}
+function dispatchMenuAction(action) {
+  const [kind, arg] = action.split(':');
+  switch (kind) {
+    case 'close':
+      toggleXRMenu(false);
+      return;
+    case 'tool':
+      setTool(arg);
+      toast(TOOL_LABELS[arg] + ' tool selected');
+      break;
+    case 'block':
+      setType(arg);
+      toast(TYPE_NAMES[arg] + ' selected');
+      break;
+    case 'shape':
+      if (state.shape === arg) { disarmShape(); toast('Shape cancelled'); }
+      else { armShape(arg); }
+      break;
+    case 'ai': {
+      const p = aiBuildAnchor();
+      buildAI(arg, p.x, p.z);
+      break;
+    }
+    case 'world':
+      if (arg === 'terrain') { generateTerrain(); toast('New terrain! Seed #' + terrainSeed); }
+      else if (arg === 'buddy') { const p = aiBuildAnchor(); spawnCharacter(p.x, p.z); }
+      else if (arg === 'clear') { clearMyBlocks(); }
+      else if (arg === 'reset') { resetView(); }
+      break;
+    case 'mode':
+      if (arg !== state.mode) setMode(arg);
+      break;
+    case 'help':
+      toggleXRHowto(true);
+      break;
+    case 'back-pc':
+      exitAR();
+      return; // session is ending; menu teardown happens in onXRSessionEnd
+    default:
+      return;
+  }
+  // the menu is a picker: after choosing, close it so the user sees the
+  // result in the world. (Help closes the menu and opens How-to instead.)
+  toggleXRMenu(false);
+}
+
+// ---------- first-run AR coach (v4) ----------
+function makeCoachTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 560;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(8,12,28,0.95)';
+  g.beginPath(); g.roundRect(0, 0, 1024, 560, 28); g.fill();
+  g.strokeStyle = '#4ade80'; g.lineWidth = 5; g.stroke();
+  g.fillStyle = '#ffffff'; g.textAlign = 'left';
+  g.font = 'bold 44px system-ui, sans-serif';
+  g.fillText('👋 Welcome to VoxelHaven!', 40, 72);
+  const steps = [
+    ['1', 'Pinch your fingers to place a block'],
+    ['2', 'Tap ☰ Menu to switch tools, blocks and shapes'],
+    ['3', 'Tap 🦍 Move to walk, jump and climb — 🔨 Build to go back'],
+  ];
+  let y = 168;
+  for (const [n, text] of steps) {
+    g.fillStyle = '#4ade80';
+    g.beginPath(); g.arc(74, y - 14, 30, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#06281a'; g.font = 'bold 34px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText(n, 74, y - 2);
+    g.fillStyle = '#eef2ff'; g.font = '30px system-ui, sans-serif'; g.textAlign = 'left';
+    const words = text.split(' ');
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (g.measureText(test).width > 880 && cur) { g.fillText(cur, 120, y); y += 38; cur = w; }
+      else cur = test;
+    }
+    if (cur) { g.fillText(cur, 120, y); y += 38; }
+    y += 52;
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function maybeShowCoach() {
+  if (!XR.coachPending) return;
+  XR.coachPending = false;
+  try { if (window.localStorage && localStorage.getItem('vh_ar_coach_seen')) return; } catch (e) { /* show it anyway */ }
+  if (XR.coach) return;
+  const group = new THREE.Group();
+  const bg = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.95, 0.52),
+    new THREE.MeshBasicMaterial({ map: makeCoachTexture(), transparent: true, side: THREE.DoubleSide })
+  );
+  bg.userData.ui = { kind: 'coach', action: 'noop' }; // only the Got it! button dismisses
+  bg.position.set(0, 0.06, 0);
+  group.add(bg);
+  const btn = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.34, 0.1),
+    new THREE.MeshBasicMaterial({ map: makeMenuButtonTexture('👍', 'Got it!', '#4ade80', 3.4, true), transparent: true, side: THREE.DoubleSide })
+  );
+  btn.position.set(0, -0.26, 0.001); // tucked under the panel, clear of the toolbar strip below
+  btn.userData.ui = { kind: 'coach', action: 'gotit' };
+  btn.userData.w = 0.34; btn.userData.h = 0.1;
+  group.add(btn);
+  XR.coachButtons = [btn];
+  const pos = new THREE.Vector3();
+  camera.getWorldPosition(pos);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  dir.y = 0;
+  if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+  dir.normalize();
+  group.position.copy(pos).addScaledVector(dir, 0.85);
+  group.position.y = pos.y + 0.28; // above the toolbar strip: the coach's
+  // steps and Got-it button stay clear of it (the strip sits ~14° below eye level)
+  group.lookAt(pos.x, group.position.y, pos.z);
+  scene.add(group);
+  XR.coach = group;
+  XR.lastAction = { type: 'coach', open: true };
+}
+function dismissCoach() {
+  if (!XR.coach) return;
+  scene.remove(XR.coach);
+  XR.coach = null; XR.coachButtons = [];
+  try { if (window.localStorage) localStorage.setItem('vh_ar_coach_seen', '1'); } catch (e) { /* no storage — it shows again next session */ }
+  XR.lastAction = { type: 'coach', dismissed: true };
+}
+
+// ---------- XR panel follow (the v3 toolbar bug, fixed) ----------
+// v3 parked the toolbar once, by camera pose, at session start — before the
+// first XR frame, when the camera is still the desktop orbit camera. The
+// toolbar ended up ~26 m away and ~15 m up, beyond the 8 m raycaster far
+// plane, and nothing ever moved it again. Every XR frame now, any panel
+// that has drifted out of view (>30° off the camera forward) glides back
+// in front of the headset. While the user looks at a panel it stays
+// perfectly still, so hand rays never chase a moving target.
+const _fpHead = new THREE.Vector3();
+const _fpFwd = new THREE.Vector3();
+const _fpFlat = new THREE.Vector3();
+const _fpDesired = new THREE.Vector3();
+const _fpTo = new THREE.Vector3();
+function followPanel(group, dist, yOff, snap) {
+  if (!group) return;
+  camera.getWorldPosition(_fpHead);
+  camera.getWorldDirection(_fpFwd);
+  _fpFlat.copy(_fpFwd); _fpFlat.y = 0;
+  if (_fpFlat.lengthSq() < 1e-6) _fpFlat.set(0, 0, -1);
+  _fpFlat.normalize();
+  _fpDesired.copy(_fpHead).addScaledVector(_fpFlat, dist);
+  _fpDesired.y = Math.max(1.05, _fpHead.y + yOff);
+  _fpTo.copy(group.position).sub(_fpHead);
+  const angle = _fpTo.lengthSq() > 1e-6 ? _fpFwd.angleTo(_fpTo.normalize()) : 0;
+  if (snap || angle > (30 * Math.PI) / 180 || group.position.distanceTo(_fpDesired) > 0.6) {
+    if (snap) group.position.copy(_fpDesired);
+    else group.position.lerp(_fpDesired, 0.15);
+  }
+  group.lookAt(_fpHead.x, group.position.y, _fpHead.z);
+}
+function updateXRPanelFollow() {
+  if (!XR.session) return;
+  const snap = !!XR.needsSnap;
+  followPanel(XR.toolbar, 0.6, -0.15, snap);
+  followPanel(XR.menu, 0.9, -0.05, snap);
+  followPanel(XR.coach, 0.85, 0.28, snap);
+  followPanel(XR.howtoPanel, 0.85, 0.28, snap); // reading panels ride high, clear of the toolbar strip
+  if (snap) XR.needsSnap = false;
 }
 
 // ---------- hit-test reticle ----------
@@ -1869,7 +2354,7 @@ const xrRaycaster = new THREE.Raycaster();
 function xrPick(ray) {
   xrRaycaster.set(ray.origin, ray.direction);
   xrRaycaster.far = 8;
-  // nearest of (blocks, Buddy, reticle, toolbar) wins
+  // nearest of (blocks, Buddy, reticle, UI panels) wins
   let best = null;
   const consider = (kind, dist, extra) => {
     if (dist < (best ? best.dist : Infinity)) best = { kind, dist, ...extra };
@@ -1894,18 +2379,35 @@ function xrPick(ray) {
     // forgiving: the reticle is small and hands are imprecise
     if (closest.distanceTo(c) < 0.15) consider('reticle', dAlong, { hit: { point: c } });
   }
-  if (XR.toolbar) {
-    const th = xrRaycaster.intersectObjects(XR.toolbar.children, false)
-      .filter(h => h.object.userData.xrButton);
-    if (th.length) consider('toolbar', th[0].distance, { button: th[0].object.userData.xrButton, hit: th[0] });
-    // forgiving: hands are imprecise, so a ray that passes near a button
-    // (within 0.14 m of its centre) counts as a tap on it — this is what
-    // made Delete unreachable in AR (the buttons were small and far away).
-    // The nearest button by perpendicular distance wins.
-    if (!th.length) {
-      const tmp = new THREE.Vector3();
-      let bestBtn = null, bestPerp = Infinity, bestAlong = Infinity;
-      for (const b of XR.toolbarButtons) {
+  // UI panels (toolbar + menu + coach): exact hits first, nearest wins.
+  // Buttons carry userData.ui = { kind, action }; panel backgrounds carry
+  // a 'noop' action so an open panel occludes the world behind it.
+  const uiGroups = [
+    { group: XR.toolbar, buttons: XR.toolbarButtons },
+    { group: XR.menu, buttons: XR.menuButtons },
+    { group: XR.coach, buttons: XR.coachButtons },
+  ];
+  let uiExact = null;
+  for (const { group } of uiGroups) {
+    if (!group || group.visible === false) continue; // hidden panels can't be tapped
+    const uh = xrRaycaster.intersectObjects(group.children, false)
+      .filter(h => h.object.userData.ui);
+    if (uh.length && (!uiExact || uh[0].distance < uiExact.distance)) uiExact = uh[0];
+  }
+  if (uiExact) {
+    const ui = uiExact.object.userData.ui;
+    consider(ui.kind, uiExact.distance, { button: ui.action, action: ui.action, hit: uiExact });
+  }
+  // forgiving: hands are imprecise, so a ray that passes near a button
+  // (within 0.14 m of its centre) counts as a tap on it. The nearest
+  // button by perpendicular distance wins, and it competes with the world
+  // hits above by distance.
+  if (!uiExact) {
+    const tmp = new THREE.Vector3();
+    let bestBtn = null, bestPerp = Infinity, bestAlong = Infinity;
+    for (const { group, buttons } of uiGroups) {
+      if (!group || group.visible === false) continue; // hidden panels can't be tapped
+      for (const b of buttons || []) {
         b.getWorldPosition(tmp);
         const closest = new THREE.Vector3();
         xrRaycaster.ray.closestPointToPoint(tmp, closest);
@@ -1915,7 +2417,10 @@ function xrPick(ray) {
           bestPerp = perp; bestAlong = dAlong; bestBtn = b;
         }
       }
-      if (bestBtn) consider('toolbar', bestAlong, { button: bestBtn.userData.xrButton, hit: null });
+    }
+    if (bestBtn) {
+      const ui = bestBtn.userData.ui;
+      consider(ui.kind, bestAlong, { button: ui.action, action: ui.action, hit: null });
     }
   }
   if (XR.howtoPanel) {
@@ -2067,12 +2572,23 @@ function onPinchStart(hand, joints, now) {
       XR.lastAction = { type: 'reset' };
     } else if (pick.button === 'mode') {
       toggleMode();
-    } else if (pick.button === 'howto') {
-      toggleXRHowto();
+    } else if (pick.button === 'menu') {
+      toggleXRMenu(true);
+      XR.lastAction = { type: 'menu', open: true };
     } else if (pick.button) {
       setTool(pick.button);
       XR.lastAction = { type: 'toolbar', tool: pick.button };
     }
+    return;
+  }
+  if (pick.kind === 'menu') {
+    hand.mode = 'ui';
+    dispatchMenuAction(pick.action);
+    return;
+  }
+  if (pick.kind === 'coach') {
+    hand.mode = 'ui';
+    if (pick.action === 'gotit') dismissCoach();
     return;
   }
   if (pick.kind === 'howto-panel') {
@@ -2319,17 +2835,34 @@ function onPinchEnd(hand, joints, now) {
     if (dur < 0.6 && moved < 0.06 && hand.hit) {
       const t = adjacentCell(hand.hit);
       if (t.y >= 1) {
-        const e = addBlock(t.x, t.y, t.z, state.type);
-        if (e) { updateStatus(); XR.lastAction = { type: 'place', cell: t }; }
-        else toast('That space is taken!');
+        if (state.shape) {
+          // v4: a shape armed from the menu places on the ground tap, not a single block
+          const shape = state.shape;
+          spawnShape(shape, t.x, t.z, state.type);
+          disarmShape();
+          updateStatus();
+          XR.lastAction = { type: 'shape', shape, cell: t };
+        } else {
+          const e = addBlock(t.x, t.y, t.z, state.type);
+          if (e) { updateStatus(); XR.lastAction = { type: 'place', cell: t }; }
+          else toast('That space is taken!');
+        }
       }
     }
     hand.mode = null;
   } else if (hand.mode === 'tap-ground') {
     if (dur < 0.6 && hand.cell) {
-      const e = addBlock(hand.cell.x, hand.cell.y, hand.cell.z, state.type);
-      if (e) { updateStatus(); XR.lastAction = { type: 'place', cell: hand.cell }; }
-      else toast('That space is taken!');
+      if (state.shape) {
+        const shape = state.shape;
+        spawnShape(shape, hand.cell.x, hand.cell.z, state.type);
+        disarmShape();
+        updateStatus();
+        XR.lastAction = { type: 'shape', shape, cell: hand.cell };
+      } else {
+        const e = addBlock(hand.cell.x, hand.cell.y, hand.cell.z, state.type);
+        if (e) { updateStatus(); XR.lastAction = { type: 'place', cell: hand.cell }; }
+        else toast('That space is taken!');
+      }
     }
     hand.mode = null;
   } else if (hand.mode === 'spin') {
@@ -2449,6 +2982,10 @@ function updateXR(time, frame) {
     processHandInput(src.handedness, joints, now);
   }
   for (const h of ['left', 'right']) if (!seen.has(h)) updateHandVisual(h, null);
+  // v4: keep every XR panel in front of the headset, and show the
+  // first-run coach on the first frame of the first AR session
+  updateXRPanelFollow();
+  maybeShowCoach();
 }
 
 // ---------- camera + test hooks ----------
@@ -2459,7 +2996,7 @@ function setView(px, py, pz, tx, ty, tz) {
 }
 window.__setView = setView;
 window.__bv = {
-  version: '3.0',
+  version: '4.0',
   ready: true,
   blockCount: () => countBlocks(),
   groundCount: () => { let n = 0; for (const e of new Set(blocks.values())) if (e.ground) n++; return n; },
@@ -2634,6 +3171,108 @@ window.__bv = {
         const cam = new THREE.Vector3();
         camera.getWorldPosition(cam);
         const view = pos.clone().sub(cam).normalize(); // camera -> button
+        const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
+      // v4: fake an XR session start (headless — no real headset). The toolbar
+      // is created from the CURRENT camera pose, exactly like the real
+      // enterAR, so tests can prove the follow/snap fix for the v3 bug.
+      fakeSessionStart: () => {
+        XR.session = { inputSources: [], end: () => onXRSessionEnd() };
+        XR.coachPending = true;
+        XR.needsSnap = true;
+        createXRToolbar(false);
+        return true;
+      },
+      fakeSessionEnd: () => { exitAR(); return !XR.session; },
+      // run one frame of panel-follow + coach trigger (what updateXR does)
+      tickFollow: () => { updateXRPanelFollow(); maybeShowCoach(); return true; },
+      toolbarVisible: () => XR.toolbar ? XR.toolbar.visible !== false : null,
+      toolbarPos: () => {
+        if (!XR.toolbar) return null;
+        const p = new THREE.Vector3();
+        XR.toolbar.getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      // camera pose (OrbitControls may clamp/move it — read it, don't assume it)
+      cameraState: () => {
+        const p = new THREE.Vector3();
+        camera.getWorldPosition(p);
+        const d = new THREE.Vector3();
+        camera.getWorldDirection(d);
+        return { pos: p.toArray(), dir: d.toArray() };
+      },
+      toolbarHighlightPos: () => {
+        if (!XR.toolbarHighlight || !XR.toolbarHighlight.visible) return null;
+        const p = new THREE.Vector3();
+        XR.toolbarHighlight.getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      menuHighlightPos: section => {
+        if (!XR.menuHighlights || !XR.menuHighlights[section] || !XR.menuHighlights[section].visible) return null;
+        const p = new THREE.Vector3();
+        XR.menuHighlights[section].getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      howtoPanelPos: () => {
+        if (!XR.howtoPanel) return null;
+        const p = new THREE.Vector3();
+        XR.howtoPanel.getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      statusText: () => XR.lastStatusText,
+      menuOpen: () => !!XR.menu,
+      toggleMenu: (open) => toggleXRMenu(open),
+      menuCount: () => XR.menuButtons.length,
+      menuButtonPos: action => {
+        const b = XR.menuButtons.find(b => b.userData.ui.action === action);
+        if (!b) return null;
+        const p = new THREE.Vector3();
+        b.getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      // aim a synthetic hand ray at a menu button (like toolbarAim)
+      menuAim: (action, dx, dy) => {
+        const b = XR.menuButtons.find(b => b.userData.ui.action === action);
+        if (!b) return null;
+        const pos = new THREE.Vector3();
+        b.getWorldPosition(pos);
+        const q = XR.menu.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize();
+        const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
+      coachOpen: () => !!XR.coach,
+      coachSeen: () => { try { return !!localStorage.getItem('vh_ar_coach_seen'); } catch (e) { return false; } },
+      clearCoachFlag: () => { try { localStorage.removeItem('vh_ar_coach_seen'); } catch (e) {} return true; },
+      // aim a synthetic hand ray at the coach's Got it! button
+      coachAim: (dx, dy) => {
+        const b = XR.coachButtons[0];
+        if (!b) return null;
+        const pos = new THREE.Vector3();
+        b.getWorldPosition(pos);
+        const q = XR.coach.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize();
         const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
         const tip = aim.clone().addScaledVector(view, -0.3);
         return {
