@@ -73,6 +73,18 @@
   .slider-row output { width: 30px; text-align: right; color: #eef2ff; }
   .mini-btn { width: 100%; padding: 6px; margin-top: 4px; border-radius: 8px; cursor: pointer;
     border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #eef2ff; font-size: 12px; }
+  .mode-row { display: flex; gap: 6px; }
+  .mode-btn { flex: 1; padding: 8px 4px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #eef2ff; font-size: 12px; font-weight: 700; text-align: center; }
+  .mode-btn.active { border-color: #4ade80; background: rgba(74,222,128,0.25); box-shadow: 0 0 10px rgba(74,222,128,0.45); }
+  #howtoPanel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30;
+    width: min(560px, 92vw); max-height: 84vh; overflow-y: auto; padding: 18px 20px; display: none; }
+  #howtoPanel h2 { margin: 0 0 4px 0; font-size: 20px; }
+  #howtoPanel h4 { margin: 14px 0 4px 0; color: #9fd8ff; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+  #howtoPanel ul { margin: 4px 0; padding-left: 20px; font-size: 13px; line-height: 1.65; color: #dbe4ff; }
+  #howtoPanel li b { color: #fff; }
+  #howtoClose { position: absolute; top: 10px; right: 10px; padding: 4px 10px; font-size: 15px; font-weight: 700;
+    border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff; }
 
   #status { position: fixed; left: 12px; bottom: 52px; z-index: 10; padding: 8px 12px; font-size: 12px;
     color: #cdd7f5; max-width: 420px; }
@@ -125,7 +137,7 @@
   <button class="tool-btn" data-tool="explode">💥 Explode <span class="key">5</span></button>
   <button class="tool-btn" data-tool="implode">🌀 Implode <span class="key">6</span></button>
   <div class="hint">Drag to orbit • Scroll to zoom • Click a block to use the tool • Esc clears selection</div>
-  <div class="hint" style="color:#7dd3fc">Hands: pinch-drag empty sky = spin • two-hand empty pinch = zoom • drag ground = walk Buddy • grab Buddy to carry him</div>
+  <div class="hint" style="color:#7dd3fc">Hands: pinch-drag empty sky = spin • two-hand empty pinch = zoom + rotate • drag ground = walk Buddy • grab Buddy to carry him • 🦍 Move mode = pull to walk, push down to jump, grab blocks to climb</div>
 </div>
 
 <div id="side" class="panel">
@@ -159,11 +171,29 @@
     <button class="mini-btn" id="newTerrainBtn">🌄 New terrain (fresh mountains)</button>
     <button class="mini-btn" id="charBtn">🧍 Spawn Character</button>
     <button class="mini-btn" id="clearBtn">🧹 Clear my blocks (keep terrain)</button>
+    <button class="mini-btn" id="resetViewBtn">🔄 Reset view (zoom 1×, unrotated)</button>
+  </div>
+  <div>
+    <h3>Mode</h3>
+    <div class="mode-row">
+      <button class="mode-btn active" id="buildModeBtn">🔨 Build</button>
+      <button class="mode-btn" id="moveModeBtn">🦍 Move</button>
+    </div>
+    <div class="ai-hint">Build: place &amp; move blocks. Move: pull to walk, push down to jump, grab blocks to climb.</div>
+  </div>
+  <div>
+    <h3>Help</h3>
+    <button class="mini-btn" id="howtoBtn">❓ How to play</button>
   </div>
 </div>
 
-<div id="status" class="panel"><b>Tool:</b> <span id="statusTool">Spawn</span> &nbsp;•&nbsp; <b>Block:</b> <span id="statusBlock">Grass</span> &nbsp;•&nbsp; <span id="statusCount">Blocks: 0</span></div>
+<div id="status" class="panel"><b>Tool:</b> <span id="statusTool">Spawn</span> &nbsp;•&nbsp; <b>Block:</b> <span id="statusBlock">Grass</span> &nbsp;•&nbsp; <b>Mode:</b> <span id="statusMode">Build 🔨</span> &nbsp;•&nbsp; <span id="statusCount">Blocks: 0</span></div>
 <div id="toast" class="panel"></div>
+<div id="howtoPanel" class="panel">
+  <button id="howtoClose" title="Close">✕</button>
+  <h2>❓ How to play VoxelHaven</h2>
+  <div id="howtoBody"></div>
+</div>
 
 <div id="contact" class="panel">📬 Contact me — <b>Michael Dembenski &amp; Bit</b> ·
   <a href="https://horizon.meta.com/profile/8bitvap0r/" target="_blank" rel="noopener">Horizon Worlds</a> ·
@@ -488,9 +518,49 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.style.display = 'none'; }, ms);
 }
+
+// ---------- How to play — one source of truth for the desktop panel + the in-AR 3D panel ----------
+const HOWTO_SECTIONS = [
+  { title: '🔨 Build mode (default)', lines: [
+    ['Pinch', 'use the current tool'],
+    ['Pinch a block', 'place / delete / merge / stretch / explode / implode (by tool)'],
+    ['Pinch-hold a block + drag', 'pick it up and move it'],
+    ['Pinch-drag empty sky', 'spin the world'],
+    ['Two-hand pinch, empty space', 'zoom AND rotate the world together'],
+    ['Pinch-drag the ground', 'walk Buddy (or spin the world if he’s not here)'],
+    ['Pinch Buddy', 'carry him — release to put him down'],
+    ['Floating toolbar', 'switch tools • new terrain • reset view • change mode'],
+  ] },
+  { title: '🦍 Move mode (Gorilla Tag style)', lines: [
+    ['Pinch empty space / ground + pull', 'drag yourself through the world'],
+    ['Push down with BOTH hands', 'jump!'],
+    ['Grab a block above you + pull down', 'climb up onto it'],
+    ['Switch back to 🔨 Build', 'to place and move blocks again'],
+  ] },
+  { title: 'Desktop', lines: [
+    ['Keys 1–6', 'switch tools'],
+    ['Click a block', 'use the tool • Click Buddy to select him, then click the ground to walk him'],
+    ['Drag / scroll', 'orbit the camera / zoom'],
+    ['W A S D + Space (Move mode)', 'walk • jump'],
+  ] },
+];
+function renderHowto() {
+  const body = document.getElementById('howtoBody');
+  body.innerHTML = HOWTO_SECTIONS.map(s =>
+    `<h4>${s.title}</h4><ul>` + s.lines.map(([a, b]) => `<li><b>${a}</b> — ${b}</li>`).join('') + `</ul>`
+  ).join('');
+}
+renderHowto();
+function toggleHowtoPanel(open) {
+  const p = document.getElementById('howtoPanel');
+  const show = open !== undefined ? open : p.style.display !== 'block';
+  p.style.display = show ? 'block' : 'none';
+  return show;
+}
 function updateStatus() {
   document.getElementById('statusTool').textContent = TOOL_LABELS[state.tool];
   document.getElementById('statusBlock').textContent = TYPE_NAMES[state.type];
+  document.getElementById('statusMode').textContent = state.mode === 'move' ? 'Move 🦍' : 'Build 🔨';
   document.getElementById('statusCount').textContent = 'Blocks: ' + countBlocks();
   document.getElementById('worldInfo').textContent = 'Blocks: ' + countBlocks() + '  •  Terrain seed #' + terrainSeed + '  •  Trees: ' + treeCount + '  •  Shapes and AI builds sit on the terrain.';
 }
@@ -499,7 +569,8 @@ function updateWorldInfo() { updateStatus(); }
 // ---------- state ----------
 const TOOLS = ['spawn', 'delete', 'merge', 'stretch', 'explode', 'implode'];
 const TOOL_LABELS = { spawn: 'Spawn', delete: 'Delete', merge: 'Merge', stretch: 'Stretch', explode: 'Explode', implode: 'Implode' };
-const state = { tool: 'spawn', type: 'grass', shape: null, anchor: { x: 0, z: 0 } };
+const state = { tool: 'spawn', type: 'grass', shape: null, anchor: { x: 0, z: 0 }, mode: 'build' };
+const moveKeys = new Set(); // held WASD / arrow keys for Move mode (desktop)
 
 // ---------- merge ----------
 function tryMerge(entry) {
@@ -1004,6 +1075,8 @@ function adjacentCell(hit) {
 }
 
 function handleClickAt(clientX, clientY) {
+  // 🦍 Move mode: canvas clicks don't build — WASD / Space / drag move you
+  if (state.mode === 'move') return;
   const hit = pickAt(clientX, clientY);
   // Buddy first: clicking him selects/deselects; while selected, clicks on
   // the ground walk him there instead of using the tool.
@@ -1058,7 +1131,7 @@ let downPos = null, downTime = 0, mouseCarry = false;
 renderer.domElement.addEventListener('pointerdown', (e) => {
   downPos = [e.clientX, e.clientY]; downTime = performance.now();
   const hit = pickAt(e.clientX, e.clientY);
-  if (hit && hit.kind === 'character' && char) {
+  if (hit && hit.kind === 'character' && char && state.mode === 'build') {
     mouseCarry = true;
     char.carried = true;
     char.walking = false;
@@ -1094,8 +1167,19 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 });
 
 // ---------- keyboard ----------
+window.addEventListener('keyup', (e) => { moveKeys.delete(e.code); });
+
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  // Move mode (desktop): WASD / arrows walk, Space jumps. Building keys stay live otherwise.
+  if (state.mode === 'move') {
+    if (e.key === ' ') { doJump(); e.preventDefault(); return; }
+    if (['w', 'W', 'a', 'A', 's', 'S', 'd', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      moveKeys.add(e.code);
+      e.preventDefault();
+      return;
+    }
+  }
   const idx = ['1', '2', '3', '4', '5', '6'].indexOf(e.key);
   if (idx >= 0) { setTool(TOOLS[idx]); return; }
   if (e.key === 'Escape') { selectEntry(null); disarmShape(); if (char) char.selected = false; return; }
@@ -1198,8 +1282,13 @@ document.getElementById('charBtn').addEventListener('click', () => {
 });
 
 document.getElementById('helpBtn').addEventListener('click', () => {
-  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Click Buddy to select him, then click the ground to walk him • Drag Buddy to carry him • 🌄 New terrain makes a fresh world. Quest hands: pinch = use tool • Pinch-hold + move a block = grab & drag • Drag on the ground = walk Buddy (or spin the world if he’s not here yet) • Drag the empty sky = spin the world • Two-hand pinch on a block = stretch, on empty space = zoom • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools.', 9000);
+  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Click Buddy to select him, then click the ground to walk him • Drag Buddy to carry him • 🌄 New terrain makes a fresh world. Quest hands: pinch = use tool • Pinch-hold + move a block = grab & drag • Drag on the ground = walk Buddy (or spin the world if he’s not here yet) • Drag the empty sky = spin the world • Two-hand pinch on a block = stretch, on empty space = zoom AND rotate (0.1×–5×) • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools • 🔄 Reset view restores 1×, unrotated • 🦍 Move mode: pull to walk, push down with both hands to jump, grab a block to climb • ❓ How to play shows every control.', 12000);
 });
+document.getElementById('howtoBtn').addEventListener('click', () => toggleHowtoPanel());
+document.getElementById('howtoClose').addEventListener('click', () => toggleHowtoPanel(false));
+document.getElementById('buildModeBtn').addEventListener('click', () => setMode('build'));
+document.getElementById('moveModeBtn').addEventListener('click', () => setMode('move'));
+document.getElementById('resetViewBtn').addEventListener('click', resetView);
 
 // ---------- AR mode ----------
 const arVideo = document.getElementById('arVideo');
@@ -1258,6 +1347,7 @@ function animate(time, frame) {
   updateImploding(dt);
   updateCharacter(dt);
   if (frame && XR.session) updateXR(time, frame);
+  updatePlayer(dt);
   renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(animate);
@@ -1274,13 +1364,18 @@ updateStatus();
 //   pinch-drag on the TERRAIN ............. walk Buddy (if he exists) else spin the world
 //   pinch-drag on EMPTY SKY ............... spin the whole world (yaw + a little tilt)
 //   pinch with BOTH hands on a block ..... stretch (pull apart / push together)
-//   pinch with BOTH hands on empty space . zoom the whole world (0.5x–2x)
+//   pinch with BOTH hands on empty space . zoom AND rotate the world (0.1x–5x)
 //   pinch Buddy ........................... carry him, release to place him
 //   Delete tool + pinch a block .......... remove it
 //   Merge tool + pinch two blocks ........ merge them
 //   Explode tool + pinch + flick outward . blast blocks apart
 //   Implode tool + pinch + pull inward ... suck blocks together
 //   pinch the floating toolbar ........... switch tools / new terrain / spawn Buddy
+//   🦍 Move mode .......................... pull empty space/ground to walk,
+//                                           push down with both hands to jump,
+//                                           grab a block above + pull down to climb
+//   ❓ How to play (toolbar) .............. readable in-AR panel of every control
+//   🔄 Reset view (toolbar / side panel) .. zoom 1×, rotation 0, position centred
 // ============================================================
 const PINCH_START = 0.022; // metres, thumb-tip to index-tip: below this = pinching
 const PINCH_END = 0.030;   // above this = released (hysteresis)
@@ -1298,6 +1393,8 @@ const XR = {
   toolbar: null,
   toolbarButtons: [],
   toolbarHighlight: null,
+  modeButton: null,
+  howtoPanel: null,
   reticle: null,
   handVisuals: {},
   mergeCandidate: null,
@@ -1307,10 +1404,169 @@ const XR = {
   worldYaw: 0,
   worldTilt: 0,
   worldScale: 1,
+  zoomAngle: null, // shared angle of the right→left hand vector during two-hand zoom
+  anchorPos: new THREE.Vector3(0, 0, 0), // world offset in scene space (reticle anchor)
 };
+
+// ---------- Player (Gorilla Tag Move mode) ----------
+// In immersive-ar the headset pose drives the camera, so the player moves by
+// translating worldGroup: worldGroup.position = anchorPos - playerSceneOffset().
+// Player Y = terrain height at the player's XZ + jump/climb offsets; the player
+// can never fall through the terrain (ground is always terrainHeight + 0.5).
+const player = { x: 0, z: 0, jumpY: 0, vy: 0, grounded: true, climbOffset: 0, lastJumpAt: -10 };
+const JUMP_VELOCITY = 4.5; // local units/s — a ~0.84-block hop
+const GRAVITY = 12;         // local units/s^2
+
+function playerGroundY(x, z) {
+  const cx = Math.round(x), cz = Math.round(z);
+  let g = terrainHeight(cx, cz) + 0.5;
+  for (const e of blocks.values()) {
+    if (e.ground) continue; // terrain already counted via terrainHeight
+    for (const c of e.cells) {
+      const p = c.split(',');
+      if (+p[0] === cx && +p[2] === cz) {
+        const top = e.center.y + e.size[1] / 2;
+        if (top > g) g = top;
+      }
+    }
+  }
+  return g;
+}
+function playerSceneOffset() {
+  // the player's local position, mapped into scene space through the world transform
+  const h = playerGroundY(player.x, player.z);
+  const h0 = playerGroundY(0, 0);
+  const local = new THREE.Vector3(player.x, (h + player.climbOffset + player.jumpY) - h0, player.z);
+  return local.applyEuler(worldGroup.rotation).multiplyScalar(XR.worldScale);
+}
+function clampPlayer() {
+  const B = HALF - 1;
+  player.x = THREE.MathUtils.clamp(player.x, -B, B);
+  player.z = THREE.MathUtils.clamp(player.z, -B, B);
+}
+function doJump() {
+  if (!player.grounded) return false;
+  const now = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+  if (now - player.lastJumpAt < 0.6) return false;
+  player.vy = JUMP_VELOCITY;
+  player.grounded = false;
+  player.lastJumpAt = now;
+  XR.lastAction = { type: 'jump' };
+  return true;
+}
+function checkJumpGesture() {
+  // Move mode: BOTH hands pinching and pushing down fast = jump.
+  if (state.mode !== 'move') return;
+  const r = XR.hands.right, l = XR.hands.left;
+  if (!r || !l || !r.pinching || !l.pinching) return;
+  if (!r.vel || !l.vel) return;
+  if (r.vel.y < -1.0 && l.vel.y < -1.0) doJump();
+}
+function applyMoveDrag(hand) {
+  // Gorilla Tag pull: the hand drags the world with it, so the player moves
+  // through the world in the opposite direction. Horizontal only.
+  if (!hand.moveLast) { hand.moveLast = hand.lastPos.clone(); return; }
+  const d = hand.lastPos.clone().sub(hand.moveLast);
+  hand.moveLast = hand.lastPos.clone();
+  const yaw = XR.worldYaw;
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  const lx = (d.x * cos + d.z * sin) / XR.worldScale;
+  const lz = (-d.x * sin + d.z * cos) / XR.worldScale;
+  player.x -= lx;
+  player.z -= lz;
+  clampPlayer();
+  setWorldTransform();
+}
+function updateClimb(hand) {
+  const entry = hand.entry;
+  if (!entry) return;
+  const top = entry.center.y + entry.size[1] / 2;
+  const ground = playerGroundY(player.x, player.z);
+  const need = Math.max(0, top - ground);
+  const pull = Math.max(0, (hand.climbStartY - hand.lastPos.y)) / XR.worldScale;
+  player.climbOffset = Math.min(need, pull);
+  setWorldTransform();
+}
+function updatePlayer(dt) {
+  if (!dt || dt <= 0) return;
+  // jump physics
+  if (!player.grounded || player.jumpY > 0) {
+    player.vy -= GRAVITY * dt;
+    player.jumpY += player.vy * dt;
+    if (player.jumpY <= 0) { player.jumpY = 0; player.vy = 0; player.grounded = true; }
+  }
+  // climb offset eases back down when no hand is pulling
+  const climbing = Object.values(XR.hands).some(h => h && h.mode === 'climb-grab');
+  if (!climbing && player.climbOffset > 0) {
+    player.climbOffset = Math.max(0, player.climbOffset - dt * 2);
+  }
+  // desktop WASD / arrows (Move mode)
+  if (state.mode === 'move' && moveKeys.size) {
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd); fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+    fwd.normalize();
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    const mv = new THREE.Vector3();
+    if (moveKeys.has('KeyW') || moveKeys.has('ArrowUp')) mv.add(fwd);
+    if (moveKeys.has('KeyS') || moveKeys.has('ArrowDown')) mv.sub(fwd);
+    if (moveKeys.has('KeyD') || moveKeys.has('ArrowRight')) mv.add(right);
+    if (moveKeys.has('KeyA') || moveKeys.has('ArrowLeft')) mv.sub(right);
+    if (mv.lengthSq() > 0) {
+      mv.normalize().multiplyScalar(6 * dt);
+      const yaw = XR.worldYaw;
+      const cos = Math.cos(yaw), sin = Math.sin(yaw);
+      player.x += (mv.x * cos + mv.z * sin) / XR.worldScale;
+      player.z += (-mv.x * sin + mv.z * cos) / XR.worldScale;
+      clampPlayer();
+    }
+  }
+  if (state.mode === 'move' || player.jumpY > 0 || player.climbOffset > 0) setWorldTransform();
+}
+function resetView() {
+  XR.worldYaw = 0; XR.worldTilt = 0; XR.worldScale = 1;
+  XR.anchorPos.set(0, 0, 0);
+  player.x = 0; player.z = 0; player.jumpY = 0; player.vy = 0;
+  player.climbOffset = 0; player.grounded = true;
+  setWorldTransform();
+  updateStatus();
+  toast('🔄 View reset — zoom 1×, unrotated, centred.');
+}
+function cancelGrab(hand) {
+  // put a grabbed block back where it came from (used when the mode switches mid-grab)
+  if (!hand || !hand.grabbed) return;
+  const e = hand.grabbed;
+  for (const k of hand.grabCells) blocks.set(k, e);
+  e.cells = hand.grabCells;
+  e.center.set(hand.grabOrigin.x, hand.grabOrigin.y, hand.grabOrigin.z);
+  e.mesh.position.copy(e.center);
+  e.grabbed = false;
+  hand.grabbed = null;
+}
+function setMode(m) {
+  if (m !== 'build' && m !== 'move') return;
+  if (m === state.mode) return;
+  // drop any in-progress grab/carry cleanly before switching
+  for (const h of Object.values(XR.hands)) {
+    if (h) { cancelGrab(h); h.mode = null; h.pinching = false; }
+  }
+  state.mode = m;
+  const b = document.getElementById('buildModeBtn'), mv = document.getElementById('moveModeBtn');
+  if (b) b.classList.toggle('active', m === 'build');
+  if (mv) mv.classList.toggle('active', m === 'move');
+  updateStatus();
+  refreshModeButton();
+  toast(m === 'move'
+    ? '🦍 Move mode — pull to walk, push down to jump, grab blocks to climb.'
+    : '🔨 Build mode — pinch to place, grab to move blocks.');
+  XR.lastAction = { type: 'mode', mode: m };
+}
+function toggleMode() { setMode(state.mode === 'move' ? 'build' : 'move'); }
+
 function setWorldTransform() {
   worldGroup.rotation.set(XR.worldTilt, XR.worldYaw, 0);
   worldGroup.scale.setScalar(XR.worldScale);
+  worldGroup.position.copy(XR.anchorPos).sub(playerSceneOffset());
 }
 
 const xrBtn = document.getElementById('xrBtn');
@@ -1347,7 +1603,7 @@ async function enterAR() {
     createXRToolbar(false);
     xrBtn.classList.add('on');
     xrBtn.textContent = '🥽 In AR — tap to exit';
-    toast('AR started! Pinch = tool • Hold a block to grab it • Drag the ground = walk Buddy • Drag the sky = spin the world • Two-hand pinch empty space = zoom.');
+    toast('AR started! Pinch = tool • Hold a block to grab it • Drag the ground = walk Buddy • Drag the sky = spin the world • Two-hand pinch empty space = zoom + rotate • 🔄 Reset view + 🦍 Move mode + ❓ How to play on the toolbar.');
   } catch (err) {
     toast('Couldn’t start AR (' + (err && err.message ? err.message : 'unknown error') + ') — try 📷 Camera AR instead.');
   }
@@ -1357,7 +1613,8 @@ function onXRSessionEnd() {
   XR.session = null;
   XR.hitTestSource = null;
   XR.mergeCandidate = null;
-  if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; XR.toolbarHighlight = null; }
+  if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; XR.toolbarHighlight = null; XR.modeButton = null; }
+  if (XR.howtoPanel) { scene.remove(XR.howtoPanel); XR.howtoPanel = null; }
   if (XR.reticle) XR.reticle.visible = false;
   for (const h of Object.values(XR.handVisuals)) h.group.visible = false;
   XR.hands = {};
@@ -1386,47 +1643,56 @@ function makeButtonTexture(emoji, label, accent) {
   return t;
 }
 function createXRToolbar(testMode) {
-  if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; }
+  if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; XR.modeButton = null; }
   const group = new THREE.Group();
   const defs = [
     ['spawn', '🧱', 'Spawn'], ['delete', '⛏️', 'Delete'], ['merge', '🔗', 'Merge'],
     ['stretch', '↔️', 'Stretch'], ['explode', '💥', 'Explode'], ['implode', '🌀', 'Implode'],
   ];
   XR.toolbarButtons = [];
+  // row 1 — the 6 tools, bigger than before (0.21 × 0.10) so a hand ray lands
+  // on them reliably at arm's length
   defs.forEach(([id, emoji, label], i) => {
     const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.19, 0.083),
+      new THREE.PlaneGeometry(0.21, 0.10),
       new THREE.MeshBasicMaterial({ map: makeButtonTexture(emoji, label, '#22d3ee'), transparent: true, side: THREE.DoubleSide })
     );
-    m.position.set(-0.475 + i * 0.19, 0.05, 0);
+    m.position.set(-0.5375 + i * 0.215, 0.075, 0);
     m.userData.xrButton = id;
+    m.userData.w = 0.21; m.userData.h = 0.10;
     group.add(m);
     XR.toolbarButtons.push(m);
   });
   const mkSmall = (id, emoji, label, accent, x) => {
     const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.19, 0.083),
+      new THREE.PlaneGeometry(0.17, 0.088),
       new THREE.MeshBasicMaterial({ map: makeButtonTexture(emoji, label, accent), transparent: true, side: THREE.DoubleSide })
     );
-    m.position.set(x, -0.07, 0);
+    m.position.set(x, -0.06, 0);
     m.userData.xrButton = id;
+    m.userData.w = 0.17; m.userData.h = 0.088;
     group.add(m);
     XR.toolbarButtons.push(m);
     return m;
   };
-  mkSmall('anchor', '⌂', 'Anchor', '#facc15', -0.285);
-  mkSmall('terrain', '🌄', 'Terrain', '#4ade80', -0.095);
-  mkSmall('char', '🧍', 'Buddy', '#f472b6', 0.095);
-  mkSmall('exit', '✕', 'Exit AR', '#f87171', 0.285);
+  mkSmall('anchor', '⌂', 'Anchor', '#facc15', -0.525);
+  mkSmall('terrain', '🌄', 'Terrain', '#4ade80', -0.35);
+  mkSmall('char', '🧍', 'Buddy', '#f472b6', -0.175);
+  mkSmall('reset', '🔄', 'Reset', '#38bdf8', 0);
+  const modeBtn = mkSmall('mode', '🦍', 'Move', '#4ade80', 0.175);
+  XR.modeButton = modeBtn;
+  mkSmall('howto', '❓', 'How to', '#a78bfa', 0.35);
+  mkSmall('exit', '✕', 'Exit AR', '#f87171', 0.525);
   const hl = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.2, 0.093),
+    new THREE.PlaneGeometry(1, 1),
     new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
   );
-  hl.position.z = -0.001;
+  hl.position.z = 0.002; // in front of the buttons: a translucent tint over the active one
   hl.userData.xrButton = null;
   group.add(hl);
   XR.toolbarHighlight = hl;
-  // park it in front of the user, facing them
+  // park it in front of the user, facing them — a little closer than before
+  // (0.6 m in AR) so the bigger buttons are easy to tap with a hand ray
   const pos = new THREE.Vector3();
   camera.getWorldPosition(pos);
   const dir = new THREE.Vector3();
@@ -1434,13 +1700,14 @@ function createXRToolbar(testMode) {
   dir.y = 0;
   if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
   dir.normalize();
-  const dist = testMode ? 1.2 : 0.75;
+  const dist = testMode ? 1.2 : 0.6;
   group.position.copy(pos).addScaledVector(dir, dist);
   group.position.y = testMode ? pos.y - 0.1 : Math.max(1.05, pos.y - 0.15);
   group.lookAt(pos.x, group.position.y, pos.z);
   scene.add(group);
   XR.toolbar = group;
   refreshXRToolbar();
+  refreshModeButton();
   return group;
 }
 function refreshXRToolbar() {
@@ -1448,7 +1715,88 @@ function refreshXRToolbar() {
   const btn = XR.toolbarButtons.find(b => b.userData.xrButton === state.tool);
   if (!btn) { XR.toolbarHighlight.visible = false; return; }
   XR.toolbarHighlight.visible = true;
-  XR.toolbarHighlight.position.set(btn.position.x, btn.position.y, -0.001);
+  XR.toolbarHighlight.scale.set((btn.userData.w || 0.21) + 0.012, (btn.userData.h || 0.10) + 0.012, 1);
+  XR.toolbarHighlight.position.set(btn.position.x, btn.position.y, 0.002);
+  refreshModeButton();
+}
+// the XR toolbar's mode button shows the mode you can SWITCH TO:
+// in Build it reads "🦍 Move" (green), in Move it reads "🔨 Build" (amber).
+function refreshModeButton() {
+  if (!XR.modeButton) return;
+  const btn = XR.modeButton;
+  const inMove = state.mode === 'move';
+  const tex = makeButtonTexture(inMove ? '🔨' : '🦍', inMove ? 'Build' : 'Move', inMove ? '#facc15' : '#4ade80');
+  if (btn.material.map) btn.material.map.dispose();
+  btn.material.map = tex;
+  btn.material.needsUpdate = true;
+}
+
+// ---------- in-AR "How to play" panel (3D, big text, arm's-length legible) ----------
+function makeHowtoTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 800;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(8,12,28,0.94)';
+  g.beginPath(); g.roundRect(0, 0, 1024, 800, 28); g.fill();
+  g.strokeStyle = '#22d3ee'; g.lineWidth = 5; g.stroke();
+  let y = 62;
+  g.fillStyle = '#ffffff'; g.textAlign = 'left';
+  g.font = 'bold 46px system-ui, sans-serif';
+  g.fillText('❓ How to play VoxelHaven', 40, y);
+  y += 26;
+  g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(40, y); g.lineTo(984, y); g.stroke();
+  y += 46;
+  for (const s of HOWTO_SECTIONS) {
+    g.fillStyle = '#9fd8ff'; g.font = 'bold 32px system-ui, sans-serif';
+    g.fillText(s.title, 40, y); y += 38;
+    g.fillStyle = '#eef2ff'; g.font = '24px system-ui, sans-serif';
+    for (const [a, b] of s.lines) {
+      const line = `• ${a} — ${b}`;
+      const words = line.split(' ');
+      let cur = '';
+      for (const w of words) {
+        const test = cur ? cur + ' ' + w : w;
+        if (g.measureText(test).width > 930 && cur) { g.fillText(cur, 56, y); y += 31; cur = w; }
+        else cur = test;
+      }
+      if (cur) { g.fillText(cur, 56, y); y += 31; }
+    }
+    y += 16;
+  }
+  g.fillStyle = '#8b98c4'; g.font = '24px system-ui, sans-serif';
+  g.fillText('Tap this panel or ❓ How to on the toolbar to close.', 40, 800 - 24);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function toggleXRHowto() {
+  if (XR.howtoPanel) {
+    scene.remove(XR.howtoPanel);
+    XR.howtoPanel = null;
+    XR.lastAction = { type: 'howto', open: false };
+    return false;
+  }
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.95, 0.74),
+    new THREE.MeshBasicMaterial({ map: makeHowtoTexture(), transparent: true, side: THREE.DoubleSide })
+  );
+  panel.userData.xrButton = 'howto';
+  const group = new THREE.Group();
+  group.add(panel);
+  const pos = new THREE.Vector3();
+  camera.getWorldPosition(pos);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+  dir.normalize();
+  group.position.copy(pos).addScaledVector(dir, 0.85);
+  group.position.y = pos.y - 0.05;
+  group.lookAt(pos.x, group.position.y, pos.z);
+  scene.add(group);
+  XR.howtoPanel = group;
+  XR.lastAction = { type: 'howto', open: true };
+  return true;
 }
 
 // ---------- hit-test reticle ----------
@@ -1550,6 +1898,29 @@ function xrPick(ray) {
     const th = xrRaycaster.intersectObjects(XR.toolbar.children, false)
       .filter(h => h.object.userData.xrButton);
     if (th.length) consider('toolbar', th[0].distance, { button: th[0].object.userData.xrButton, hit: th[0] });
+    // forgiving: hands are imprecise, so a ray that passes near a button
+    // (within 0.14 m of its centre) counts as a tap on it — this is what
+    // made Delete unreachable in AR (the buttons were small and far away).
+    // The nearest button by perpendicular distance wins.
+    if (!th.length) {
+      const tmp = new THREE.Vector3();
+      let bestBtn = null, bestPerp = Infinity, bestAlong = Infinity;
+      for (const b of XR.toolbarButtons) {
+        b.getWorldPosition(tmp);
+        const closest = new THREE.Vector3();
+        xrRaycaster.ray.closestPointToPoint(tmp, closest);
+        const dAlong = xrRaycaster.ray.origin.distanceTo(closest);
+        const perp = closest.distanceTo(tmp);
+        if (dAlong > 0 && dAlong < 4 && perp < 0.14 && perp < bestPerp) {
+          bestPerp = perp; bestAlong = dAlong; bestBtn = b;
+        }
+      }
+      if (bestBtn) consider('toolbar', bestAlong, { button: bestBtn.userData.xrButton, hit: null });
+    }
+  }
+  if (XR.howtoPanel) {
+    const hp = xrRaycaster.intersectObjects(XR.howtoPanel.children, false);
+    if (hp.length) consider('howto-panel', hp[0].distance, { hit: hp[0] });
   }
   return best;
 }
@@ -1647,16 +2018,26 @@ function onPinchStart(hand, joints, now) {
   const pick = xrPick(ray);
   hand.pick = pick;
   if (!pick) {
-    // empty space: two-hand pinch = zoom, one-hand drag = spin the world
+    // empty space: two-hand pinch = zoom + rotate, one-hand drag = spin the world
     const other = otherHand(hand.handedness);
-    if (other && other.pinching && (other.mode === 'pending-empty' || other.mode === 'tap-ground' || other.mode === 'spin' || other.mode === 'zoom2')) {
+    if (other && other.pinching && (other.mode === 'pending-empty' || other.mode === 'tap-ground' || other.mode === 'spin' || other.mode === 'zoom2' || other.mode === 'move-drag')) {
       hand.mode = 'zoom2';
       other.mode = 'zoom2';
       const d = hand.lastPos.distanceTo(other.lastPos);
       hand.zoomStartDist = d; other.zoomStartDist = d;
       hand.zoomStartScale = XR.worldScale; other.zoomStartScale = XR.worldScale;
+      // angle of the right→left hand vector (top view) — zooming rotates too
+      const rr = hand.handedness === 'right' ? hand : other;
+      const ll = hand.handedness === 'right' ? other : hand;
+      XR.zoomAngle = Math.atan2(rr.lastPos.z - ll.lastPos.z, rr.lastPos.x - ll.lastPos.x);
       XR.lastAction = { type: 'zoom-start' };
-      toast('Two-hand zoom! Pull apart to grow the world, push together to shrink it.');
+      toast('Two-hand zoom + rotate! Pull apart to grow, twist your hands to spin the world.');
+      return;
+    }
+    // 🦍 Move mode: a pinch on empty space/ground grabs the world to pull yourself along
+    if (state.mode === 'move') {
+      hand.mode = 'move-drag';
+      hand.moveLast = tip.clone();
       return;
     }
     if (state.tool === 'spawn') {
@@ -1670,7 +2051,8 @@ function onPinchStart(hand, joints, now) {
     hand.mode = 'ui';
     if (pick.button === 'exit') exitAR();
     else if (pick.button === 'anchor') {
-      worldGroup.position.set(0, 0, 0);
+      XR.anchorPos.set(0, 0, 0);
+      setWorldTransform();
       XR.lastAction = { type: 'anchor' };
       toast('World anchored back at the origin.');
     } else if (pick.button === 'terrain') {
@@ -1680,26 +2062,53 @@ function onPinchStart(hand, joints, now) {
     } else if (pick.button === 'char') {
       spawnCharacter(2, 2);
       XR.lastAction = { type: 'char' };
+    } else if (pick.button === 'reset') {
+      resetView();
+      XR.lastAction = { type: 'reset' };
+    } else if (pick.button === 'mode') {
+      toggleMode();
+    } else if (pick.button === 'howto') {
+      toggleXRHowto();
     } else if (pick.button) {
       setTool(pick.button);
       XR.lastAction = { type: 'toolbar', tool: pick.button };
     }
     return;
   }
+  if (pick.kind === 'howto-panel') {
+    hand.mode = 'ui';
+    toggleXRHowto();
+    return;
+  }
   if (pick.kind === 'character') {
+    // 🦍 Move mode: pinches move YOU, not Buddy — grab the world instead
+    if (state.mode === 'move') {
+      hand.mode = 'move-drag';
+      hand.moveLast = tip.clone();
+      return;
+    }
     hand.mode = 'carry-pending';
     return;
   }
   if (pick.kind === 'reticle') {
     hand.mode = 'ui';
     const p = pick.hit.point;
-    worldGroup.position.set(p.x, p.y, p.z);
+    XR.anchorPos.set(p.x, p.y, p.z);
+    setWorldTransform();
     XR.lastAction = { type: 'anchor', at: [p.x, p.y, p.z] };
     toast('World re-anchored here. Pinch ⌂ Anchor on the toolbar to reset.');
     return;
   }
   // block hit
   const cell = pick.cell, entry = pick.entry;
+  // 🦍 Move mode: grab a block above you and pull down to climb onto it
+  if (state.mode === 'move') {
+    hand.mode = 'climb-grab';
+    hand.entry = entry;
+    hand.climbStartY = tip.y;
+    hand.climbStartOffset = player.climbOffset;
+    return;
+  }
   state.anchor = { x: cell.x, z: cell.z };
   if (state.tool === 'spawn') {
     hand.mode = 'pending';
@@ -1757,7 +2166,12 @@ function onPinchStart(hand, joints, now) {
 }
 
 function onPinchHold(hand, joints, now) {
-  if (hand.mode === 'pending') {
+  checkJumpGesture(); // Move mode: both hands pushing down fast = jump
+  if (hand.mode === 'move-drag') {
+    applyMoveDrag(hand);
+  } else if (hand.mode === 'climb-grab') {
+    updateClimb(hand);
+  } else if (hand.mode === 'pending') {
     const moved = hand.lastPos.distanceTo(hand.startPos);
     if (moved > GRAB_MOVE || now - hand.startTime > GRAB_HOLD) {
       if (hand.entry && (hand.entry.ground || hand.entry.terrain)) {
@@ -1807,14 +2221,25 @@ function applySpin(hand) {
   XR.worldTilt = THREE.MathUtils.clamp(XR.worldTilt + delta.dot(up) * 1.2, -0.35, 0.35);
   setWorldTransform();
 }
-// zoom the whole world from a two-hand pinch on empty space
+// zoom AND rotate the whole world from a two-hand pinch on empty space:
+// hand distance = zoom, the angle between the hands = world yaw
 function updateZoom(hand) {
   const other = otherHand(hand.handedness);
   if (!other || !other.pinching || other.mode !== 'zoom2') return;
   const d = hand.lastPos.distanceTo(other.lastPos);
   if (hand.zoomStartDist < 1e-6) return;
   const f = d / hand.zoomStartDist;
-  XR.worldScale = THREE.MathUtils.clamp(hand.zoomStartScale * f, 0.5, 2);
+  XR.worldScale = THREE.MathUtils.clamp(hand.zoomStartScale * f, 0.1, 5);
+  const r = XR.hands.right, l = XR.hands.left;
+  if (r && l && r.lastPos && l.lastPos) {
+    const ang = Math.atan2(r.lastPos.z - l.lastPos.z, r.lastPos.x - l.lastPos.x);
+    if (XR.zoomAngle !== null) {
+      let delta = ang - XR.zoomAngle;
+      delta = ((delta + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      XR.worldYaw += delta;
+    }
+    XR.zoomAngle = ang;
+  }
   setWorldTransform();
 }
 // carry Buddy with a hand
@@ -1913,9 +2338,34 @@ function onPinchEnd(hand, joints, now) {
   } else if (hand.mode === 'walk-drag') {
     hand.mode = null;
     XR.lastAction = { type: 'walk', target: char && char.target ? char.target.toArray() : null };
+  } else if (hand.mode === 'move-drag') {
+    hand.mode = null;
+    XR.lastAction = { type: 'move-drag', player: [player.x, player.z] };
+  } else if (hand.mode === 'climb-grab') {
+    // release: if the pull lifted the player most of the way up, snap onto
+    // the block's top; otherwise slide back down to the ground
+    const entry = hand.entry;
+    if (entry) {
+      const top = entry.center.y + entry.size[1] / 2;
+      const ground = playerGroundY(player.x, player.z);
+      const need = Math.max(0, top - ground);
+      if (need > 0 && player.climbOffset >= need * 0.7) {
+        player.x = THREE.MathUtils.clamp(entry.center.x, -HALF + 1, HALF - 1);
+        player.z = THREE.MathUtils.clamp(entry.center.z, -HALF + 1, HALF - 1);
+        player.climbOffset = 0;
+        setWorldTransform();
+        XR.lastAction = { type: 'climb', pos: [player.x, player.z], groundY: playerGroundY(player.x, player.z) };
+        toast('Climbed up! 🧗');
+      } else {
+        player.climbOffset = 0;
+        setWorldTransform();
+      }
+    }
+    hand.mode = null;
   } else if (hand.mode === 'zoom2') {
     const other = otherHand(hand.handedness);
-    if (other && other.mode === 'zoom2') other.mode = 'pending-empty';
+    if (other && other.mode === 'zoom2') other.mode = state.mode === 'move' ? 'move-drag' : 'pending-empty';
+    XR.zoomAngle = null;
     hand.mode = null;
     XR.lastAction = { type: 'zoom-end', scale: XR.worldScale };
   } else if (hand.mode === 'carry') {
@@ -2009,7 +2459,7 @@ function setView(px, py, pz, tx, ty, tz) {
 }
 window.__setView = setView;
 window.__bv = {
-  version: '2.0',
+  version: '3.0',
   ready: true,
   blockCount: () => countBlocks(),
   groundCount: () => { let n = 0; for (const e of new Set(blocks.values())) if (e.ground) n++; return n; },
@@ -2026,7 +2476,23 @@ window.__bv = {
   worldRot: () => [XR.worldYaw, XR.worldTilt],
   worldScale: () => XR.worldScale,
   setWorldRot: (yaw, tilt) => { XR.worldYaw = yaw; XR.worldTilt = tilt; setWorldTransform(); },
-  setWorldScale: (s) => { XR.worldScale = THREE.MathUtils.clamp(s, 0.5, 2); setWorldTransform(); },
+  setWorldScale: (s) => { XR.worldScale = THREE.MathUtils.clamp(s, 0.1, 5); setWorldTransform(); },
+  getMode: () => state.mode,
+  setMode: (m) => setMode(m),
+  resetView: () => resetView(),
+  playerState: () => ({ x: player.x, z: player.z, jumpY: player.jumpY, grounded: player.grounded, climbOffset: player.climbOffset, groundY: playerGroundY(player.x, player.z), mode: state.mode }),
+  playerGroundYAt: (x, z) => playerGroundY(x, z),
+  setPlayer: (x, z) => {
+    player.x = THREE.MathUtils.clamp(x, -HALF + 1, HALF - 1);
+    player.z = THREE.MathUtils.clamp(z, -HALF + 1, HALF - 1);
+    player.jumpY = 0; player.vy = 0; player.climbOffset = 0; player.grounded = true;
+    setWorldTransform();
+    return window.__bv.playerState();
+  },
+  moveJump: () => doJump(),
+  stepPlayer: (dt) => updatePlayer(dt),
+  howtoOpen: () => !!XR.howtoPanel,
+  toggleHowto: () => toggleXRHowto(),
   placeAt: (x, y, z, type) => { const e = addBlock(x, y, z, type || state.type); updateStatus(); return !!e; },
   deleteAt: (x, y, z) => { const ok = deleteAt(x, y, z); updateStatus(); return ok; },
   hasBlock: (x, y, z) => blocks.has(key(x, y, z)),
@@ -2047,6 +2513,9 @@ window.__bv = {
   spawnShape: (name, cx, cz, type) => spawnShape(name, cx, cz, type),
   buildAI: (word, ax, az) => buildAI(word, ax, az),
   setView,
+  // local (worldGroup) coordinates -> scene coordinates (what a hand ray sees).
+  // Needed because the player moves by translating the world group.
+  scenePos: (x, y, z) => { worldGroup.updateMatrixWorld(); return new THREE.Vector3(x, y, z).applyMatrix4(worldGroup.matrixWorld).toArray(); },
   stepChar: (dt) => updateCharacter(dt),
   pickKindAt: (cx, cy) => { const h = pickAt(cx, cy); return h ? h.kind : null; },
   // find a column near (cx,cz) with NOTHING above the terrain top in the
@@ -2152,6 +2621,28 @@ window.__bv = {
       },
       reticleAt: (x, y, z) => { const r = getReticle(); r.position.set(x, y, z); r.visible = true; return true; },
       worldPos: () => [worldGroup.position.x, worldGroup.position.y, worldGroup.position.z],
+      // aim a synthetic hand ray at a toolbar button, optionally offset from its
+      // centre (dx = right, dy = up, in metres) — tests the forgiving tap zone
+      toolbarAim: (id, dx, dy) => {
+        const b = XR.toolbarButtons.find(b => b.userData.xrButton === id);
+        if (!b) return null;
+        const pos = new THREE.Vector3();
+        b.getWorldPosition(pos);
+        const q = XR.toolbar.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize(); // camera -> button
+        const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
     },
   },
 };
