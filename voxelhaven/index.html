@@ -197,9 +197,14 @@
 </div>
 
 <div id="contact" class="panel">📬 Contact me — <b>Michael Dembenski &amp; Bit</b> ·
-  <a href="https://horizon.meta.com/profile/8bitvap0r/" target="_blank" rel="noopener">Horizon Worlds</a> ·
+  <a href="https://dembenski.github.io/games/all-games.html" target="_blank" rel="noopener">Share My Games</a> ·
+  <a href="https://www.instagram.com/8bitvapor.builds/" target="_blank" rel="noopener">Instagram</a> ·
+  <a href="https://www.facebook.com/Dembenski.M" target="_blank" rel="noopener">Facebook</a> ·
   <a href="https://www.youtube.com/@8bitvapor" target="_blank" rel="noopener">YouTube</a> ·
+  <a href="https://8bitvapor.itch.io/" target="_blank" rel="noopener">itch.io</a> ·
+  <a href="https://codepen.io/Michael-Dembenski" target="_blank" rel="noopener">CodePen</a> ·
   <a href="https://github.com/dembenski" target="_blank" rel="noopener">GitHub</a> ·
+  <a href="https://horizon.meta.com/profile/8bitvap0r/" target="_blank" rel="noopener">Horizon Worlds</a> ·
   <a href="https://dembenski.github.io/games/" target="_blank" rel="noopener">Games Hub</a>
 </div>
 
@@ -556,6 +561,13 @@ const HOWTO_SECTIONS = [
     ['Pinch-drag empty space', 'steer while flying'],
     ['Two-hand pinch', 'zoom out — see the whole map from above'],
     ['🪶 Fly again', 'land back on the ground'],
+  ] },
+  { title: '🪟 Panels + moving without walking', lines: [
+    ['Drag a panel by its header', 'move it anywhere — it stays where you drop it'],
+    ['Two-hand pinch ON a panel', 'resize it (buttons − / + work too)'],
+    ['— button', 'minimize to a ☰ pill — tap the pill to bring it back'],
+    ['🎮 Move pad (menu header)', 'hold ↑ ↓ ← → to walk, ⤒ ⤓ to rise / sink, 🪶↑ 🪶↓ to fly'],
+    ['⟲ ⟳ on the Move pad', 'rotate the world · − / + shrink or grow it'],
   ] },
   { title: 'Desktop', lines: [
     ['Keys 1–6', 'switch tools'],
@@ -1434,6 +1446,13 @@ updateStatus();
 //   5. FLY TOGGLE (🪶 in the menu / PC panel / F key) — hover 2 blocks up;
 //      fly + zoom-out together = the whole map from above, Horizon
 //      creator-mode style. No jumping while flying; landing snaps back.
+//   6. PANELS (v6) — the menu and the 🎮 Move pad are floating panels:
+//      pinch-drag the header (or any non-button area) to move one, it stays
+//      where dropped (position + scale persist in localStorage); two-hand
+//      pinch ON a panel scales the panel (0.5x–2x) — the world zoom only
+//      fires when both hands are NOT on a panel; — minimizes to a ☰/🎮
+//      pill (tap the pill to restore), − / + resize. The Move pad's
+//      hold-to-move buttons walk/fly the player with zero physical walking.
 // Gesture map (single-hand pinch):
 //   pinch (thumb tip + index tip) ......... use the current tool
 //   pinch-tap a block ..................... place / delete / merge / stretch / explode / implode
@@ -1493,6 +1512,24 @@ const XR = {
   menuButtons: [],
   menuOpen: false,
   menuHighlights: null,
+  // v6 — shared floating-panel state (menu + move pad): placement is stored
+  // as an offset from the headset (distance, bearing, height) so it survives
+  // head turns and sessions; scale 0.5–2x; minimized = a small ☰/🎮 pill.
+  panels: {
+    menu: { id: 'menu', group: null, pill: null, scale: 0.6, minimized: false, dist: 0.6, yaw: 0, yOff: -0.14 },
+    movepad: { id: 'movepad', group: null, pill: null, scale: 0.9, minimized: false, dist: 0.7, yaw: 1.0, yOff: -0.30 },
+  },
+  // v6 — the defaults above, kept in one place so a fresh panel (or a
+  // cleared localStorage) always starts from them, never from a stale
+  // in-memory value left by an earlier session's resize/drag.
+  panelDefaults: {
+    menu: { dist: 0.6, yaw: 0, yOff: -0.14, scale: 0.6, minimized: false },
+    movepad: { dist: 0.7, yaw: 1.0, yOff: -0.30, scale: 0.9, minimized: false },
+  },
+  movepad: null,
+  movepadButtons: [],
+  chromeButtons: { menu: [], movepad: [] }, // panel furniture (—, −, +, 🎮) — NOT menu content, so menuCount stays 39
+  moveHeld: new Set(), // move-pad directions held right now (ui-hold hands): fwd/back/left/right/up/down/flyup/flydn/rotl/rotr
   coach: null,
   coachButtons: [],
   coachPending: false,
@@ -1624,7 +1661,45 @@ function updatePlayer(dt) {
     if (moveKeys.has('Space')) player.flyY = THREE.MathUtils.clamp(player.flyY + 3 * dt, FLY_MIN_Y, FLY_MAX_Y);
     if (moveKeys.has('KeyC')) player.flyY = THREE.MathUtils.clamp(player.flyY - 3 * dt, FLY_MIN_Y, FLY_MAX_Y);
   }
-  if (state.mode === 'move' || state.fly || player.jumpY > 0 || player.climbOffset > 0) setWorldTransform();
+  // v6 — floating Move-pad buttons: hold = move without walking (any mode,
+  // seated). Directions are camera-relative; vertical only while flying.
+  // Speeds are scene metres per second (1.5 walk, 3 fly), converted to
+  // local units by worldScale like every other hand-driven movement.
+  if (XR.moveHeld.size) {
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd); fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+    fwd.normalize();
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    const mv = new THREE.Vector3();
+    if (XR.moveHeld.has('fwd')) mv.add(fwd);
+    if (XR.moveHeld.has('back')) mv.sub(fwd);
+    if (XR.moveHeld.has('right')) mv.add(right);
+    if (XR.moveHeld.has('left')) mv.sub(right);
+    const speed = state.fly ? 3 : 1.5;
+    if (mv.lengthSq() > 0) {
+      mv.normalize().multiplyScalar(speed * dt);
+      const yaw = XR.worldYaw;
+      const cos = Math.cos(yaw), sin = Math.sin(yaw);
+      player.x += (mv.x * cos + mv.z * sin) / XR.worldScale;
+      player.z += (-mv.x * sin + mv.z * cos) / XR.worldScale;
+      clampPlayer();
+    }
+    // fly buttons auto-enable Fly when held; plain up/down only work while flying
+    if (XR.moveHeld.has('flyup') || XR.moveHeld.has('flydn')) {
+      if (!state.fly) setFly(true);
+    }
+    if (state.fly) {
+      let vy = 0;
+      if (XR.moveHeld.has('up') || XR.moveHeld.has('flyup')) vy += 1;
+      if (XR.moveHeld.has('down') || XR.moveHeld.has('flydn')) vy -= 1;
+      if (vy) player.flyY = THREE.MathUtils.clamp(player.flyY + vy * speed * dt / XR.worldScale, FLY_MIN_Y, FLY_MAX_Y);
+    }
+    // rotate: hold ⟲ / ⟳ to spin the world (45°/s)
+    if (XR.moveHeld.has('rotl')) XR.worldYaw += 0.785 * dt;
+    if (XR.moveHeld.has('rotr')) XR.worldYaw -= 0.785 * dt;
+  }
+  if (state.mode === 'move' || state.fly || player.jumpY > 0 || player.climbOffset > 0 || XR.moveHeld.size > 0) setWorldTransform();
 }
 function resetView() {
   XR.worldYaw = 0; XR.worldTilt = 0; XR.worldScale = 1;
@@ -1650,9 +1725,14 @@ function cancelGrab(hand) {
 function setMode(m) {
   if (m !== 'build' && m !== 'move') return;
   if (m === state.mode) return;
-  // drop any in-progress grab/carry cleanly before switching
+  // drop any in-progress grab/carry cleanly before switching — but a hand
+  // holding a move-pad button (ui-hold) or dragging/resizing a panel keeps
+  // holding it (same stranding hazard as setFly: resetting it would leave
+  // its direction stuck in XR.moveHeld with no release to clear it).
   for (const h of Object.values(XR.hands)) {
-    if (h) { cancelGrab(h); h.mode = null; h.pinching = false; }
+    if (!h) continue;
+    if (h.mode === 'ui-hold' || h.mode === 'panel-drag' || h.mode === 'panel-scale') continue;
+    cancelGrab(h); h.mode = null; h.pinching = false;
   }
   state.mode = m;
   const b = document.getElementById('buildModeBtn'), mv = document.getElementById('moveModeBtn');
@@ -1676,7 +1756,15 @@ function setFly(on) {
   const next = on !== undefined ? !!on : !state.fly;
   if (next === state.fly) return next;
   for (const h of Object.values(XR.hands)) {
-    if (h) { cancelGrab(h); h.mode = null; h.pinching = false; }
+    if (!h) continue;
+    // a hand holding a move-pad button (ui-hold) or dragging/resizing a
+    // panel keeps holding it — Fly turning on is the POINT of the fly-up
+    // button, and resetting the hand here would strand its direction in
+    // XR.moveHeld with no release to ever clear it (the release then finds
+    // pinching already false, so onPinchEnd never runs and the direction
+    // stays stuck, cancelling the opposite direction's vy outright).
+    if (h.mode === 'ui-hold' || h.mode === 'panel-drag' || h.mode === 'panel-scale') continue;
+    cancelGrab(h); h.mode = null; h.pinching = false;
   }
   state.fly = next;
   player.flyY = next ? FLY_START_Y : 0;
@@ -1759,7 +1847,9 @@ function onXRSessionEnd() {
   XR.mergeCandidate = null;
   if (XR.toolbar) { scene.remove(XR.toolbar); XR.toolbar = null; XR.toolbarButtons = []; XR.toolbarHighlight = null; XR.modeButton = null; }
   if (XR.howtoPanel) { scene.remove(XR.howtoPanel); XR.howtoPanel = null; }
-  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null; }
+  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null; XR.chromeButtons.menu = []; XR.panels.menu.group = null; XR.panels.menu.pill = null; }
+  if (XR.movepad) { scene.remove(XR.movepad); XR.movepad = null; XR.movepadButtons = []; XR.chromeButtons.movepad = []; XR.panels.movepad.group = null; XR.panels.movepad.pill = null; }
+  XR.moveHeld.clear();
   if (XR.coach) { scene.remove(XR.coach); XR.coach = null; XR.coachButtons = []; }
   xrStatusStrip = null; // part of the toolbar group, removed with it
   XR.coachPending = false; XR.needsSnap = false;
@@ -1899,10 +1989,10 @@ function refreshModeButton() {
 // ---------- in-AR "How to play" panel (3D, big text, arm's-length legible) ----------
 function makeHowtoTexture() {
   const c = document.createElement('canvas');
-  c.width = 1024; c.height = 1152;
+  c.width = 1024; c.height = 1408;
   const g = c.getContext('2d');
   g.fillStyle = 'rgba(8,12,28,0.94)';
-  g.beginPath(); g.roundRect(0, 0, 1024, 1152, 28); g.fill();
+  g.beginPath(); g.roundRect(0, 0, 1024, 1408, 28); g.fill();
   g.strokeStyle = '#22d3ee'; g.lineWidth = 5; g.stroke();
   let y = 62;
   g.fillStyle = '#ffffff'; g.textAlign = 'left';
@@ -1930,7 +2020,7 @@ function makeHowtoTexture() {
     y += 16;
   }
   g.fillStyle = '#8b98c4'; g.font = '24px system-ui, sans-serif';
-  g.fillText('Tap this panel or ❓ How to on the toolbar to close.', 40, 1152 - 24);
+  g.fillText('Tap this panel or ❓ How to on the toolbar to close.', 40, 1408 - 24);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -1948,7 +2038,7 @@ function toggleXRHowto(open) {
   }
   if (XR.howtoPanel) return true;
   const panel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 1.07),
+    new THREE.PlaneGeometry(0.95, 1.307),
     new THREE.MeshBasicMaterial({ map: makeHowtoTexture(), transparent: true, side: THREE.DoubleSide })
   );
   panel.userData.xrButton = 'howto';
@@ -1993,6 +2083,291 @@ function drawXRStatus() {
   g.fillText(msg, 512, 100);
   xrStatusStrip.tex.needsUpdate = true;
   if (typeof XR !== 'undefined' && XR) XR.lastStatusText = line1 + ' | ' + xrLastMessage;
+}
+
+// ---------- shared floating panels (v6) ----------
+// The menu and the 🎮 Move pad share one panel system: grabbable by the
+// header, resizable by two-hand pinch (or − / + buttons), minimizable to a
+// small pill. Placement is an offset from the headset (distance, bearing,
+// height above/below eye level) + scale + minimized flag, persisted in
+// localStorage so a panel stays where the user dropped it across sessions.
+// Panels follow the headset at their stored offset (see followPanelFor) —
+// they never get lost in the room, the v3 bug — but the offset is the
+// user's own, so a panel dragged to the side stays to the side.
+const PANEL_STORE_KEY = 'vh_panels_v6';
+// reset one panel to its defaults, then merge whatever localStorage saved
+// for it. Scoped to a single panel id so (re)creating the move pad never
+// touches the menu's live in-memory offset mid-drag, and so clearing
+// storage really does restore the defaults (a stale in-memory scale from
+// an earlier resize must not survive a clear + new session).
+function loadPanelStates(id) {
+  const P = XR.panels[id];
+  if (!P) return;
+  const d = XR.panelDefaults[id];
+  P.dist = d.dist; P.yaw = d.yaw; P.yOff = d.yOff; P.scale = d.scale; P.minimized = d.minimized;
+  try {
+    if (!window.localStorage) return;
+    const raw = localStorage.getItem(PANEL_STORE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    const s = saved[id];
+    if (!s) return;
+    if (typeof s.dist === 'number') P.dist = THREE.MathUtils.clamp(s.dist, 0.3, 1.5);
+    if (typeof s.yaw === 'number') P.yaw = s.yaw;
+    if (typeof s.yOff === 'number') P.yOff = THREE.MathUtils.clamp(s.yOff, -0.7, 0.7);
+    if (typeof s.scale === 'number') P.scale = THREE.MathUtils.clamp(s.scale, 0.5, 2);
+    if (typeof s.minimized === 'boolean') P.minimized = s.minimized;
+  } catch (e) { /* corrupted storage: keep the defaults */ }
+}
+function savePanelState(id) {
+  try {
+    if (!window.localStorage) return;
+    const raw = localStorage.getItem(PANEL_STORE_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    const P = XR.panels[id];
+    all[id] = { dist: P.dist, yaw: P.yaw, yOff: P.yOff, scale: P.scale, minimized: P.minimized };
+    localStorage.setItem(PANEL_STORE_KEY, JSON.stringify(all));
+  } catch (e) { /* storage unavailable — the panel just won't persist */ }
+}
+// recompute a panel's stored offset from where its group actually sits
+// (called live while dragging, so followPanel never fights the hand)
+function updatePanelOffsetFromPosition(id) {
+  const P = XR.panels[id];
+  if (!P || !P.group) return;
+  const head = new THREE.Vector3();
+  camera.getWorldPosition(head);
+  const fwd = new THREE.Vector3();
+  camera.getWorldDirection(fwd); fwd.y = 0;
+  if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+  fwd.normalize();
+  const d = P.group.position.clone().sub(head);
+  P.dist = Math.hypot(d.x, d.z);
+  let yaw = Math.atan2(d.x, d.z) - Math.atan2(fwd.x, fwd.z);
+  yaw = ((yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  P.yaw = yaw;
+  P.yOff = P.group.position.y - head.y;
+}
+// show/hide the body vs the pill (the pill is counter-scaled so it stays
+// the same absolute size whatever the panel scale is)
+function setPanelMinimizedVisual(id, min) {
+  const P = XR.panels[id];
+  if (!P || !P.group) return;
+  for (const c of P.group.children) { if (c !== P.pill) c.visible = !min; }
+  if (P.pill) { P.pill.visible = min; P.pill.scale.setScalar(1 / P.scale); }
+}
+function minimizePanel(id) {
+  const P = XR.panels[id];
+  if (!P || !P.group || P.minimized) return false;
+  P.minimized = true;
+  setPanelMinimizedVisual(id, true);
+  // a minimized menu stops occluding the world: the toolbar comes back,
+  // and the pill is the way back to the full menu
+  if (id === 'menu' && XR.toolbar) XR.toolbar.visible = true;
+  savePanelState(id);
+  XR.lastAction = { type: 'panel-min', panel: id };
+  toast(id === 'menu' ? 'Menu minimized — tap the ☰ pill to bring it back.' : 'Move pad minimized — tap the 🎮 pill to bring it back.');
+  return true;
+}
+function restorePanel(id) {
+  const P = XR.panels[id];
+  if (!P || !P.group || !P.minimized) return false;
+  P.minimized = false;
+  setPanelMinimizedVisual(id, false);
+  if (id === 'menu' && XR.toolbar) XR.toolbar.visible = false;
+  savePanelState(id);
+  XR.lastAction = { type: 'panel-restore', panel: id };
+  return true;
+}
+function resizePanel(id, f) {
+  const P = XR.panels[id];
+  if (!P) return;
+  P.scale = THREE.MathUtils.clamp(P.scale * f, 0.5, 2);
+  if (P.group) P.group.scale.setScalar(P.scale);
+  if (P.pill) P.pill.scale.setScalar(1 / P.scale);
+  savePanelState(id);
+  XR.lastAction = { type: 'panel-size', panel: id, scale: P.scale };
+  toast('Panel size ' + Math.round(P.scale * 100) + '%');
+}
+function dispatchChromeAction(panelId, action) {
+  if (action === 'min') minimizePanel(panelId);
+  else if (action === 'size-') resizePanel(panelId, 1 / 1.2);
+  else if (action === 'size+') resizePanel(panelId, 1.2);
+  else if (action === 'restore') restorePanel(panelId);
+  else if (action === 'movepad-toggle') toggleXRMovePanel();
+  else if (action === 'close' && panelId === 'movepad') toggleXRMovePanel(false);
+}
+// panel furniture: a header button that is NOT menu content (so menuCount
+// and the toolbar count never change when chrome is added)
+function addChromeButton(group, panelId, action, emoji, label, accent, x, y, w, h) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: makeMenuButtonTexture(emoji, label || '', accent, w / h, true), transparent: true, side: THREE.DoubleSide })
+  );
+  m.position.set(x, y, 0.001);
+  m.userData.ui = { kind: 'panel-chrome', action, panel: panelId, forgiving: false }; // small header buttons: exact hits only, never a forgiving snap to the wrong one
+  m.userData.panel = panelId;
+  m.userData.w = w; m.userData.h = h;
+  group.add(m);
+  XR.chromeButtons[panelId].push(m);
+  return m;
+}
+// the minimized pill: a small floating button at the panel's spot. Exact
+// hits only (userData.ui.forgiving = false) so it never blocks world
+// gestures the way a big panel would.
+function makePill(emoji, panelId) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18, 0.08),
+    new THREE.MeshBasicMaterial({ map: makeMenuButtonTexture(emoji, '', '#facc15', 0.18 / 0.08, true), transparent: true, side: THREE.DoubleSide })
+  );
+  m.position.set(0, 0, 0.005);
+  m.userData.ui = { kind: 'panel-chrome', action: 'restore', panel: panelId, forgiving: false };
+  m.userData.panel = panelId;
+  m.userData.pill = true;
+  m.visible = false;
+  return m;
+}
+// place a panel group from its stored offset (called at creation; the
+// follow system keeps it there afterwards)
+function placePanelFromOffset(group, id) {
+  const P = XR.panels[id];
+  const pos = new THREE.Vector3();
+  camera.getWorldPosition(pos);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir); dir.y = 0;
+  if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+  dir.normalize();
+  dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), P.yaw);
+  group.position.copy(pos).addScaledVector(dir, P.dist);
+  group.position.y = pos.y + P.yOff;
+  group.lookAt(pos.x, group.position.y, pos.z);
+  group.scale.setScalar(P.scale);
+}
+// two-hand pinch with BOTH hands on the SAME panel scales the panel
+// (0.5x–2x). The world zoom only fires when the hands are NOT on a panel.
+function startPanelScale(hand, other, panelId) {
+  hand.mode = 'panel-scale'; other.mode = 'panel-scale';
+  hand.panelId = panelId; other.panelId = panelId;
+  const d = hand.lastPos.distanceTo(other.lastPos);
+  hand.panelStartDist = d; other.panelStartDist = d;
+  const s = XR.panels[panelId].scale;
+  hand.panelStartScale = s; other.panelStartScale = s;
+  XR.lastAction = { type: 'panel-scale-start', panel: panelId };
+}
+function updatePanelScale(hand) {
+  const other = otherHand(hand.handedness);
+  if (!other || !other.pinching || other.mode !== 'panel-scale') return;
+  const d = hand.lastPos.distanceTo(other.lastPos);
+  if (hand.panelStartDist < 1e-6) return;
+  const P = XR.panels[hand.panelId];
+  P.scale = THREE.MathUtils.clamp(hand.panelStartScale * d / hand.panelStartDist, 0.5, 2);
+  if (P.group) P.group.scale.setScalar(P.scale);
+  if (P.pill) P.pill.scale.setScalar(1 / P.scale);
+}
+// pinch-drag the header (or any non-button area): the panel rides the hand
+// with the grab offset it started with, clamped to a shell around the head
+function updatePanelDrag(hand) {
+  const P = XR.panels[hand.panelId];
+  if (!P || !P.group || !hand.panelGrabOffset) return;
+  const head = new THREE.Vector3();
+  camera.getWorldPosition(head);
+  const np = hand.lastPos.clone().add(hand.panelGrabOffset);
+  const d = np.clone().sub(head); d.y = 0;
+  const hd = d.length();
+  if (hd > 1.5) { d.multiplyScalar(1.5 / hd); np.x = head.x + d.x; np.z = head.z + d.z; }
+  else if (hd < 0.3 && hd > 1e-6) { d.multiplyScalar(0.3 / hd); np.x = head.x + d.x; np.z = head.z + d.z; }
+  np.y = THREE.MathUtils.clamp(np.y, head.y - 0.7, head.y + 0.7);
+  P.group.position.copy(np);
+  P.group.lookAt(head.x, np.y, head.z);
+  updatePanelOffsetFromPosition(hand.panelId);
+}
+
+// ---------- floating movement-controls panel (v6) ----------
+// A second floating panel with HOLD-TO-MOVE buttons: hold = continuous
+// movement, release = stop. It moves the PLAYER (viewpoint/rig) — forward,
+// back, left, right, up, down, plus fly-up / fly-down (which turn Fly on
+// when held) — so the whole game is playable seated, with zero physical
+// walking. World rotate (⟲ ⟳, hold to spin) and world scale − / + (tap)
+// live here too. It shares the panel system with the menu: grabbable,
+// resizable, minimizable, persistent.
+const MOVEPAD_DEFS = [
+  { action: 'mv:fwd', emoji: '⬆️', label: 'Fwd', accent: '#4ade80', x: 0, y: 0.10 },
+  { action: 'mv:left', emoji: '⬅️', label: 'Left', accent: '#4ade80', x: -0.155, y: 0.005 },
+  { action: 'mv:back', emoji: '⬇️', label: 'Back', accent: '#4ade80', x: 0, y: 0.005 },
+  { action: 'mv:right', emoji: '➡️', label: 'Right', accent: '#4ade80', x: 0.155, y: 0.005 },
+  { action: 'mv:up', emoji: '⤒', label: 'Up', accent: '#38bdf8', x: -0.235, y: -0.095 },
+  { action: 'mv:down', emoji: '⤓', label: 'Down', accent: '#38bdf8', x: -0.08, y: -0.095 },
+  { action: 'mv:flyup', emoji: '🪶', label: 'Fly ↑', accent: '#38bdf8', x: 0.075, y: -0.095 },
+  { action: 'mv:flydn', emoji: '🪶', label: 'Fly ↓', accent: '#38bdf8', x: 0.23, y: -0.095 },
+  { action: 'mv:rotl', emoji: '⟲', label: 'Turn', accent: '#facc15', x: -0.235, y: -0.195 },
+  { action: 'mv:rotr', emoji: '⟳', label: 'Turn', accent: '#facc15', x: -0.08, y: -0.195 },
+  { action: 'mv:zoomout', emoji: '➖', label: 'World −', accent: '#a78bfa', x: 0.075, y: -0.195 },
+  { action: 'mv:zoomin', emoji: '➕', label: 'World +', accent: '#a78bfa', x: 0.23, y: -0.195 },
+];
+function createXRMovePanel() {
+  loadPanelStates('movepad');
+  if (XR.movepad) { scene.remove(XR.movepad); XR.movepad = null; XR.movepadButtons = []; XR.chromeButtons.movepad = []; XR.panels.movepad.group = null; XR.panels.movepad.pill = null; }
+  const P = XR.panels.movepad;
+  const group = new THREE.Group();
+  const bg = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.66, 0.52),
+    new THREE.MeshBasicMaterial({ map: makeMenuBackgroundTexture(660, 520), transparent: true, side: THREE.DoubleSide })
+  );
+  bg.userData.ui = { kind: 'movepad', action: 'panel-drag', panel: 'movepad' }; // non-button area = drag handle
+  bg.userData.panel = 'movepad';
+  group.add(bg);
+  // header: title + chrome (— minimize, − / + size, ✕ close)
+  const titleTex = makeTitleTexture('🎮 Move pad');
+  const titleW = 0.077 * (titleTex.image.width / 72);
+  const title = new THREE.Mesh(
+    new THREE.PlaneGeometry(titleW, 0.077),
+    new THREE.MeshBasicMaterial({ map: titleTex, transparent: true, side: THREE.DoubleSide })
+  );
+  title.position.set(-0.31 + titleW / 2, 0.205, 0.001);
+  title.userData.panel = 'movepad';
+  group.add(title);
+  addChromeButton(group, 'movepad', 'min', '—', '', '#8b98c4', 0.03, 0.205, 0.06, 0.07);
+  addChromeButton(group, 'movepad', 'size-', '−', '', '#8b98c4', 0.10, 0.205, 0.06, 0.07);
+  addChromeButton(group, 'movepad', 'size+', '+', '', '#8b98c4', 0.17, 0.205, 0.06, 0.07);
+  addChromeButton(group, 'movepad', 'close', '✕', '', '#f87171', 0.26, 0.205, 0.07, 0.07);
+  XR.movepadButtons = [];
+  for (const d of MOVEPAD_DEFS) {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.145, 0.085),
+      new THREE.MeshBasicMaterial({ map: makeMenuButtonTexture(d.emoji, d.label, d.accent, 0.145 / 0.085), transparent: true, side: THREE.DoubleSide })
+    );
+    m.position.set(d.x, d.y, 0.001);
+    m.userData.ui = { kind: 'movepad', action: d.action, panel: 'movepad' };
+    m.userData.panel = 'movepad';
+    m.userData.w = 0.145; m.userData.h = 0.085;
+    group.add(m);
+    XR.movepadButtons.push(m);
+  }
+  const pill = makePill('🎮', 'movepad');
+  group.add(pill);
+  P.pill = pill;
+  P.group = group;
+  placePanelFromOffset(group, 'movepad');
+  if (P.minimized) setPanelMinimizedVisual('movepad', true);
+  scene.add(group);
+  XR.movepad = group;
+  XR.lastAction = { type: 'movepad', open: true };
+  return group;
+}
+function toggleXRMovePanel(open) {
+  const show = open !== undefined ? open : !XR.movepad;
+  if (show) {
+    if (!XR.movepad) createXRMovePanel();
+  } else if (XR.movepad) {
+    scene.remove(XR.movepad);
+    XR.movepad = null; XR.movepadButtons = []; XR.chromeButtons.movepad = [];
+    XR.panels.movepad.group = null; XR.panels.movepad.pill = null;
+    for (const h of Object.values(XR.hands)) {
+      if (h && h.panelId === 'movepad') { h.mode = null; h.panelId = null; }
+      if (h && h.holdDir) XR.moveHeld.delete(h.holdDir);
+    }
+    XR.lastAction = { type: 'movepad', open: false };
+  }
+  return show;
 }
 
 // ---------- in-AR menu (v4) ----------
@@ -2055,8 +2430,12 @@ function makeLabelTexture(text) {
   return t;
 }
 function makeTitleTexture(text) {
+  // auto-sized to the text, so the plane aspect always matches the texture
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = 'bold 40px system-ui, sans-serif';
+  const w = Math.ceil(meas.measureText(text).width) + 20;
   const c = document.createElement('canvas');
-  c.width = 512; c.height = 72;
+  c.width = w; c.height = 72;
   const g = c.getContext('2d');
   g.fillStyle = '#ffffff'; g.textAlign = 'left';
   g.font = 'bold 40px system-ui, sans-serif';
@@ -2065,12 +2444,12 @@ function makeTitleTexture(text) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-function makeMenuBackgroundTexture() {
+function makeMenuBackgroundTexture(w, h) {
   const c = document.createElement('canvas');
-  c.width = 1200; c.height = 1000;
+  c.width = w || 1200; c.height = h || 1000;
   const g = c.getContext('2d');
   g.fillStyle = 'rgba(8,12,28,0.94)';
-  g.beginPath(); g.roundRect(0, 0, 1200, 1000, 28); g.fill();
+  g.beginPath(); g.roundRect(0, 0, c.width, c.height, 28); g.fill();
   g.strokeStyle = '#22d3ee'; g.lineWidth = 5; g.stroke();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -2078,13 +2457,16 @@ function makeMenuBackgroundTexture() {
 }
 
 function createXRMenu() {
-  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuHighlights = null; }
+  loadPanelStates('menu');
+  if (XR.menu) { scene.remove(XR.menu); XR.menu = null; XR.menuButtons = []; XR.menuHighlights = null; XR.chromeButtons.menu = []; XR.panels.menu.group = null; XR.panels.menu.pill = null; }
+  const P = XR.panels.menu;
   const group = new THREE.Group();
   const bg = new THREE.Mesh(
     new THREE.PlaneGeometry(1.2, 1.0),
     new THREE.MeshBasicMaterial({ map: makeMenuBackgroundTexture(), transparent: true, side: THREE.DoubleSide })
   );
-  bg.userData.ui = { kind: 'menu', action: 'noop' }; // an open panel occludes the world behind it
+  bg.userData.ui = { kind: 'menu', action: 'panel-drag', panel: 'menu' }; // an open panel occludes the world behind it; non-button area = drag handle
+  bg.userData.panel = 'menu';
   group.add(bg);
   // the menu IS the control surface while it is open: hide the toolbar strip
   // behind it, so the two panels never overlap and a tap can never land on
@@ -2097,20 +2479,30 @@ function createXRMenu() {
       new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
     );
     m.position.set(x, y, 0.001);
-    m.userData.ui = { kind: 'menu', action };
+    m.userData.ui = { kind: 'menu', action, panel: 'menu' };
+    m.userData.panel = 'menu';
     m.userData.w = w; m.userData.h = h;
     group.add(m);
     XR.menuButtons.push(m);
     return m;
   };
   const rowX = (i, n) => 0.06 - 0.5 + (i + 0.5) * (1.0 / n);
-  // header: title + close
+  // header: title + panel chrome (🎮 Move pad toggle, — minimize, − / + size) + close.
+  // Chrome buttons are panel furniture, not menu content — they live in
+  // XR.chromeButtons, so the menu still has exactly 39 content buttons.
+  const titleTex = makeTitleTexture('☰ VoxelHaven Menu');
+  const titleW = 0.077 * (titleTex.image.width / 72);
   const title = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.55, 0.077),
-    new THREE.MeshBasicMaterial({ map: makeTitleTexture('☰ VoxelHaven Menu'), transparent: true, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(titleW, 0.077),
+    new THREE.MeshBasicMaterial({ map: titleTex, transparent: true, side: THREE.DoubleSide })
   );
-  title.position.set(-0.29, 0.45, 0.001);
+  title.position.set(-0.57 + titleW / 2, 0.45, 0.001);
+  title.userData.panel = 'menu';
   group.add(title);
+  addChromeButton(group, 'menu', 'movepad-toggle', '🎮', 'Move', '#4ade80', 0.06, 0.45, 0.16, 0.09);
+  addChromeButton(group, 'menu', 'min', '—', '', '#8b98c4', 0.19, 0.45, 0.07, 0.09);
+  addChromeButton(group, 'menu', 'size-', '−', '', '#8b98c4', 0.28, 0.45, 0.07, 0.09);
+  addChromeButton(group, 'menu', 'size+', '+', '', '#8b98c4', 0.37, 0.45, 0.07, 0.09);
   addBtn('close', '✕', '', '#f87171', 0.52, 0.45, 0.09, 0.09, makeMenuButtonTexture('✕', '', '#f87171', 1));
   const rows = [
     { label: 'TOOLS', y: 0.335, defs: TOOLS.map(id => ({ action: 'tool:' + id, emoji: TOOL_EMOJI[id], label: TOOL_LABELS[id], accent: '#22d3ee' })) },
@@ -2162,16 +2554,17 @@ function createXRMenu() {
     return hl;
   };
   XR.menuHighlights = { tool: mkHl(0x22d3ee), block: mkHl(0x4ade80), shape: mkHl(0xa78bfa), mode: mkHl(0xfacc15), fly: mkHl(0x38bdf8) };
-  const pos = new THREE.Vector3();
-  camera.getWorldPosition(pos);
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  dir.y = 0;
-  if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
-  dir.normalize();
-  group.position.copy(pos).addScaledVector(dir, 0.9);
-  group.position.y = pos.y - 0.05;
-  group.lookAt(pos.x, group.position.y, pos.z);
+  // v6: the menu is a floating panel — smaller than v5 by default, at its
+  // saved spot (or 0.6 m, slightly below eye level), at its saved scale
+  const pill = makePill('☰', 'menu');
+  group.add(pill);
+  P.pill = pill;
+  P.group = group;
+  placePanelFromOffset(group, 'menu');
+  if (P.minimized) {
+    setPanelMinimizedVisual('menu', true);
+    if (XR.toolbar) XR.toolbar.visible = true; // minimized menu: toolbar's back, pill restores the menu
+  }
   scene.add(group);
   XR.menu = group;
   XR.menuOpen = true;
@@ -2185,7 +2578,8 @@ function toggleXRMenu(open) {
     if (!XR.menu) createXRMenu();
   } else if (XR.menu) {
     scene.remove(XR.menu);
-    XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null;
+    XR.menu = null; XR.menuButtons = []; XR.menuOpen = false; XR.menuHighlights = null; XR.chromeButtons.menu = [];
+    XR.panels.menu.group = null; XR.panels.menu.pill = null;
     if (XR.toolbar) XR.toolbar.visible = true; // the strip comes back with the menu closed
     XR.lastAction = { type: 'menu', open: false };
   }
@@ -2280,22 +2674,26 @@ function dispatchMenuAction(action) {
 }
 
 // ---------- first-run AR coach (v4) ----------
+// One source of truth for the coach steps (the texture draws these; the
+// test hook reads them back to prove the lesson is actually in there).
+const COACH_STEPS = [
+  ['1', 'Pinch to place a block · ☰ Menu has everything'],
+  ['2', 'Pinch with BOTH hands to zoom the map in & out'],
+  ['3', 'Open palms push to move · open palm on a block grabs it'],
+  ['4', '🪶 Fly (in the menu) soars you above the whole map'],
+  ['5', 'Drag panels by the header · hold 🎮 arrows to move!'],
+];
 function makeCoachTexture() {
   const c = document.createElement('canvas');
-  c.width = 1024; c.height = 560;
+  c.width = 1024; c.height = 640;
   const g = c.getContext('2d');
   g.fillStyle = 'rgba(8,12,28,0.95)';
-  g.beginPath(); g.roundRect(0, 0, 1024, 560, 28); g.fill();
+  g.beginPath(); g.roundRect(0, 0, 1024, 640, 28); g.fill();
   g.strokeStyle = '#4ade80'; g.lineWidth = 5; g.stroke();
   g.fillStyle = '#ffffff'; g.textAlign = 'left';
   g.font = 'bold 44px system-ui, sans-serif';
   g.fillText('👋 Welcome to VoxelHaven!', 40, 72);
-  const steps = [
-    ['1', 'Pinch to place a block · ☰ Menu has everything'],
-    ['2', 'Pinch with BOTH hands to zoom the map in & out'],
-    ['3', 'Open palms push to move · open palm on a block grabs it'],
-    ['4', '🪶 Fly (in the menu) soars you above the whole map'],
-  ];
+  const steps = COACH_STEPS;
   let y = 168;
   for (const [n, text] of steps) {
     g.fillStyle = '#4ade80';
@@ -2324,7 +2722,7 @@ function maybeShowCoach() {
   if (XR.coach) return;
   const group = new THREE.Group();
   const bg = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 0.52),
+    new THREE.PlaneGeometry(0.95, 0.594),
     new THREE.MeshBasicMaterial({ map: makeCoachTexture(), transparent: true, side: THREE.DoubleSide })
   );
   bg.userData.ui = { kind: 'coach', action: 'noop' }; // only the Got it! button dismisses
@@ -2375,13 +2773,15 @@ const _fpFwd = new THREE.Vector3();
 const _fpFlat = new THREE.Vector3();
 const _fpDesired = new THREE.Vector3();
 const _fpTo = new THREE.Vector3();
-function followPanel(group, dist, yOff, snap) {
+const _fpUp = new THREE.Vector3(0, 1, 0);
+function followPanel(group, dist, yOff, snap, yawOff) {
   if (!group) return;
   camera.getWorldPosition(_fpHead);
   camera.getWorldDirection(_fpFwd);
   _fpFlat.copy(_fpFwd); _fpFlat.y = 0;
   if (_fpFlat.lengthSq() < 1e-6) _fpFlat.set(0, 0, -1);
   _fpFlat.normalize();
+  if (yawOff) _fpFlat.applyAxisAngle(_fpUp, yawOff); // v6: a panel parked to the side stays to the side
   _fpDesired.copy(_fpHead).addScaledVector(_fpFlat, dist);
   _fpDesired.y = Math.max(1.05, _fpHead.y + yOff);
   _fpTo.copy(group.position).sub(_fpHead);
@@ -2392,11 +2792,23 @@ function followPanel(group, dist, yOff, snap) {
   }
   group.lookAt(_fpHead.x, group.position.y, _fpHead.z);
 }
+// v6: a shared panel follows the headset at ITS stored offset (distance,
+// bearing, height) — the offset the user dragged it to, not a fixed spot
+function followPanelFor(id, snap) {
+  const P = XR.panels[id];
+  if (!P || !P.group) return;
+  // a hand dragging/scaling this panel owns it this frame — don't fight it
+  for (const h of Object.values(XR.hands)) {
+    if (h && h.panelId === id && (h.mode === 'panel-drag' || h.mode === 'panel-scale')) return;
+  }
+  followPanel(P.group, P.dist, P.yOff, snap, P.yaw);
+}
 function updateXRPanelFollow() {
   if (!XR.session) return;
   const snap = !!XR.needsSnap;
   followPanel(XR.toolbar, 0.6, -0.15, snap);
-  followPanel(XR.menu, 0.9, -0.05, snap);
+  followPanelFor('menu', snap);
+  followPanelFor('movepad', snap);
   followPanel(XR.coach, 0.85, 0.28, snap);
   followPanel(XR.howtoPanel, 0.85, 0.28, snap); // reading panels ride high, clear of the toolbar strip
   if (snap) XR.needsSnap = false;
@@ -2497,24 +2909,38 @@ function xrPick(ray) {
     // forgiving: the reticle is small and hands are imprecise
     if (closest.distanceTo(c) < 0.15) consider('reticle', dAlong, { hit: { point: c } });
   }
-  // UI panels (toolbar + menu + coach): exact hits first, nearest wins.
-  // Buttons carry userData.ui = { kind, action }; panel backgrounds carry
-  // a 'noop' action so an open panel occludes the world behind it.
+  // UI panels (toolbar + menu + move pad + coach): exact hits first, nearest wins.
+  // Buttons carry userData.ui = { kind, action, panel }; panel backgrounds
+  // carry a 'panel-drag' action so an open panel occludes the world behind
+  // it. A minimized panel contributes ONLY its pill — its hidden body can
+  // never be tapped, and the pill is exact-hit only (never forgiving).
   const uiGroups = [
     { group: XR.toolbar, buttons: XR.toolbarButtons },
-    { group: XR.menu, buttons: XR.menuButtons },
+    { group: XR.menu, buttons: XR.menuButtons.concat(XR.chromeButtons.menu) },
+    { group: XR.movepad, buttons: XR.movepadButtons.concat(XR.chromeButtons.movepad) },
     { group: XR.coach, buttons: XR.coachButtons },
   ];
+  const panelHidden = (obj) => {
+    if (obj.visible === false) return true;
+    const pid = obj.userData.panel;
+    if (pid && XR.panels[pid] && XR.panels[pid].minimized && !obj.userData.pill) return true;
+    return false;
+  };
   let uiExact = null;
   for (const { group } of uiGroups) {
     if (!group || group.visible === false) continue; // hidden panels can't be tapped
+    // a panel (re)created this frame has stale child matrices until the next
+    // render — force them fresh so it is exactly hittable the instant it
+    // opens (a pinch right after reopening otherwise falls through to the
+    // forgiving loop and taps the nearest button instead of the background).
+    group.updateMatrixWorld(true);
     const uh = xrRaycaster.intersectObjects(group.children, false)
-      .filter(h => h.object.userData.ui);
+      .filter(h => h.object.userData.ui && !panelHidden(h.object));
     if (uh.length && (!uiExact || uh[0].distance < uiExact.distance)) uiExact = uh[0];
   }
   if (uiExact) {
     const ui = uiExact.object.userData.ui;
-    consider(ui.kind, uiExact.distance, { button: ui.action, action: ui.action, hit: uiExact });
+    consider(ui.kind, uiExact.distance, { button: ui.action, action: ui.action, hit: uiExact, panel: ui.panel || null });
   }
   // forgiving: hands are imprecise, so a ray that passes near a button
   // (within 0.14 m of its centre) counts as a tap on it. The nearest
@@ -2526,6 +2952,8 @@ function xrPick(ray) {
     for (const { group, buttons } of uiGroups) {
       if (!group || group.visible === false) continue; // hidden panels can't be tapped
       for (const b of buttons || []) {
+        if (panelHidden(b)) continue; // minimized panel body, or the pill (exact hits only)
+        if (b.userData.ui && b.userData.ui.forgiving === false) continue;
         b.getWorldPosition(tmp);
         const closest = new THREE.Vector3();
         xrRaycaster.ray.closestPointToPoint(tmp, closest);
@@ -2538,7 +2966,7 @@ function xrPick(ray) {
     }
     if (bestBtn) {
       const ui = bestBtn.userData.ui;
-      consider(ui.kind, bestAlong, { button: ui.action, action: ui.action, hit: null });
+      consider(ui.kind, bestAlong, { button: ui.action, action: ui.action, hit: null, panel: ui.panel || null });
     }
   }
   if (XR.howtoPanel) {
@@ -2674,7 +3102,7 @@ function isPalmOpen(joints, pinchDist) {
 function onPalmOpen(hand, joints, now) {
   if (hand.mode === 'palm-move') { applyMoveDrag(hand); return; }
   if (hand.mode === 'palm-thrust') { applyFlyMove(hand); return; }
-  if (XR.menu || XR.coach) return; // panels open: palms do nothing
+  if (XR.menu && !XR.panels.menu.minimized || XR.coach) return; // panels open: palms do nothing (a minimized menu is just a pill — palms work)
   // Build (or Fly): a still open palm held on a block grabs it
   if (state.mode === 'build' || state.fly) {
     const ray = getHandRay(joints);
@@ -2737,7 +3165,7 @@ function applyFlyMove(hand) {
 
 // modes that block a two-hand zoom start — the hand is mid-action with a
 // block (or a UI), and yanking it into zoom would strand that block
-const NO_ZOOM_MODES = new Set(['ui', 'done', 'merge', 'grab', 'carry', 'carry-pending', 'climb-grab', 'stretch1', 'stretch2', 'zoom2', 'explode-wait', 'implode-wait', 'palm-grab']);
+const NO_ZOOM_MODES = new Set(['ui', 'done', 'merge', 'grab', 'carry', 'carry-pending', 'climb-grab', 'stretch1', 'stretch2', 'zoom2', 'explode-wait', 'implode-wait', 'palm-grab', 'panel-drag', 'panel-scale', 'ui-hold']);
 function canZoomWith(other) { return !NO_ZOOM_MODES.has(other.mode); }
 function startZoom2(hand, other) {
   hand.mode = 'zoom2';
@@ -2773,7 +3201,16 @@ function onPinchStart(hand, joints, now) {
   const other = otherHand(hand.handedness);
   const sameBlockStretch = state.tool === 'stretch' && pick && pick.kind === 'block'
     && other && other.pinching && other.mode === 'stretch1' && other.entry === pick.entry;
-  const uiPick = pick && (pick.kind === 'toolbar' || pick.kind === 'menu' || pick.kind === 'coach' || pick.kind === 'howto-panel');
+  const uiPick = pick && (pick.kind === 'toolbar' || pick.kind === 'menu' || pick.kind === 'movepad' || pick.kind === 'panel-chrome' || pick.kind === 'coach' || pick.kind === 'howto-panel');
+  // v6 — two-hand pinch with BOTH hands ON THE SAME PANEL scales the panel
+  // (0.5x–2x), not the world. The other hand must already be dragging that
+  // panel; the world zoom below never fires for a panel pick.
+  const panelPick = pick && pick.panel ? pick.panel : null;
+  if (panelPick && other && other.pinching && other.panelId === panelPick
+      && (other.mode === 'panel-drag' || other.mode === 'panel-scale')) {
+    startPanelScale(hand, other, panelPick);
+    return;
+  }
   if (other && other.pinching && (state.mode === 'build' || state.fly) && canZoomWith(other)
       && !sameBlockStretch && !uiPick) {
     startZoom2(hand, other);
@@ -2829,9 +3266,43 @@ function onPinchStart(hand, joints, now) {
     }
     return;
   }
+  if (pick.kind === 'panel-chrome') {
+    hand.mode = 'ui';
+    dispatchChromeAction(pick.panel, pick.action);
+    return;
+  }
   if (pick.kind === 'menu') {
+    // v6: pinch the menu background (or title) = grab the panel and drag it
+    if (pick.action === 'panel-drag') {
+      hand.mode = 'panel-drag';
+      hand.panelId = 'menu';
+      hand.panelGrabOffset = XR.menu.position.clone().sub(hand.lastPos);
+      return;
+    }
     hand.mode = 'ui';
     dispatchMenuAction(pick.action);
+    return;
+  }
+  if (pick.kind === 'movepad') {
+    // v6: pinch the move pad background = grab the panel and drag it
+    if (pick.action === 'panel-drag') {
+      hand.mode = 'panel-drag';
+      hand.panelId = 'movepad';
+      hand.panelGrabOffset = XR.movepad.position.clone().sub(hand.lastPos);
+      return;
+    }
+    if (pick.action && pick.action.startsWith('mv:')) {
+      const dir = pick.action.slice(3);
+      if (dir === 'zoomout') { bumpZoom(0.7); hand.mode = 'ui'; return; } // repeatable tap: keep the panel open
+      if (dir === 'zoomin') { bumpZoom(1.43); hand.mode = 'ui'; return; }
+      // hold-to-move: the direction stays held until the pinch releases;
+      // updatePlayer moves the player every frame from XR.moveHeld
+      hand.mode = 'ui-hold';
+      hand.holdDir = dir;
+      XR.moveHeld.add(dir);
+      return;
+    }
+    hand.mode = 'ui';
     return;
   }
   if (pick.kind === 'coach') {
@@ -2930,6 +3401,10 @@ function onPinchStart(hand, joints, now) {
 }
 
 function onPinchHold(hand, joints, now) {
+  // v6: panel gestures own the hand — no jump, no tool, nothing else fires
+  if (hand.mode === 'panel-drag') { updatePanelDrag(hand); return; }
+  if (hand.mode === 'panel-scale') { updatePanelScale(hand); return; }
+  if (hand.mode === 'ui-hold') { return; } // held move-pad button: updatePlayer moves the player every frame
   checkJumpGesture(); // Move mode: both hands pushing down fast = jump
   if (hand.mode === 'fly-steer') {
     applyFlyMove(hand);
@@ -3081,7 +3556,25 @@ function updateTwoHandStretch(hand) {
 function onPinchEnd(hand, joints, now) {
   const dur = now - hand.startTime;
   const moved = hand.lastPos ? hand.lastPos.distanceTo(hand.startPos) : 0;
-  if (hand.mode === 'grab') {
+  if (hand.mode === 'panel-drag') {
+    // drop the panel where it is — the offset was saved live while dragging
+    savePanelState(hand.panelId);
+    XR.lastAction = { type: 'panel-drag', panel: hand.panelId };
+    hand.panelId = null;
+    hand.mode = null;
+  } else if (hand.mode === 'panel-scale') {
+    const other = otherHand(hand.handedness);
+    if (other && other.mode === 'panel-scale') other.mode = 'panel-drag'; // the other hand keeps dragging the panel
+    savePanelState(hand.panelId);
+    XR.lastAction = { type: 'panel-scale', panel: hand.panelId, scale: XR.panels[hand.panelId].scale };
+    hand.panelId = null;
+    hand.mode = null;
+  } else if (hand.mode === 'ui-hold') {
+    // release a held move-pad button: stop moving that way
+    if (hand.holdDir) XR.moveHeld.delete(hand.holdDir);
+    hand.holdDir = null;
+    hand.mode = null;
+  } else if (hand.mode === 'grab') {
     dropGrabbed(hand);
     hand.grabbed = null;
     hand.mode = null;
@@ -3389,6 +3882,17 @@ window.__bv = {
         if (!e) return null;
         return { type: e.type, ground: !!e.ground, pos: e.mesh.position.toArray(), scale: e.mesh.scale.toArray(), cells: e.cells };
       },
+      // test helper: remove non-ground blocks (trees) whose cells fall in
+      // the x/z region, so a terrain re-roll can never grow a tree into the
+      // menu/camera corridor and occlude menu picks. Returns count removed.
+      clearAboveTerrain: (x0, x1, z0, z1) => {
+        let n = 0;
+        for (const e of [...blocks.values()]) {
+          if (e.ground) continue;
+          if (e.cells.some(c => { const p = c.split(','); const x = +p[0], z = +p[2]; return x >= x0 && x <= x1 && z >= z0 && z <= z1; })) { removeEntry(e); n++; }
+        }
+        return n;
+      },
       // raw raycast: every hit for this ray, nearest first (no filtering)
       rawHits: spec => {
         const joints = window.__bv.xr.test.joints(spec);
@@ -3455,6 +3959,9 @@ window.__bv = {
       fakeSessionEnd: () => { exitAR(); return !XR.session; },
       // run one frame of panel-follow + coach trigger (what updateXR does)
       tickFollow: () => { updateXRPanelFollow(); maybeShowCoach(); return true; },
+      // test helper: snap every panel to its stored offset right now
+      // (the follow lerp is 15%/frame, so a big camera move needs a snap)
+      snapPanels: () => { XR.needsSnap = true; updateXRPanelFollow(); return true; },
       toolbarVisible: () => XR.toolbar ? XR.toolbar.visible !== false : null,
       toolbarPos: () => {
         if (!XR.toolbar) return null;
@@ -3544,6 +4051,104 @@ window.__bv = {
           wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
         };
       },
+      // v6: shared floating panels (menu + move pad)
+      panelState: id => {
+        const P = XR.panels[id];
+        if (!P || !P.group) return null;
+        const p = new THREE.Vector3();
+        P.group.getWorldPosition(p);
+        return { pos: p.toArray(), scale: P.scale, minimized: P.minimized, dist: P.dist, yaw: P.yaw, yOff: P.yOff };
+      },
+      panelSaved: id => {
+        try { const all = JSON.parse(localStorage.getItem(PANEL_STORE_KEY) || '{}'); return all[id] || null; }
+        catch (e) { return null; }
+      },
+      clearPanelSaved: () => { try { localStorage.removeItem(PANEL_STORE_KEY); } catch (e) {} return true; },
+      setPanelOffset: (id, dist, yaw, yOff) => {
+        const P = XR.panels[id];
+        if (!P) return false;
+        P.dist = dist; P.yaw = yaw; P.yOff = yOff;
+        savePanelState(id);
+        return true;
+      },
+      heldMoves: () => [...XR.moveHeld],
+      movePanelOpen: () => !!XR.movepad,
+      toggleMovePanel: (open) => toggleXRMovePanel(open),
+      movePanelCount: () => XR.movepadButtons.length,
+      movePanelButtonPos: action => {
+        const b = XR.movepadButtons.find(b => b.userData.ui.action === action);
+        if (!b) return null;
+        const p = new THREE.Vector3();
+        b.getWorldPosition(p);
+        return [p.x, p.y, p.z];
+      },
+      // aim a synthetic hand ray at a move-pad button (like menuAim)
+      movePanelAim: (action, dx, dy) => {
+        const b = XR.movepadButtons.find(b => b.userData.ui.action === action);
+        if (!b) return null;
+        const pos = new THREE.Vector3();
+        b.getWorldPosition(pos);
+        const q = XR.movepad.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize();
+        const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
+      // aim a synthetic hand ray at a panel chrome button (—, −, +, 🎮)
+      chromeAim: (panelId, action, dx, dy) => {
+        const b = (XR.chromeButtons[panelId] || []).find(b => b.userData.ui.action === action);
+        if (!b) return null;
+        const group = XR.panels[panelId].group;
+        const pos = new THREE.Vector3();
+        b.getWorldPosition(pos);
+        const q = group.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize();
+        const aim = pos.clone().addScaledVector(right, dx || 0).addScaledVector(up, dy || 0);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
+      // aim a synthetic hand ray at a point on a panel, in PANEL-LOCAL units
+      // (dx, dy) from the panel centre — for background drags and pill taps
+      panelAim: (id, dx, dy) => {
+        const P = XR.panels[id];
+        if (!P || !P.group) return null;
+        const pos = new THREE.Vector3();
+        P.group.getWorldPosition(pos);
+        const q = P.group.quaternion;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+        const cam = new THREE.Vector3();
+        camera.getWorldPosition(cam);
+        const view = pos.clone().sub(cam).normalize();
+        const aim = pos.clone().addScaledVector(right, (dx || 0) * P.scale).addScaledVector(up, (dy || 0) * P.scale);
+        const tip = aim.clone().addScaledVector(view, -0.3);
+        return {
+          tip: tip.toArray(),
+          thumb: [tip.x + 0.01, tip.y, tip.z],
+          prox: tip.clone().addScaledVector(view, -0.15).toArray(),
+          wrist: tip.clone().addScaledVector(view, -0.3).toArray(),
+        };
+      },
+      coachSteps: () => COACH_STEPS.map(s => s[1]),
+      howtoTitles: () => HOWTO_SECTIONS.map(s => s.title),
     },
   },
 };
