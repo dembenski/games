@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8bitvap0r - My Horizon Games</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#14101f;color:#fff;min-height:100vh}
+header{text-align:center;padding:2.5rem 1rem 1.5rem;background:linear-gradient(135deg,#2b1a4e,#14101f)}
+header h1{font-size:2.6rem;color:#ff9ff3;letter-spacing:1px}
+header p{margin-top:.6rem;color:#cfc3e8;max-width:640px;margin-left:auto;margin-right:auto;line-height:1.5}
+header .tag{display:inline-block;margin-top:.8rem;background:#ff9ff3;color:#2b1a4e;font-weight:700;padding:.35rem .9rem;border-radius:999px;font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem;padding:1.5rem;max-width:1200px;margin:0 auto}
+.card{background:#1e1633;border:1px solid #3a2a63;border-radius:16px;overflow:hidden;transition:transform .15s;position:relative}
+.card:hover{transform:translateY(-4px)}
+.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.card-body{padding:1rem 1.1rem 1.2rem}
+.card-body h2{font-size:1.15rem;color:#ff9ff3;margin-bottom:.4rem}
+.card-body p{font-size:.9rem;color:#cfc3e8;line-height:1.5;margin-bottom:.9rem}
+.play{display:inline-block;background:#ff9ff3;color:#2b1a4e;font-weight:700;text-decoration:none;padding:.55rem 1.3rem;border-radius:999px}
+.play:hover{background:#ffc7f7}
+.fav{position:absolute;top:.7rem;left:.7rem;background:#ffd166;color:#4a2c00;font-weight:800;font-size:.8rem;padding:.3rem .8rem;border-radius:999px;z-index:2}
+footer{text-align:center;padding:2rem 1rem;color:#8f83ad;font-size:.85rem}
+footer a{color:#ff9ff3}
+
+.cplinks{margin-top:.7rem;font-size:.72rem;color:#9d8fc7;line-height:1.7;word-break:break-all}
+.cplinks b{color:#ff9ff3;display:block;font-size:.75rem}
+.cplinks span{display:block;user-select:all}
+.findme{max-width:820px;margin:1rem auto 0;padding:.8rem 1rem;background:#1e1633;border:1px solid #3a2a63;border-radius:12px;color:#cfc3e8;font-size:.85rem;line-height:1.8;word-break:break-all}
+.findme b{color:#ff9ff3}
+.findme span{user-select:all}
+.morelinks{max-width:1200px;margin:0 auto;padding:0 1.5rem 1.5rem}
+.morelinks h2{color:#ff9ff3;text-align:center;font-size:1.5rem;margin:1rem 0 .3rem}
+.morelinks .sub{text-align:center;color:#9d8fc7;font-size:.9rem;margin-bottom:1.2rem}
+.mggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.mg{background:#1e1633;border:1px solid #3a2a63;border-radius:12px;padding:.9rem 1rem}
+.mg h3{color:#ff9ff3;font-size:1rem;margin-bottom:.4rem}
+.mg p{font-size:.72rem;color:#9d8fc7;line-height:1.7;word-break:break-all}
+.mg p span{user-select:all}
+</style>
+</head>
+<body>
+<header>
+<h1>8bitvap0r</h1>
+<p>Meta partner in the MHCP - 7 years building VR since the Horizon Beta days, now making mobile games for Horizon. Triple-A games in Horizon, prototypes in Meta Pocket!</p>
+<span class="tag">My Horizon Worlds Games</span>
+<div class="findme"><b>📋 Find me — copy &amp; paste:</b><br>📘 Facebook: <span>https://www.facebook.com/Dembenski.M</span><br>📱 Meta Horizon app: <span>https://horizon.meta.com/profile/8bitvap0r/</span></div>
+</header>
+<main class="grid">
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1339151415955304-thumb.jpg" alt="Halloween Hangout artwork">
+<div class="card-body">
+<h2>Halloween Hangout</h2>
+<p>Join Jack in his spooky-cool 90s basement for a Halloween hangout! Explore the cozy space, grab candy, play a TV mini-game, and scare Jack for laughs. Dance, emote, and chat with Jack — who&#x27;s always up to something goofy!</p>
+<a class="play" href="https://horizon.meta.com/world/1339151415955304/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1339151415955304/?hwsh=vlT9jJURhb</span><span>📘 Facebook: https://horizon.meta.com/world/1339151415955304</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1342737845596661-thumb.jpg" alt="Operation Toybox artwork">
+<div class="card-body">
+<h2>Operation Toybox</h2>
+<p>You find yourself in a festive snowy village, where Santa&#x27;s toybox has burst open and toys are scattered everywhere. Round up the runaway toys by gazing at them and tapping the big red WRAP button, then watch them pop into gift boxes with a &#x27;WRAPPED!&#x27; popup. Earn points, build a streak, and compete in Timed, Endless, and Toy Rush modes.</p>
+<a class="play" href="https://horizon.meta.com/world/1342737845596661/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1342737845596661/?hwsh=BswFzhviaK</span><span>📘 Facebook: https://horizon.meta.com/world/1342737845596661</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1339350169268762-thumb.jpg" alt="Party House Fun artwork">
+<div class="card-body">
+<h2>Party House Fun</h2>
+<p>Explore a colorful kawaii party house, chat with AI guests, and play no-fail mini-games. The party never stops, with guests dancing, snacking, and playing whether you join or watch. Enjoy quick sessions of fun, judgment-free gameplay.</p>
+<a class="play" href="https://horizon.meta.com/world/1339350169268762/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1339350169268762/?hwsh=cDEA68op64</span><span>📘 Facebook: https://horizon.meta.com/world/1339350169268762</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1344241522112960-thumb.jpg" alt="Sleigh Snatch artwork">
+<div class="card-body">
+<h2>Sleigh Snatch</h2>
+<p>Dodge Santa&#x27;s hazards and collect presents in this Christmas endless chase game. Play as the Grinch, auto-running below Santa&#x27;s flying sleigh as it speeds up and gets harder. Grab presents, avoid coal and ornaments, and fill the Catch Meter to grab the sleigh for a bonus round.</p>
+<a class="play" href="https://horizon.meta.com/world/1344241522112960/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1344241522112960/?hwsh=mw4qSN6aST</span><span>📘 Facebook: https://horizon.meta.com/world/1344241522112960</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1334906456379800-thumb.jpg" alt="Kawaii Frenzy 3D Showdown artwork">
+<div class="card-body">
+<h2>Kawaii Frenzy 3D Showdown</h2>
+<p>Play as a kawaii blaster in a 3D first-person wave shooter! Shoot cute enemies that burst into hearts and sparkles. Collect power-ups, unlock cosmetics, and compete on leaderboards in 15+ game modes across 35 levels.</p>
+<a class="play" href="https://horizon.meta.com/world/1334906456379800/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1334906456379800/?hwsh=G1LzGRcC4w</span><span>📘 Facebook: https://horizon.meta.com/world/1334906456379800</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1339193055951140-thumb.jpg" alt="Santa&#x27;s Spiral Climb artwork">
+<div class="card-body">
+<h2>Santa&#x27;s Spiral Climb</h2>
+<p>Climb a spiral parkour course through a festive Santa village, using three types of jumps to reach the summit. Collect treats, outrun AI partners, and compete on leaderboards.</p>
+<a class="play" href="https://horizon.meta.com/world/1339193055951140/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1339193055951140/?hwsh=botx1VZk1Z</span><span>📘 Facebook: https://horizon.meta.com/world/1339193055951140</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1337356569468122-thumb.jpg" alt="Kingdom Board Game artwork">
+<div class="card-body">
+<h2>Kingdom Board Game</h2>
+<p>Explore an 8x8 tile grid world where your rank determines your kingdom size. Climb the leaderboard by beating rivals in 3-minute score battles to grow your territory. The #1 player owns the castle and wears a golden crown.</p>
+<a class="play" href="https://horizon.meta.com/world/1337356569468122/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1337356569468122/?hwsh=rWl9RBvetb</span><span>📘 Facebook: https://horizon.meta.com/world/1337356569468122</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1337275519476227-thumb.jpg" alt="Ghost Arena artwork">
+<div class="card-body">
+<h2>Ghost Arena</h2>
+<p>Watch four AI bots duke it out in a deathmatch arena as a ghost spectator. Fly around, switch views, and track stats in this fast-paced, retro-style shooter simulator.</p>
+<a class="play" href="https://horizon.meta.com/world/1337275519476227/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1337275519476227/?hwsh=bdldJ5IOjB</span><span>📘 Facebook: https://horizon.meta.com/world/1337275519476227</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1334135973123515-thumb.jpg" alt="Crumbfall Showdown artwork">
+<div class="card-body">
+<h2>Crumbfall Showdown</h2>
+<p>Crumbfall Showdown: a cozy kawaii bakery puzzle game! You play as a pastry chef, dropping cake pieces into a display-case well. Connect crumbs into paths to serve and score! Compete in easy, normal, hard, and zen modes.</p>
+<a class="play" href="https://horizon.meta.com/world/1334135973123515/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1334135973123515/?hwsh=GnHi4LXs7X</span><span>📘 Facebook: https://horizon.meta.com/world/1334135973123515</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1319716937898752-thumb.jpg" alt="Neon Wireframe Shooter artwork">
+<div class="card-body">
+<h2>Neon Wireframe Shooter</h2>
+<p>In Neon Wireframe Shooter, you engage in fast-paced, dual-joystick first-person combat across large open arenas. Collect coins, health, and ammo while fighting through obstacles and doorways. Choose.</p>
+<a class="play" href="https://horizon.meta.com/world/1319716937898752/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1319716937898752/?hwsh=90hAFJF70E</span><span>📘 Facebook: https://horizon.meta.com/world/1319716937898752</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1332667236603722-thumb.jpg" alt="Haunted Heights Obby artwork">
+<div class="card-body">
+<h2>Haunted Heights Obby</h2>
+<p>Climb a spiral of haunted towers, graveyards, and rooftops in this Halloween-themed parkour obstacle course. Use three types of jumps—JUMP, SUPER, and LONG—to navigate 600 platforms across 10 zones.</p>
+<a class="play" href="https://horizon.meta.com/world/1332667236603722/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1332667236603722/?hwsh=posianSxUy</span><span>📘 Facebook: https://horizon.meta.com/world/1332667236603722</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1332134386657007-thumb.jpg" alt="Volt Ride artwork">
+<div class="card-body">
+<h2>Volt Ride</h2>
+<p>Ride an electric scooter through a vibrant outdoor skatepark at sunset. Perform tricks, collect stars, and compete in score attack mode. Unlock new scooter colors and a golden scooter by collecting.</p>
+<a class="play" href="https://horizon.meta.com/world/1332134386657007/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1332134386657007/?hwsh=6dU2kLHhbL</span><span>📘 Facebook: https://horizon.meta.com/world/1332134386657007</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1324289937441452-thumb.jpg" alt="Grizzly Chaos artwork">
+<div class="card-body">
+<h2>Grizzly Chaos</h2>
+<p>In Grizzly Chaos, you play as a grizzly bear in a humorous 2.5D sandbox game set across four biomes: wilderness, campground, city, and mountains. Manage your hunger and thirst as you forage for.</p>
+<a class="play" href="https://horizon.meta.com/world/1324289937441452/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1324289937441452/?hwsh=V0yTLbiFx7</span><span>📘 Facebook: https://horizon.meta.com/world/1324289937441452</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1331701323366980-thumb.jpg" alt="Neon Nostalgia artwork">
+<div class="card-body">
+<h2>Neon Nostalgia</h2>
+<p>Step into Neon Nostalgia, a vibrant 90s arcade where you can play classic mini-games, earn tickets, and win awesome prizes. Explore a large indoor hall filled with 24 playable units, including 20.</p>
+<a class="play" href="https://horizon.meta.com/world/1331701323366980/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1331701323366980/?hwsh=3zG9ceg5I0</span><span>📘 Facebook: https://horizon.meta.com/world/1331701323366980</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1320457987824647-thumb.jpg" alt="Bug City Rampage artwork">
+<div class="card-body">
+<h2>Bug City Rampage</h2>
+<p>You&#x27;re a cockroach on a mission in Bug City Rampage! Run over ants, collect cash and health, and outsmart ladybug cops in a high-energy, top-down adventure. Explore a massive, detailed city, steal.</p>
+<a class="play" href="https://horizon.meta.com/world/1320457987824647/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1320457987824647/?hwsh=yNDrdzyiRi</span><span>📘 Facebook: https://horizon.meta.com/world/1320457987824647</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1330574063479706-thumb.jpg" alt="Rainbow Voxel Voyager artwork">
+<div class="card-body">
+<h2>Rainbow Voxel Voyager</h2>
+<p>Explore an endless rainbow voxel world that generates itself around you! Discover varied terrain, from flat plains to towering mountains and valleys. Walk, sprint, jump, super-jump, and fly through.</p>
+<a class="play" href="https://horizon.meta.com/world/1330574063479706/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1330574063479706/?hwsh=gPkjSGhNzA</span><span>📘 Facebook: https://horizon.meta.com/world/1330574063479706</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1330804200123359-thumb.jpg" alt="Pixel Pioneer&#x27;s Quest artwork">
+<div class="card-body">
+<h2>Pixel Pioneer&#x27;s Quest</h2>
+<p>You find yourself standing at the edge of a blocky world, ready to embark on a pixelated adventure. The ground stretches out before you, punctuated by a lone walker enemy in the distance. As you.</p>
+<a class="play" href="https://horizon.meta.com/world/1330804200123359/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1330804200123359/?hwsh=As5OAcpo3j</span><span>📘 Facebook: https://horizon.meta.com/world/1330804200123359</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1330830820120697-thumb.jpg" alt="Rainbow Rooftop Climb artwork">
+<div class="card-body">
+<h2>Rainbow Rooftop Climb</h2>
+<p>Climb a vibrant rainbow rooftop, solving puzzles to reach the top! You time jumps, land on narrow ledges, and figure out the right angle or sequence. Choose between easy and hard paths at key points.</p>
+<a class="play" href="https://horizon.meta.com/world/1330830820120697/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1330830820120697/?hwsh=S9zYSWpBYU</span><span>📘 Facebook: https://horizon.meta.com/world/1330830820120697</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1327453417125104-thumb.jpg" alt="Harvest Hunt artwork">
+<div class="card-body">
+<h2>Harvest Hunt</h2>
+<p>You find yourself standing at the edge of a spooky autumn mountain as the harvest moon casts an eerie glow over the landscape. As you look around, you notice a variety of creepy creatures lurking in.</p>
+<a class="play" href="https://horizon.meta.com/world/1327453417125104/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1327453417125104/?hwsh=Pzj1xCa98L</span><span>📘 Facebook: https://horizon.meta.com/world/1327453417125104</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1310293252174454-thumb.jpg" alt="Halloween Dungeon Experience artwork">
+<div class="card-body">
+<h2>Halloween Dungeon Experience</h2>
+<p>You find yourself standing in the entrance of a creepy dungeon, the walls made of worn stone bricks and the floors covered in flagstones. As you look around, you notice ten unique Jack-o&#x27;-Lantern.</p>
+<a class="play" href="https://horizon.meta.com/world/1310293252174454/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1310293252174454/?hwsh=C08IaC63Ul</span><span>📘 Facebook: https://horizon.meta.com/world/1310293252174454</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1329569653580147-thumb.jpg" alt="Game Share Hub artwork">
+<div class="card-body">
+<h2>Game Share Hub</h2>
+<p>A cozy 2D hub where you can share and discover games from other creators. Browse games by genre, search for your favorites, and share your own creations with the community. Earn ratings and reviews.</p>
+<a class="play" href="https://horizon.meta.com/world/1329569653580147/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1329569653580147/?hwsh=kh6AIBBo97</span><span>📘 Facebook: https://horizon.meta.com/world/1329569653580147</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1329488710254908-thumb.jpg" alt="Whispering Woods artwork">
+<div class="card-body">
+<h2>Whispering Woods</h2>
+<p>Explore a mystical forest at dusk, collecting 8 handwritten notes to uncover the story of the Tall Watcher, a shy forest guardian. Navigate through a 300x300m forest with varied trees, a cozy cabin.</p>
+<a class="play" href="https://horizon.meta.com/world/1329488710254908/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1329488710254908/?hwsh=M1FrqrXBBT</span><span>📘 Facebook: https://horizon.meta.com/world/1329488710254908</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1329520936918352-thumb.jpg" alt="Canvas Commons artwork">
+<div class="card-body">
+<h2>Canvas Commons</h2>
+<p>Create art in a cozy studio with a 1024x1024 canvas, three painting modes, and a full toolset. Share your work on a live gallery wall and see others&#x27; art. Earn likes, climb leaderboards, and enjoy a.</p>
+<a class="play" href="https://horizon.meta.com/world/1329520936918352/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1329520936918352/?hwsh=r55wD3c57f</span><span>📘 Facebook: https://horizon.meta.com/world/1329520936918352</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1329538870249892-thumb.jpg" alt="The Mural Studio artwork">
+<div class="card-body">
+<h2>The Mural Studio</h2>
+<p>Join THE MURAL STUDIO, a vibrant 3D gallery where you and friends paint a shared 100x100 pixel canvas on a giant 12m x 12m wall. Every player&#x27;s brushstrokes appear in real-time, creating a unique.</p>
+<a class="play" href="https://horizon.meta.com/world/1329538870249892/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1329538870249892/?hwsh=rH4UJeqKcp</span><span>📘 Facebook: https://horizon.meta.com/world/1329538870249892</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1331113336759112-thumb.jpg" alt="Spades Hall artwork">
+<div class="card-body">
+<h2>Spades Hall</h2>
+<p>Play Spades in a grand hall with friends! Sit at one of six tables, each with a different difficulty level, and compete against AI players. Bid on the number of tricks you think you can win, then try.</p>
+<a class="play" href="https://horizon.meta.com/world/1331113336759112/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1331113336759112/?hwsh=cDMrlzVHUj</span><span>📘 Facebook: https://horizon.meta.com/world/1331113336759112</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1322565587613887-thumb.jpg" alt="Spooky Flick Goal artwork">
+<div class="card-body">
+<h2>Spooky Flick Goal</h2>
+<p>You step into the shoes of a mischievous trickster, ready to test your skills in Spooky Flick Goal. Your mission? Flick balls and creepy Halloween objects at a goal guarded by a taunting.</p>
+<a class="play" href="https://horizon.meta.com/world/1322565587613887/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1322565587613887/?hwsh=4TsX9s2yOJ</span><span>📘 Facebook: https://horizon.meta.com/world/1322565587613887</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1318340118036434-thumb.jpg" alt="Phew! Dessert Dodge artwork">
+<div class="card-body">
+<h2>Phew! Dessert Dodge</h2>
+<p>In Phew! Dessert Dodge, you play as a pudding cup at the bottom of a vertical 2D playfield, dodging falling desserts to earn points through near misses. The game rewards grazing desserts closely.</p>
+<a class="play" href="https://horizon.meta.com/world/1318340118036434/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1318340118036434/?hwsh=NWp82KgveE</span><span>📘 Facebook: https://horizon.meta.com/world/1318340118036434</span></div>
+</div>
+</article>
+<article class="card">
+<span class="fav">⭐ My favorite</span><img loading="lazy" src="https://dembenski.github.io/games/1315023071701472-thumb.jpg" alt="Maple Mayhem artwork">
+<div class="card-body">
+<h2>Maple Mayhem</h2>
+<p>A charming Canadian town under a glowing winter skybox - snowy hills, skyscrapers decked in maple leaf decor, folk-fiddle music drifting through the air. Spot the turkeys, gaze to highlight them green, click for a comedic pop/splat! Score points and loot like health-restoring maple crosses, shielding maple-leaf icons, and loonie coins. A gaze-and-click mayhem test of aim and speed!</p>
+<a class="play" href="https://horizon.meta.com/world/1315023071701472/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1315023071701472/?hwsh=A5UJop6Hcc</span><span>📘 Facebook: https://horizon.meta.com/world/1315023071701472</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1328045423732570-thumb.jpg" alt="Pixel Arcade 4-in-1 artwork">
+<div class="card-body">
+<h2>PIXEL ARCADE 4-IN-1</h2>
+<p>A retro arcade cabinet with FOUR sports games in one! <b>Pixel Hoops Showdown</b>: 1v1 hoops vs the CPU - tip-off timing duels, hold-to-aim jump shots, steals, blocks, live rebounds, 4-minute games with buzzer-beater slow-mo. Plus soccer, football, and hockey on the same cabinet. Three difficulties: Rookie, Pro, All-Star. Pick your sport and climb the leaderboard!</p>
+<a class="play" href="https://horizon.meta.com/world/1328045423732570/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1328045423732570/?hwsh=nrQBYNGXBa</span><span>📘 Facebook: https://horizon.meta.com/world/1328045423732570</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1317872578083188-thumb.jpg" alt="City Block Brawl artwork">
+<div class="card-body">
+<h2>City Block Brawl</h2>
+<p>Explore a boundless, procedurally generating Tokyo-scale city with block-shaping guns: precision pistol, rapid-fire rifle, rocket and grenade launchers, plus a portal grappling gun. Score for building or destroying, climb the server-wide leaderboard, and survive night waves for bonus rewards. Hijack helicopters and steal self-driving cars!</p>
+<a class="play" href="https://horizon.meta.com/world/1317872578083188/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1317872578083188/?hwsh=rUTdGQe1xJ</span><span>📘 Facebook: https://horizon.meta.com/world/1317872578083188</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1302622792941500-thumb.jpg" alt="Berry Bliss Mixer artwork">
+<div class="card-body">
+<h2>Berry Bliss Mixer</h2>
+<p>Run a kawaii berry smoothie empire across 5 biomes &mdash; blend 40+ smoothie and mocktail recipes, trade with 8 Radiant-AI shopkeepers, serve picky customers at the farmers market, and befriend 13 animated woodland animals. Just don't let the foxes raid your berry bushes!</p>
+<a class="play" href="https://horizon.meta.com/world/1302622792941500/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1302622792941500/?hwsh=HJEw3XQ1y0</span><span>📘 Facebook: https://horizon.meta.com/world/1302622792941500</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1308773075659805-thumb.jpg" alt="Pumpkin Harvest artwork">
+<div class="card-body">
+<h2>Pumpkin Harvest</h2>
+<p>Explore a vast autumn world with rolling hills, open meadows, and a scenic coastline. Search for pumpkins, collect loot, and replenish health, thirst, and hunger in warm amber light.</p>
+<a class="play" href="https://horizon.meta.com/world/1308773075659805/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1308773075659805/?hwsh=Eq65Pax6d9</span><span>📘 Facebook: https://horizon.meta.com/world/1308773075659805</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1314231911780588-thumb.jpg" alt="Thanksgiving Feast Hall artwork">
+<div class="card-body">
+<h2>Thanksgiving Feast Hall</h2>
+<p>Join a Canadian Thanksgiving celebration in a grand castle dining hall. Talk with friendly characters, enjoy physics-enabled food and drinks, and protect your Thanksgiving Harmony Score—or become a Feast Wrecker.</p>
+<a class="play" href="https://horizon.meta.com/world/1314231911780588/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1314231911780588/?hwsh=iiAIfrxTXz</span><span>📘 Facebook: https://horizon.meta.com/world/1314231911780588</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1303464872857292-thumb.jpg" alt="Godslayer artwork">
+<div class="card-body">
+<h2>Godslayer</h2>
+<p>Fight as an ancient Egyptian god against waves of UFOs and aliens. Unlock gods with unique stats, swap between plasma cannons, ankh blasters, and scarab launchers, and chase the top score through an Afrofuturist cosmic world.</p>
+<a class="play" href="https://horizon.meta.com/world/1303464872857292/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1303464872857292/?hwsh=npHJFMZWvW</span><span>📘 Facebook: https://horizon.meta.com/world/1303464872857292</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1296059836931129-thumb.jpg" alt="Retro Quest artwork">
+<div class="card-body">
+<h2>Retro Quest</h2>
+<p>Explore a multi-room kingdom, battle three dragons with unique speeds, collect treasures, unlock castle gates with keys, and return the golden chalice to the gold castle.</p>
+<a class="play" href="https://horizon.meta.com/world/1296059836931129/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1296059836931129/?hwsh=qRVigkJGeq</span><span>📘 Facebook: https://horizon.meta.com/world/1296059836931129</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1314747011729078-thumb.jpg" alt="NOVA STRIKE artwork">
+<div class="card-body">
+<h2>NOVA STRIKE</h2>
+<p>Pilot a ship through a 3D starfield, avoiding and destroying tumbling asteroids. A wave system increases asteroid speed and numbers over time, while a leaderboard tracks high scores through retro-modern PSX-style graphics and immersive audio.</p>
+<a class="play" href="https://horizon.meta.com/world/1314747011729078/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1314747011729078/?hwsh=j7NOiq7YOr</span><span>📘 Facebook: https://horizon.meta.com/world/1314747011729078</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1290144534189326-thumb.jpg" alt="Mystic Tarot Reader artwork">
+<div class="card-body">
+<h2>Mystic Tarot Reader</h2>
+<p>Choose a Celtic Cross, Three-Card Past/Present/Future, or daily Single Card spread. Shuffle and reveal from a full 78-card deck, with upright and reversed meanings combined into a complete reading.</p>
+<a class="play" href="https://horizon.meta.com/world/1290144534189326/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1290144534189326/?hwsh=ASHKECrhdQ</span><span>📘 Facebook: https://horizon.meta.com/world/1290144534189326</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1286331067904006-thumb.jpg" alt="Food Frenzy artwork">
+<div class="card-body">
+<h2>Food Frenzy</h2>
+<p>Tap food on the conveyor belt to grab and toss it into the big head's mouth. Craveings change fast—be quick for points! Earn more for quality foods, combos, and speed.</p>
+<a class="play" href="https://horizon.meta.com/world/1286331067904006/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1286331067904006/?hwsh=T6le0ywoy1</span><span>📘 Facebook: https://horizon.meta.com/world/1286331067904006</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1298197930050653-thumb.jpg" alt="Spartan Protocol artwork">
+<div class="card-body">
+<h2>Spartan Protocol</h2>
+<p>A retro-modern top-down action game set across a vast rocky ring-world. Explore alien architecture, use cover, fight enemy waves, swap weapons, and track shields, health, ammo, and nearby threats on the HUD.</p>
+<a class="play" href="https://horizon.meta.com/world/1298197930050653/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1298197930050653/?hwsh=MaU9emEB11</span><span>📘 Facebook: https://horizon.meta.com/world/1298197930050653</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1281788891691557-thumb.jpg" alt="Emu Frenzy artwork">
+<div class="card-body">
+<h2>Emu Frenzy</h2>
+<p>Sprint across the sun-baked Australian outback as a chunky, blue-scarf chibi emu, dodging rocks and tumbleweeds on a winding pseudo-3D road. Steer with a virtual joystick as the speed climbs and the landscape blurs by.</p>
+<a class="play" href="https://horizon.meta.com/world/1281788891691557/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1281788891691557/?hwsh=5LxXmbQdgq</span><span>📘 Facebook: https://horizon.meta.com/world/1281788891691557</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1281798875023892-thumb.jpg" alt="Guardian's Grove artwork">
+<div class="card-body">
+<h2>Guardian's Grove</h2>
+<p>In Fae Frenzy, you play as a kawaii magical guardian defending an enchanted grove from endless waves of fantasy creatures. Procedural modifiers make each run unpredictable; collect crystals, choose upgrades, cast spells, and battle creatures on the ground and in the air.</p>
+<a class="play" href="https://horizon.meta.com/world/1281798875023892/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1281798875023892/?hwsh=Zr0TIYD1Vq</span><span>📘 Facebook: https://horizon.meta.com/world/1281798875023892</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1281760405027739-thumb.jpg" alt="Kawaii Frenzy artwork">
+<div class="card-body">
+<h2>Kawaii Frenzy</h2>
+<p>Blast through Candy Castle wielding the &lt;strong>Kawaii Uzi&lt;/strong>—a pink sparkle machine gun that fires eight shots per second. Explore candy-stripe corridors, battle Onigiri Samurai, survive the waves, and chase a high score.</p>
+<a class="play" href="https://horizon.meta.com/world/1281760405027739/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1281760405027739/?hwsh=007EIrcioy</span><span>📘 Facebook: https://horizon.meta.com/world/1281760405027739</span></div>
+</div>
+</article>
+
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1376830552187390-thumb.jpg" alt="HELLBREACH artwork">
+<div class="card-body">
+<h2>HELLBREACH</h2>
+<p>HELLBREACH is a retro raycasting FPS in the spirit of the &#x27;90s classics. Fight through themed zones swarming with 13 original monsters, from shambling horrors to hulking brutes. Every wall, floor and doorway is dressed in rich Freedoom textures for that authentic pixel-dungeon feel. You get 3 hearts and no fail state, just pure run-and-gun fun: explore, blast the swarm, and clear every zone. Single-player, built for quick sessions, big scores and repeat runs. Enter the breach, if you dare today.</p>
+<a class="play" href="https://horizon.meta.com/world/1376830552187390/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1376830552187390/</span><span>📘 Facebook: https://horizon.meta.com/world/1376830552187390</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1148375245032923-thumb.jpg" alt="2D Campfire Chat room artwork">
+<div class="card-body">
+<h2>2D Campfire Chat room</h2>
+<p>Large forest map with a campfirre, 2D top view with a chat window</p>
+<a class="play" href="https://horizon.meta.com/world/1148375245032923/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1148375245032923/</span><span>📘 Facebook: https://horizon.meta.com/world/1148375245032923</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1150538321483282-thumb.jpg" alt="2D School artwork">
+<div class="card-body">
+<h2>2D School</h2>
+<p>2D chat room set in a school with mini games.</p>
+<a class="play" href="https://horizon.meta.com/world/1150538321483282/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1150538321483282/</span><span>📘 Facebook: https://horizon.meta.com/world/1150538321483282</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1145213018682479-thumb.jpg" alt="Canada Day Chat Room artwork">
+<div class="card-body">
+<h2>Canada Day Chat Room</h2>
+<p>Come hangout in a 2D chatroom</p>
+<a class="play" href="https://horizon.meta.com/world/1145213018682479/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1145213018682479/</span><span>📘 Facebook: https://horizon.meta.com/world/1145213018682479</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/1369251962945249-thumb.jpg" alt="Christmas 2026 experience artwork">
+<div class="card-body">
+<h2>Christmas 2026 experience</h2>
+<p>You stand in an empty canvas, ready to build your dream world from scratch. With a clean slate, the possibilities are endless. What will you create first? Will you craft a thrilling adventure, a puzzle to solve, or a world to explore? The choice is yours.</p>
+<a class="play" href="https://horizon.meta.com/world/1369251962945249/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/1369251962945249/</span><span>📘 Facebook: https://horizon.meta.com/world/1369251962945249</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/36458342080419531-thumb.jpg" alt="Deep Fried Defense artwork">
+<div class="card-body">
+<h2>Deep Fried Defense</h2>
+<p>A tower defense game protect a bucket of chicken against pests, collect coins shop for better weapons</p>
+<a class="play" href="https://horizon.meta.com/world/36458342080419531/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/36458342080419531/</span><span>📘 Facebook: https://horizon.meta.com/world/36458342080419531</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/26194587196890753-thumb.jpg" alt="Donut Chomper artwork">
+<div class="card-body">
+<h2>Donut Chomper</h2>
+<p>Collect pink donuts avoid the black and green ones</p>
+<a class="play" href="https://horizon.meta.com/world/26194587196890753/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/26194587196890753/</span><span>📘 Facebook: https://horizon.meta.com/world/26194587196890753</span></div>
+</div>
+</article>
+<article class="card">
+<img loading="lazy" src="https://dembenski.github.io/games/26879417225031475-thumb.jpg" alt="NightmareMaze 2.5D Retro Shooter artwork">
+<div class="card-body">
+<h2>NightmareMaze 2.5D Retro Shooter</h2>
+<p>A Horizon Studio game, I pushed the 2D generator to make a 2.5D fake 3D game similar to games on the Super Nintendo FX chip</p>
+<a class="play" href="https://horizon.meta.com/world/26879417225031475/" target="_blank" rel="noopener">Play in Horizon</a>
+<div class="cplinks"><b>📋 Copy &amp; paste:</b><span>📱 Meta app: https://horizon.meta.com/world/26879417225031475/?hwsh=POW7wr12RO</span><span>📘 Facebook: https://horizon.meta.com/world/26879417225031475</span></div>
+</div>
+</article>
+</main>
+<section class="morelinks">
+<h2>🎮 More games</h2>
+<p class="sub">Smaller games &amp; 2D experiments — copy &amp; paste a link to play!</p>
+<div class="mggrid">
+<div class="mg"><h3>NightmareMaze 2.5D Retro Shooter</h3><p>📱 Meta app: <span>https://horizon.meta.com/world/26879417225031475/?hwsh=POW7wr12RO</span><br>📘 Facebook: <span>https://horizon.meta.com/world/26879417225031475</span></p></div>
+</div>
+</section>
+
+<section class="reel" style="max-width:900px;margin:3em auto 1em;padding:0 1em;text-align:center;">
+<h2 style="font-size:1.8em;margin-bottom:0.3em;">🎬 Watch the sizzle reel</h2>
+<p style="opacity:0.85;margin-bottom:1em;">62 seconds. 11 games. One very busy builder.</p>
+<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/reel/DemJcHcDnpm/" data-instgrm-version="14" style="background:#fff;border:0;border-radius:12px;margin:1em auto;max-width:540px;padding:0;width:100%;"><a href="https://www.instagram.com/reel/DemJcHcDnpm/" target="_blank" rel="noopener">Watch the 8bitvap0r sizzle reel on Instagram</a></blockquote>
+</section>
+<script async src="//www.instagram.com/embed.js"></script>
+<footer>
+<p>All games play in the <a href="https://horizon.meta.com" target="_blank" rel="noopener">Meta Horizon app</a> - free on the App Store and Google Play.<br>Made by Michael Dembenski &amp; Bit</p>
+</footer>
+</body>
+</html>
