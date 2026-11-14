@@ -180,7 +180,7 @@
       <button class="mode-btn" id="moveModeBtn">🦍 Move</button>
       <button class="mode-btn" id="flyModeBtn">🪶 Fly</button>
     </div>
-    <div class="ai-hint">Build: place &amp; move blocks. Move: pull to walk, push down to jump, grab blocks to climb. Fly: soar above the map — WASD to steer, Space up, C down.</div>
+    <div class="ai-hint">Build: place &amp; move blocks. Move: pull to walk, swing palms down to glide, push down to jump, grab blocks to climb. Fly: soar above the map — WASD to steer, Space up, C down, Q/E rotate, fly through walls.</div>
   </div>
   <div>
     <h3>Help</h3>
@@ -205,6 +205,7 @@
   <a href="https://8bitvapor.itch.io/" target="_blank" rel="noopener">itch.io</a> ·
   <a href="https://codepen.io/Michael-Dembenski" target="_blank" rel="noopener">CodePen</a> ·
   <a href="https://github.com/dembenski" target="_blank" rel="noopener">GitHub</a> ·
+  <a href="https://contra.com/michael_dembenski_vi99zv4l/about" target="_blank" rel="noopener">Contra</a> ·
   <a href="https://horizon.meta.com/profile/8bitvap0r/" target="_blank" rel="noopener">Horizon Worlds</a> ·
   <a href="https://dembenski.github.io/games/" target="_blank" rel="noopener">Games Hub</a>
 </div>
@@ -551,6 +552,7 @@ const HOWTO_SECTIONS = [
   ] },
   { title: '🦍 Move mode (Gorilla Tag style)', lines: [
     ['Open palms + push the ground', 'walk gorilla-style — no pinching, no walking'],
+    ['Swing an open palm DOWN', 'push-off — glide forward without dragging'],
     ['Pinch empty space / ground + pull', 'drag yourself through the world'],
     ['Push down with BOTH hands', 'jump!'],
     ['Grab a block above you + pull down', 'climb up onto it'],
@@ -561,6 +563,7 @@ const HOWTO_SECTIONS = [
     ['Open palm + push', 'thrust — push down to rise, push back to fly forward'],
     ['Pinch-drag empty space', 'steer while flying'],
     ['Two-hand pinch', 'zoom out — see the whole map from above'],
+    ['Fly through walls', 'no collision while flying — pass straight through blocks'],
     ['🪶 Fly again', 'land back on the ground'],
   ] },
   { title: '🪟 Panels + moving without walking', lines: [
@@ -574,7 +577,8 @@ const HOWTO_SECTIONS = [
     ['Keys 1–6', 'switch tools'],
     ['Click a block', 'use the tool • Click Buddy, then the ground, to walk him'],
     ['Drag / scroll', 'orbit the camera / zoom'],
-    ['W A S D + Space (Move) • F (Fly)', 'walk • jump • fly (Space up, C down)'],
+    ['W A S D + Space (Move) • F (Fly) • Q / E', 'walk • jump • fly (Space up, C down) • rotate the world — a Bluetooth keyboard works in AR too'],
+    ['Touch controllers in AR', 'left stick walks • right stick turns • A/X jumps • B/Y toggles Fly'],
   ] },
 ];
 function renderHowto() {
@@ -1215,9 +1219,14 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
-  // Move mode (desktop): WASD / arrows walk, Space jumps. Building keys stay live otherwise.
+  // Move mode: WASD / arrows walk, Space jumps. Building keys stay live otherwise.
+  // v6 Part 2 — inside an immersive-ar session a Bluetooth keyboard is a
+  // first-class input in ANY mode (Build included): WASD walks there too,
+  // because in the headset there is no mouse to fall back on.
   if (state.mode === 'move') {
     if (e.key === ' ') { doJump(); e.preventDefault(); return; }
+  }
+  if (state.mode === 'move' || XR.session) {
     if (['w', 'W', 'a', 'A', 's', 'S', 'd', 'D', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       moveKeys.add(e.code);
       e.preventDefault();
@@ -1228,6 +1237,9 @@ window.addEventListener('keydown', (e) => {
   if (idx >= 0) { setTool(TOOLS[idx]); return; }
   if (e.key === 'Escape') { selectEntry(null); disarmShape(); if (char) char.selected = false; return; }
   if (e.key === 'f' || e.key === 'F') { toggleFly(); return; }
+  // v6 Part 2 — Q / E rotate the world (45°/s), any mode, desktop or in AR.
+  if (e.key === 'q' || e.key === 'Q') { moveKeys.add('KeyQ'); e.preventDefault(); return; }
+  if (e.key === 'e' || e.key === 'E') { moveKeys.add('KeyE'); e.preventDefault(); return; }
   if (state.tool === 'stretch' && selected) {
     const step = 0.1;
     const bump = (id, d) => {
@@ -1338,7 +1350,7 @@ document.getElementById('charBtn').addEventListener('click', () => {
 });
 
 document.getElementById('helpBtn').addEventListener('click', () => {
-  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Click Buddy to select him, then click the ground to walk him • Drag Buddy to carry him • 🌄 New terrain makes a fresh world. Quest hands: pinch = use tool • Pinch-hold + move a block = grab & drag • Drag on the ground = walk Buddy (or spin the world if he’s not here yet) • Drag the empty sky = spin the world • Two-hand pinch ANYWHERE = zoom AND rotate (0.1×–5×) • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools • 🔄 Reset view restores 1×, unrotated • 🦍 Move mode: open palms push the ground to walk, pull to walk, push down with both hands to jump, grab a block to climb • Open palm on a block grabs it (Build) — close your hand to drop it • 🪶 Fly (menu or F): open palms thrust, pinch-drag steers, two-hand pinch zooms out to see the whole map • ❓ How to play shows every control.', 12000);
+  toast('Desktop: keys 1–6 tools • Click a block to use it • Drag orbits, scroll zooms • Click Buddy to select him, then click the ground to walk him • Drag Buddy to carry him • 🌄 New terrain makes a fresh world. Quest hands: pinch = use tool • Pinch-hold + move a block = grab & drag • Drag on the ground = walk Buddy (or spin the world if he’s not here yet) • Drag the empty sky = spin the world • Two-hand pinch ANYWHERE = zoom AND rotate (0.1×–5×) • Pinch + flick out = explode • Pinch + pull in = implode • Pinch the floating toolbar to switch tools • 🔄 Reset view restores 1×, unrotated • 🦍 Move mode: open palms push the ground to walk, swing a palm down to glide forward, pull to walk, push down with both hands to jump, grab a block to climb • Open palm on a block grabs it (Build) — close your hand to drop it • 🪶 Fly (menu or F): open palms thrust, pinch-drag steers, two-hand pinch zooms out to see the whole map, fly straight through walls — no collision • ⌨️ Bluetooth keyboard works in AR too: WASD walk, Space up / C down while flying, F fly, Q/E rotate • 🎮 Touch controllers: left stick walks, right stick turns, A jumps, B toggles fly • ❓ How to play shows every control.', 12000);
 });
 document.getElementById('howtoBtn').addEventListener('click', () => toggleHowtoPanel());
 document.getElementById('howtoClose').addEventListener('click', () => toggleHowtoPanel(false));
@@ -1471,10 +1483,16 @@ updateStatus();
 //   🦍 Move mode .......................... pull empty space/ground to walk,
 //                                           push down with both hands to jump,
 //                                           grab a block above + pull down to climb,
-//                                           OPEN PALMS push to walk instead
+//                                           OPEN PALMS push to walk instead,
+//                                           swing an open palm DOWN = push-off glide forward
 //   🪶 Fly mode ........................... open palm + push = thrust,
 //                                           pinch-drag empty space = steer,
-//                                           two-hand pinch = zoom out + see it all
+//                                           two-hand pinch = zoom out + see it all,
+//                                           fly THROUGH walls (noclip — no collision)
+//   🎮 Touch controllers .................. left stick walks, right stick turns,
+//                                           A/X jumps, B/Y toggles Fly (hands untouched)
+//   ⌨️ Bluetooth keyboard in AR ........... WASD walks (any mode), Space up / C down
+//                                           while flying, F toggles Fly, Q/E rotate
 //   ❓ How to play (toolbar) .............. readable in-AR panel of every control
 //   🔄 Reset view (toolbar / side panel) .. zoom 1×, rotation 0, position centred
 // ============================================================
@@ -1491,6 +1509,11 @@ const PALM_GRAB_DIST = 1.2;  // metres: ray-hit distance for an open palm to gra
 const PALM_GRAB_STILL = 0.3; // m/s: an open palm must be this still to grab a block (a deliberate hold, not a wave)
 const FLY_MIN_Y = 0.5, FLY_MAX_Y = 20; // fly hover height range (local units above the terrain)
 const FLY_START_Y = 2;     // hover height when Fly turns on
+// v6 Part 2 — locomotion
+const ARM_SWING_PUSH = 0.8;   // downward open-palm swing -> forward glide gain (Gorilla Tag push-off)
+const ARM_SWING_MIN_VEL = -0.5; // m/s: the palm must be swinging down this fast for the push-off (filters drift)
+const GAMEPAD_DEADZONE = 0.15; // thumbstick dead zone (Quest Touch controllers)
+const GAMEPAD_MOVE_SPEED = 3;  // m/s: controller thumbstick pace (brisker than the 1.5 m/s walk)
 
 const XR = {
   supported: null,
@@ -1567,10 +1590,18 @@ function playerGroundY(x, z) {
   }
   return g;
 }
+// v6 Part 2 — Fly noclip: while flying, the ground is the TERRAIN only.
+// playerGroundY counts block tops (standing on a tower), so a flyer moving
+// into a wall would pop up onto its top instead of passing through it.
+// With terrain-only ground the flyer keeps a constant height and flies
+// straight through blocks and walls — true noclip, Horizon creator style.
+function flyGroundY(x, z) {
+  return terrainHeight(Math.round(x), Math.round(z)) + 0.5;
+}
 function playerSceneOffset() {
   // the player's local position, mapped into scene space through the world transform
-  const h = playerGroundY(player.x, player.z);
-  const h0 = playerGroundY(0, 0);
+  const h = state.fly ? flyGroundY(player.x, player.z) : playerGroundY(player.x, player.z);
+  const h0 = state.fly ? flyGroundY(0, 0) : playerGroundY(0, 0);
   const local = new THREE.Vector3(player.x, (h + player.flyY + player.climbOffset + player.jumpY) - h0, player.z);
   return local.applyEuler(worldGroup.rotation).multiplyScalar(XR.worldScale);
 }
@@ -1610,6 +1641,22 @@ function applyMoveDrag(hand) {
   const lz = (-d.x * sin + d.z * cos) / XR.worldScale;
   player.x -= lx;
   player.z -= lz;
+  // v6 Part 2 — arm-swing push-off (open palms only, never pinch-drags):
+  // swinging an open palm DOWN pushes you forward, like pushing off the
+  // ground in Gorilla Tag. A seated player can glide by pumping their arms
+  // instead of dragging the world 1:1. Only a deliberate downward swing
+  // counts (hand.vel.y < -0.5 m/s) — a slow drift down is just a drag, not
+  // a swing. The vertical motion is free for this: the drag above only
+  // uses d.x / d.z.
+  if (hand.mode === 'palm-move' && d.y < 0 && hand.vel && hand.vel.y < ARM_SWING_MIN_VEL) {
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd); fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+    fwd.normalize();
+    const push = -d.y * ARM_SWING_PUSH / XR.worldScale;
+    player.x += fwd.x * push;
+    player.z += fwd.z * push;
+  }
   clampPlayer();
   setWorldTransform();
 }
@@ -1636,8 +1683,10 @@ function updatePlayer(dt) {
   if (!climbing && player.climbOffset > 0) {
     player.climbOffset = Math.max(0, player.climbOffset - dt * 2);
   }
-  // desktop WASD / arrows (Move mode — or Fly, which steers the same way)
-  if ((state.mode === 'move' || state.fly) && moveKeys.size) {
+  // WASD / arrows (Move mode — or Fly, which steers the same way — or any
+  // mode inside an immersive-ar session, where a Bluetooth keyboard is the
+  // movement input: see the keydown handler)
+  if ((state.mode === 'move' || state.fly || XR.session) && moveKeys.size) {
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd); fwd.y = 0;
     if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
@@ -1662,6 +1711,9 @@ function updatePlayer(dt) {
     if (moveKeys.has('Space')) player.flyY = THREE.MathUtils.clamp(player.flyY + 3 * dt, FLY_MIN_Y, FLY_MAX_Y);
     if (moveKeys.has('KeyC')) player.flyY = THREE.MathUtils.clamp(player.flyY - 3 * dt, FLY_MIN_Y, FLY_MAX_Y);
   }
+  // v6 Part 2 — Q / E rotate the world (45°/s), any mode, desktop or in AR
+  if (moveKeys.has('KeyQ')) XR.worldYaw += 0.785 * dt;
+  if (moveKeys.has('KeyE')) XR.worldYaw -= 0.785 * dt;
   // v6 — floating Move-pad buttons: hold = move without walking (any mode,
   // seated). Directions are camera-relative; vertical only while flying.
   // Speeds are scene metres per second (1.5 walk, 3 fly), converted to
@@ -1700,7 +1752,57 @@ function updatePlayer(dt) {
     if (XR.moveHeld.has('rotl')) XR.worldYaw += 0.785 * dt;
     if (XR.moveHeld.has('rotr')) XR.worldYaw -= 0.785 * dt;
   }
-  if (state.mode === 'move' || state.fly || player.jumpY > 0 || player.climbOffset > 0 || XR.moveHeld.size > 0) setWorldTransform();
+  // v6 Part 2 — Touch controllers (Gamepad API), polled every frame while a
+  // session is live — see updateGamepads below.
+  const gpMoved = updateGamepads(dt);
+  if (state.mode === 'move' || state.fly || player.jumpY > 0 || player.climbOffset > 0 || XR.moveHeld.size > 0 || gpMoved || moveKeys.has('KeyQ') || moveKeys.has('KeyE')) setWorldTransform();
+}
+// v6 Part 2 — Touch controllers (Gamepad API): if the Quest has controllers
+// paired, their inputSources carry a `gamepad`. Left thumbstick = walk
+// (camera-relative, 3 m/s), right-stick X = turn, A/X = jump (Move mode),
+// B/Y = toggle Fly. Hand tracking is untouched: controller sources have no
+// `hand`, hand sources have no `gamepad`, and this only READS input — it
+// never writes hand state. Called from updatePlayer every frame; returns
+// true when it moved the player or the world (so the transform refreshes).
+const gamepadPrev = new WeakMap();
+function updateGamepads(dt) {
+  const session = XR.session;
+  if (!session || !session.inputSources || !dt || dt <= 0) return false;
+  let moved = false;
+  for (const src of session.inputSources) {
+    const gp = src.gamepad;
+    if (!gp || !gp.axes) continue;
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    if (Math.hypot(ax, ay) > GAMEPAD_DEADZONE) {
+      const fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd); fwd.y = 0;
+      if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+      fwd.normalize();
+      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+      const mv = new THREE.Vector3().addScaledVector(fwd, -ay).addScaledVector(right, ax);
+      if (mv.lengthSq() > 0) {
+        mv.normalize().multiplyScalar(GAMEPAD_MOVE_SPEED * dt);
+        const yaw = XR.worldYaw;
+        const cos = Math.cos(yaw), sin = Math.sin(yaw);
+        player.x += (mv.x * cos + mv.z * sin) / XR.worldScale;
+        player.z += (-mv.x * sin + mv.z * cos) / XR.worldScale;
+        clampPlayer();
+        moved = true;
+      }
+    }
+    const rx = gp.axes[2] || 0;
+    if (Math.abs(rx) > GAMEPAD_DEADZONE) { XR.worldYaw -= rx * 0.785 * dt; moved = true; }
+    // buttons: [4] = A/X (jump), [5] = B/Y (toggle fly) — edge-triggered,
+    // one action per press, never a repeat while held
+    const b = gp.buttons || [];
+    const prev = gamepadPrev.get(src) || { jump: false, fly: false };
+    const jumpDown = !!(b[4] && b[4].pressed);
+    const flyDown = !!(b[5] && b[5].pressed);
+    if (jumpDown && !prev.jump && state.mode === 'move' && !state.fly) doJump();
+    if (flyDown && !prev.fly) setFly();
+    gamepadPrev.set(src, { jump: jumpDown, fly: flyDown });
+  }
+  return moved;
 }
 function resetView() {
   XR.worldYaw = 0; XR.worldTilt = 0; XR.worldScale = 1;
@@ -1767,8 +1869,15 @@ function setFly(on) {
     if (h.mode === 'ui-hold' || h.mode === 'panel-drag' || h.mode === 'panel-scale') continue;
     cancelGrab(h); h.mode = null; h.pinching = false;
   }
+  // v6 Part 2 — noclip: fly height is measured from the TERRAIN, not from
+  // whatever block you're standing on. Preserve your absolute height when
+  // Fly turns on, so toggling it atop a tower doesn't drop you.
+  const groundBefore = playerGroundY(player.x, player.z);
+  const terrainBefore = terrainHeight(Math.round(player.x), Math.round(player.z)) + 0.5;
   state.fly = next;
-  player.flyY = next ? FLY_START_Y : 0;
+  player.flyY = next
+    ? THREE.MathUtils.clamp(FLY_START_Y + (groundBefore - terrainBefore), FLY_MIN_Y, FLY_MAX_Y)
+    : 0;
   if (!next) { player.jumpY = 0; player.vy = 0; player.grounded = true; }
   setWorldTransform();
   updateStatus();
@@ -1795,6 +1904,13 @@ function setWorldTransform() {
   worldGroup.rotation.set(XR.worldTilt, XR.worldYaw, 0);
   worldGroup.scale.setScalar(XR.worldScale);
   worldGroup.position.copy(XR.anchorPos).sub(playerSceneOffset());
+  // v6.2 — refresh the matrices NOW, not on the next render: a pinch right
+  // after a reset/zoom/rotate (or a test raycast in the same frame) would
+  // otherwise hit every block at its PRE-transform position — the seed-
+  // dependent flake that failed tests 17/18/20 (a grass block from the old
+  // rotated world intercepted the ray before the target stone). The render
+  // loop refreshes them anyway; this just makes the same-frame pick true.
+  worldGroup.updateMatrixWorld(true);
 }
 
 const xrBtn = document.getElementById('xrBtn');
@@ -2056,6 +2172,10 @@ function toggleXRHowto(open) {
   // strip, so the whole panel stays tappable (the strip sits ~14° below eye level)
   group.lookAt(pos.x, group.position.y, pos.z);
   scene.add(group);
+  // v6.2 — the panel is pickable the instant it opens: its matrixWorld is
+  // identity until the next render, so a fast tap right after Help would
+  // raycast it at the origin and miss (the test-21 flake: pick=null).
+  group.updateMatrixWorld(true);
   XR.howtoPanel = group;
   XR.lastAction = { type: 'howto', open: true };
   return true;
@@ -2680,8 +2800,8 @@ function dispatchMenuAction(action) {
 const COACH_STEPS = [
   ['1', 'Pinch to place a block · ☰ Menu has everything'],
   ['2', 'Pinch with BOTH hands to zoom the map in & out'],
-  ['3', 'Open palms push to move · open palm on a block grabs it'],
-  ['4', '🪶 Fly (in the menu) soars you above the whole map'],
+  ['3', 'Open palms push to move · swing one down to glide forward'],
+  ['4', '🪶 Fly soars above the map · flies straight THROUGH walls'],
   ['5', 'Drag panels by the header · hold 🎮 arrows to move!'],
 ];
 function makeCoachTexture() {
@@ -2971,6 +3091,10 @@ function xrPick(ray) {
     }
   }
   if (XR.howtoPanel) {
+    // v6.2 — same as the UI groups above: the panel follows the headset
+    // every frame, so its matrices are stale between renders; refresh them
+    // or a tap lands on where the panel WAS, not where it is.
+    XR.howtoPanel.updateMatrixWorld(true);
     const hp = xrRaycaster.intersectObjects(XR.howtoPanel.children, false);
     if (hp.length) consider('howto-panel', hp[0].distance, { hit: hp[0] });
   }
@@ -3744,7 +3868,7 @@ function setView(px, py, pz, tx, ty, tz) {
 }
 window.__setView = setView;
 window.__bv = {
-  version: '5.0',
+  version: '6.0',
   ready: true,
   blockCount: () => countBlocks(),
   groundCount: () => { let n = 0; for (const e of new Set(blocks.values())) if (e.ground) n++; return n; },
@@ -3770,6 +3894,20 @@ window.__bv = {
   resetView: () => resetView(),
   playerState: () => ({ x: player.x, z: player.z, jumpY: player.jumpY, grounded: player.grounded, climbOffset: player.climbOffset, groundY: playerGroundY(player.x, player.z), mode: state.mode }),
   playerGroundYAt: (x, z) => playerGroundY(x, z),
+  // v6 Part 2 — fly height above the terrain at the player's column, and the
+  // player's scene-space offset (for the noclip test: it must stay constant
+  // while flying through a wall, even as the block-aware ground jumps)
+  sceneOffset: () => playerSceneOffset().toArray(),
+  // NOTE: terrainHeight needs INTEGER cell coords (it keys the block map
+  // directly) — round here like flyGroundY does, or a floating player
+  // position reads -1 and the invariant swings by the whole terrain range.
+  terrainYAt: (x, z) => terrainHeight(Math.round(x), Math.round(z)) + 0.5,
+  // v6 Part 2 — drive the keyboard handler synthetically (headless tests):
+  // dispatches a real KeyboardEvent on window, returns the live moveKeys
+  key: (code, key, down) => {
+    window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key, bubbles: true }));
+    return [...moveKeys];
+  },
   setPlayer: (x, z) => {
     player.x = THREE.MathUtils.clamp(x, -HALF + 1, HALF - 1);
     player.z = THREE.MathUtils.clamp(z, -HALF + 1, HALF - 1);
@@ -3910,6 +4048,50 @@ window.__bv = {
             pos: h.object.position.toArray(),
             point: h.point.toArray(),
           })),
+        };
+      },
+      // v6.2: the world transform as the ray sees it — the missing piece when
+      // a vertical ray hits a block from a neighbouring column (tilt/yaw/
+      // scale/anchor drift after a spin or zoom, so the ray is diagonal in
+      // local space and strikes a cliff side before the target)
+      worldState: () => ({
+        pos: worldGroup.position.toArray(),
+        rot: [worldGroup.rotation.x, worldGroup.rotation.y, worldGroup.rotation.z],
+        scale: worldGroup.scale.x,
+        yaw: XR.worldYaw, tilt: XR.worldTilt, wscale: XR.worldScale,
+        anchor: XR.anchorPos.toArray(),
+        player: { x: player.x, z: player.z },
+      }),
+      // v6.2: the pick the last pinch actually made (kind/dist/cell/button) —
+      // the one-line answer when a ray test fails: what did the ray hit?
+      lastPick: hand => {
+        const h = XR.hands[hand];
+        const p = h && h.pick;
+        if (!p) return null;
+        // coordinates only: the cell carries the whole entry (mesh, circular
+        // refs) and page.evaluate cannot serialize it — the whole pick
+        // came back undefined until the cell was stripped down
+        const c = p.cell ? { x: p.cell.x, y: p.cell.y, z: p.cell.z } : null;
+        return { kind: p.kind, dist: p.dist, cell: c, button: p.button || null, action: p.action || null, panel: p.panel || null };
+      },
+      // v6.2: world positions + visibility of everything xrPick can hit, so a
+      // flaky ray test can show whether a panel/reticle stole the pick
+      uiPositions: () => {
+        const wp = g => {
+          if (!g) return null;
+          const p = new THREE.Vector3();
+          g.getWorldPosition(p);
+          return p.toArray();
+        };
+        const rp = XR.reticle ? (() => { const p = new THREE.Vector3(); XR.reticle.getWorldPosition(p); return p.toArray(); })() : null;
+        return {
+          toolbar: wp(XR.toolbar), toolbarVisible: !!XR.toolbar && XR.toolbar.visible !== false,
+          menu: wp(XR.menu), menuVisible: !!XR.menu && XR.menu.visible !== false,
+          movepad: wp(XR.movepad), movepadVisible: !!XR.movepad && XR.movepad.visible !== false,
+          coach: wp(XR.coach), coachVisible: !!XR.coach && XR.coach.visible !== false,
+          howto: wp(XR.howtoPanel), howtoVisible: !!XR.howtoPanel && XR.howtoPanel.visible !== false,
+          reticle: rp, reticleVisible: !!XR.reticle && XR.reticle.visible,
+          headPos: XR.headPos.toArray(),
         };
       },
       handState: hand => { const h = XR.hands[hand]; return h ? { pinching: h.pinching, mode: h.mode, palmOpen: !!h.palmOpen } : null; },
@@ -4150,6 +4332,39 @@ window.__bv = {
       },
       coachSteps: () => COACH_STEPS.map(s => s[1]),
       howtoTitles: () => HOWTO_SECTIONS.map(s => s.title),
+      // v6 Part 2 — the lines of one HOWTO section, for content checks
+      howtoLines: (title) => {
+        const s = HOWTO_SECTIONS.find(s => s.title === title);
+        return s ? s.lines.map(l => l.join(' — ')) : [];
+      },
+      // v6 Part 2 — Touch controllers: inject a fake gamepad inputSource
+      // into the (fake) session and mutate it, for headless gamepad tests.
+      // buttons is an array of booleans (pressed) — index 4 = A/X (jump),
+      // index 5 = B/Y (toggle fly). Returns the source index.
+      injectGamepad: (handedness, axes, buttons) => {
+        if (!XR.session) XR.session = { inputSources: [], end: () => onXRSessionEnd() };
+        const src = { handedness, gamepad: { axes: [...(axes || [])], buttons: (buttons || []).map(p => ({ pressed: !!p })) } };
+        XR.session.inputSources.push(src);
+        return XR.session.inputSources.length - 1;
+      },
+      setGamepad: (i, axes, buttons) => {
+        const s = XR.session && XR.session.inputSources[i];
+        if (!s || !s.gamepad) return false;
+        s.gamepad.axes = [...(axes || [])];
+        s.gamepad.buttons = (buttons || []).map(p => ({ pressed: !!p }));
+        return true;
+      },
+      clearGamepads: () => {
+        if (XR.session) XR.session.inputSources = XR.session.inputSources.filter(s => !s.gamepad);
+        return true;
+      },
+      // v6 Part 2 — a hand inputSource (no gamepad): the controller poll
+      // must ignore it completely
+      injectHandSource: (handedness) => {
+        if (!XR.session) XR.session = { inputSources: [], end: () => onXRSessionEnd() };
+        XR.session.inputSources.push({ handedness, hand: {} });
+        return XR.session.inputSources.length - 1;
+      },
     },
   },
 };
